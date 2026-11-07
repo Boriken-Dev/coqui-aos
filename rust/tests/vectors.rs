@@ -62,7 +62,8 @@ fn reading() {
             compare(got, &case["expect"])
         },
         |case| {
-            (case["format"] == "catalog").then_some("catalogs are read by catalog.json's runner")
+            (case["format"] == "catalog")
+                .then_some("the Store class: catalogs are not read by this crate yet")
         },
     );
 }
