@@ -13,7 +13,7 @@ class Error(Exception): class_: Class; subject: str; line: int | None; column: i
 class Class(str, Enum)       # every class the vectors name; Class.named(word) -> Class | None
 ```
 
-`class_` is the contract (`Class.DUPLICATE_KEY == "duplicate-key"`); `subject` names what it is about (a variable, a path, a pointer) for a person, never text from a document, so do not match on it. `line` and `column` are one-based, `column` counts code points. Nothing but `Error` leaves a reader on hostile input; `PartialLock` and `Cycle` are the structures the vectors expect for those two refusals (`PartialLock` is an `Error`), and `HookError` carries a `HookFailure`.
+`class_` is the contract (`Class.DUPLICATE_KEY == "duplicate-key"`); `subject` names what it is about (a variable, a path, a pointer) for a person, never text from a document, so do not match on it. `line` and `column` are one-based, `column` counts code points. A subject is escaped (control, format and line-separator characters as `\x..`/`\u....`) and cut at 256 characters, and holds no text from a document or a parser's or the operating system's message. Nothing but `Error` leaves a reader on hostile input; `PartialLock` and `Cycle` (with `.chain`, the whole loop) are `Error` subclasses, and `HookError` carries a `HookFailure`.
 
 Closed sets are `str` enums (`Runtime`, `Format`, `ManifestFile`, `Case`, `SplitCase`, `Change`, `Phase`, `LeftState`, `FailStep`, `NonDefaultId`, `HookEvent`, `HookFailure`, `Decision`, `OnFailure`, `HookScope`, `PlannedOrigin`, `CatalogForm`, `IconFormat`, `EntryRefusal`, `SourceKind`, `EntryKind`, `FileKind`): a member equals its word. `to_data(value)` turns any result (dataclass, named tuple, enum) into plain JSON data, the shape the vectors write.
 
@@ -79,7 +79,7 @@ dependencies_of(manifest, tree, os) -> list[Dependency]   # PartialLock;  check_
 setup_phase(change, recorded, digest) -> Phase | None;  preparation(...) -> Preparation;  environments(overlays, active, trees, os, removed) -> Environments
 ```
 
-An `Environment` never lets a placeholder read a variable that holds a resolved secret. Substitution refuses `too-large`, `too-deep` and `too-complex` past `substitution_*` and never quotes a placeholder's variable or pattern. `effective` and `apply_overlay` raise `Error`; the reports (`unpinned`, `env-sensitive`, ...) are ids and subjects, never values.
+`effective` and `apply_overlay` also refuse (`schema`, naming the field) an environment variable name that is no name and a path that leaves the overlay, whatever `validate` was asked. An `Environment` never lets a placeholder read a variable that holds a resolved secret. Substitution refuses `too-large`, `too-deep` and `too-complex` past `substitution_*` and never quotes a placeholder's variable or pattern. `effective` and `apply_overlay` raise `Error`; the reports (`unpinned`, `env-sensitive`, ...) are ids and subjects, never values.
 
 ## Catalogs, icons, skills from elsewhere
 
@@ -88,11 +88,11 @@ read_catalog(data, name, base=None, settings=None) -> Catalog;  read_catalog_doc
 list_catalogs([(label, catalog)]) -> Listing;  Listing.choose(requested) -> ListedEntry   # not-found, ambiguous
 read_icon(data, name, settings=None) -> Icon(format, width, height)
 resolve_skills(overlays, requested, trees, catalogs, order, fetches=True, settings=None) -> SkillPlan   # .to_fetch
-read_fetched_skill(name, files: list[tuple[str, bytes]], pin=None, settings=None) -> FetchedSkill
+read_fetched_skill(name, files: list[tuple[str, bytes]], pin=None, settings=None) -> FetchedSkill   # .digest, .reported, .files
 class SkillSource(Protocol): fetch(source: Source) -> list[tuple[str, bytes]];  fetch_planned(plan, fetcher, settings=None)
 ```
 
-Nothing is fetched here. The core decides what to fetch and checks what the caller's `SkillSource` returned, pin first, so nothing unverified is parsed. A catalog entry's `description` is a stranger's text: do not render it as markup.
+`FetchedSkill.files` are the paths the digest covers: write those and nothing else, since a tree that matches its pin may also carry entries under an excluded name (`node_modules`, `__pycache__`, `*.pyc`, `.git`). Nothing is fetched here. The core decides what to fetch and checks what the caller's `SkillSource` returned, pin first, so nothing unverified is parsed. A catalog entry's `description` is a stranger's text: do not render it as markup.
 
 ## Hooks
 
@@ -108,5 +108,7 @@ Running a hook is the caller's: it builds a `HookRun` from what the process did 
 ## Gotchas
 
 - Equal mapping keys are refused, and a validator names the later of two keys equal under case; documents keep insertion order.
+- A source host is judged the way a client reads it: `127.1`, `2130706433`, `0x7f.0.0.1` and `0177.0.0.1` are loopback, `10.1` and `100.64.0.0/10` are private.
+- A catalog entry's `pin` is kept as written (the vectors keep its case); compare pins through `Digest`.
 - Case folding of identities, variables and sensitivity is ASCII only.
 - The tests read the specification's vectors from `../vectors`, which are not in the sdist.
