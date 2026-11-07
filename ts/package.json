@@ -1,0 +1,48 @@
+{
+  "name": "coqui-aos",
+  "version": "0.0.0-alpha.0",
+  "private": true,
+  "description": "The Agent Overlay Specification (AOS) in pure TypeScript: reading overlays, validating manifests, tree digests, composition and the environment an overlay builds, through a filesystem the caller supplies",
+  "license": "MPL-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Boriken-Dev/coqui-aos.git",
+    "directory": "ts"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
+    }
+  },
+  "files": [
+    "dist",
+    "AGENTS.md",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --test-timeout=300000 \"test/*.test.ts\""
+  },
+  "dependencies": {
+    "@noble/hashes": "2.4.0",
+    "smol-toml": "1.9.1",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2"
+  }
+}
