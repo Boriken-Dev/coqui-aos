@@ -13,6 +13,7 @@ conformance vectors, shared by every implementation, are what keep them alike.
 | Path | Responsibility |
 | --- | --- |
 | `rust/` | the `coqui-aos` crate: the Rust implementation, its tests and its README |
+| `tools/` | `public-api.txt`, the committed public API of the Rust crate |
 | `vectors/` | the specification's conformance vectors, copied byte for byte; `AOS-SOURCE.json` names the commit and each file's digest |
 | `python/`, `ts/`, `dart/` | the other implementations, each pure and each passing the same vectors; not present yet |
 
@@ -27,6 +28,7 @@ cargo test --all-features
 cargo test --no-default-features
 RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
 cargo check --target wasm32-unknown-unknown --no-default-features
+cargo +nightly-2026-09-21 public-api --all-features -sss --color never > ../tools/public-api.txt   # when the API changed
 ```
 
 ## Rules
