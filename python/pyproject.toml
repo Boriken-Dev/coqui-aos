@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "coqui-aos"
+version = "0.0.0a0"
+authors = [{ name = "Boriken Dev" }]
+description = "The Agent Overlay Specification (AOS) in pure Python: reading overlays, validating manifests, tree digests, composition and the environment an overlay builds, through a filesystem the caller supplies"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MPL-2.0"
+license-files = ["LICENSE"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+]
+# Both are pure Python (a py3-none-any wheel); ruamel.yaml's C accelerator is a separate,
+# optional distribution this package never asks for.
+dependencies = [
+    # YAML: the parser's events carry each tag, anchor and alias, which the reader refuses
+    # before anything is expanded.
+    "ruamel.yaml>=0.18.0,<0.20",
+    # TOML: tomllib is the standard library from 3.11.
+    'tomli>=1.1.0,<3; python_version < "3.11"',
+]
+
+[project.optional-dependencies]
+dev = ["black", "build", "pytest"]
+
+[project.urls]
+Homepage = "https://github.com/Boriken-Dev/coqui-aos/"
+Repository = "https://github.com/Boriken-Dev/coqui-aos"
+Issues = "https://github.com/Boriken-Dev/coqui-aos/issues"
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/README.md", "/LICENSE", "/pyproject.toml"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/coqui_aos"]
+exclude = ["*.local.*", "CLAUDE*"]
+
+[tool.black]
+target-version = ["py39"]
+line-length = 110
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
+filterwarnings = ["error"]
+xfail_strict = true
