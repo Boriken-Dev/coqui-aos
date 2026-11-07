@@ -1,0 +1,53 @@
+[package]
+name = "coqui-aos"
+version = "0.0.0-alpha.0"
+description = "The Agent Overlay Specification (AOS) in Rust: reading overlays, validating manifests, tree digests, composition and the environment an overlay builds, through a filesystem trait the caller supplies"
+readme = "README.md"
+edition = "2024"
+rust-version = "1.89"
+license = "MPL-2.0"
+repository = "https://github.com/Boriken-Dev/coqui-aos"
+homepage = "https://boriken-dev.github.io/coqui-aos/"
+keywords = ["aos", "agent", "overlay", "manifest", "configuration"]
+categories = ["config", "parser-implementations"]
+# The tests read the specification's vectors from the repository's `vectors/`, outside the package.
+exclude = [".*", "*.local.*", "/tests/"]
+# Nothing is published until the owner chooses a release.
+publish = false
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+# `std::fs` as a `FileSystem`. The core itself reads nothing: a build for wasm32-unknown-unknown turns this off.
+default = ["fs"]
+fs = []
+
+[dependencies]
+# The settings types describe themselves once, through these derives.
+guatiao = { git = "https://github.com/Boriken-Dev/guatiao", rev = "2877975e72f77e6d02277fafc046238e9d5c9c2f", default-features = false, features = ["derive"] }
+# AOS refuses a YAML tag, anchor, alias, merge key and directive, which only the parser's events show;
+# this is the parser `serde-saphyr` is built on.
+granit-parser = { version = "2", default-features = false, features = ["std"] }
+# Order is kept: a document is read in the order it was written, and a refusal names the later of two
+# equal keys. `preserve_order` is global to a build that holds serde_json.
+serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = { version = "0.10", default-features = false }
+toml = { version = "1", default-features = false, features = ["std", "parse", "serde", "preserve_order"] }
+
+[dev-dependencies]
+# Reading the vectors' base64.
+base64 = "0.22"
+# Directories the tree tests write.
+tempfile = "3"
+
+[lints.rust]
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+unsafe_code = "forbid"
+
+# Reads real directories through `StdFs`.
+[[test]]
+name = "tree"
+required-features = ["fs"]
