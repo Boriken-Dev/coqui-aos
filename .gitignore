@@ -1,0 +1,23 @@
+# Dotfiles are opt-in.
+/.*
+!/.gitignore
+!/.gitattributes
+!/.github/
+
+# Agent config and personal overrides, at any depth.
+.agents
+CLAUDE*
+.claude
+*.local.*
+
+# Build output, per language.
+/rust/target/
+/python/.venv/
+/ts/node_modules/
+/dart/.dart_tool/
+
+# A library does not commit its lockfile.
+/rust/Cargo.lock
+
+# Docs build
+/site/

@@ -1,0 +1,5 @@
+* text=auto eol=lf
+
+# Copied byte for byte from the specification: no line-ending conversion.
+vectors/*.json -text
+vectors/README.md -text
