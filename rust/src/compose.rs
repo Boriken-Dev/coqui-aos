@@ -12,6 +12,7 @@ use super::defaults::{
 use super::error::Error;
 use super::names::{normalize_name, root_variable};
 use super::read::Document;
+use super::skills::{Delivery, Held};
 
 /// A cycle among `requires`, as the chain `a -> b -> a`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -154,8 +155,7 @@ pub fn compose(
         missing: resolution.missing,
         ..Composition::default()
     };
-    let mut winners: BTreeMap<String, (String, String, Held)> = BTreeMap::new();
-    let mut collisions = BTreeSet::new();
+    let mut delivery = Delivery::default();
     for identity in &active {
         let manifest = &overlays[identity];
         composition.routing.extend(
@@ -171,39 +171,19 @@ pub fn compose(
             composition.context.push((identity.clone(), path));
         }
         for entry in skill_entries(manifest, tree(identity)) {
-            let folded = entry.name.to_lowercase();
-            let held = if entry.origin == SkillOrigin::Bundled {
+            let bundled = entry.origin == SkillOrigin::Bundled;
+            let held = if bundled {
                 Held::Bundled(identity.clone())
             } else {
                 Held::Elsewhere(entry.key.clone(), entry.pin.clone())
             };
-            if let Some((_, _, earlier)) = winners.get(&folded)
-                && *earlier != held
-            {
-                collisions.insert(folded.clone());
-                // A skill from elsewhere never takes a name another overlay's skill holds.
-                if entry.origin != SkillOrigin::Bundled {
-                    continue;
-                }
-            }
-            winners.insert(folded, (entry.name, identity.clone(), held));
+            delivery.offer(&entry.name, identity, bundled, held);
         }
     }
-    composition.skills = winners
-        .into_values()
-        .map(|(name, identity, _)| (name, identity))
-        .collect();
-    composition.skill_collisions = collisions.into_iter().collect();
+    composition.skills = delivery.delivered();
+    composition.skill_collisions = delivery.collisions();
     composition.active = active;
     Ok(composition)
-}
-
-/// What two overlays must share to name one skill without colliding: a bundled skill is its
-/// overlay's own, one from elsewhere is its source in full, as fetched, and its pin.
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum Held {
-    Bundled(String),
-    Elsewhere(Option<String>, Option<String>),
 }
 
 /// One environment the active overlays install packages into.

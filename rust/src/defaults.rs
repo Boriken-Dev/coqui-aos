@@ -345,6 +345,8 @@ pub struct SkillEntry {
     pub key: Option<String>,
     /// The tree digest it must have, when the table pins one.
     pub pin: Option<String>,
+    /// The source to fetch it from, with the table's `ref`; for `Source`.
+    pub from: Option<Source>,
 }
 
 /// The names with a `skills/<name>/SKILL.md` in the overlay.
@@ -372,6 +374,7 @@ pub fn skill_entries(manifest: &Document, tree: &OverlayTree) -> Vec<SkillEntry>
         source: None,
         key: None,
         pin: None,
+        from: None,
     };
     if default_on(manifest, "skills") {
         for name in &bundled {
@@ -391,6 +394,10 @@ pub fn skill_entries(manifest: &Document, tree: &OverlayTree) -> Vec<SkillEntry>
                     continue;
                 };
                 let reference = table.get("ref").and_then(Data::as_str);
+                let mut from = parsed.clone();
+                if let Some(reference) = reference {
+                    from.reference = Some(reference.to_owned());
+                }
                 found.insert(
                     name.to_owned(),
                     SkillEntry {
@@ -399,6 +406,7 @@ pub fn skill_entries(manifest: &Document, tree: &OverlayTree) -> Vec<SkillEntry>
                         source: Some(parsed.shown_with(reference.or(parsed.reference.as_deref()))),
                         key: Some(parsed.key_with(reference)),
                         pin: table.get("pin").and_then(Data::as_str).map(str::to_owned),
+                        from: Some(from),
                     },
                 );
             }

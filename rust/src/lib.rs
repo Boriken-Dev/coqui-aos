@@ -21,6 +21,7 @@ mod limits;
 mod names;
 mod overlay;
 mod read;
+mod skills;
 mod source;
 mod subst;
 mod validate;
@@ -63,6 +64,10 @@ pub use read::{
     Document, DotenvLine, ScriptOutput, parse_dotenv, read_document, read_env_script_output,
 };
 pub use serde_json;
+pub use skills::{
+    Fetch, FetchedPlanned, FetchedSkill, PlannedOrigin, PlannedSkill, SkillPlan, SkillSource,
+    fetch_planned, read_fetched_skill, resolve_skills,
+};
 pub use source::{Source, SourceKind};
 pub use subst::{Lookup, substitute, substitute_with};
 pub use validate::{Issue, applies, named_files, skill_flags, valid_license, validate};

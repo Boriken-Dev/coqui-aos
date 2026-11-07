@@ -10,14 +10,6 @@ fn skipped(file: &str, reason: &'static str) {
 }
 
 #[test]
-fn skills_from_elsewhere_are_not_resolved_yet() {
-    skipped(
-        "skills.json",
-        "skills from elsewhere: catalogs, pins and fetched skills are not read by this crate yet",
-    );
-}
-
-#[test]
 fn hooks_are_not_read_yet() {
     skipped(
         "hooks.json",

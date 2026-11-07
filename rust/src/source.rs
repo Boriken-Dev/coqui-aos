@@ -300,7 +300,7 @@ fn local_git(location: &str) -> bool {
 }
 
 /// The host a source reaches, lowercased and without brackets, or none for a path.
-fn source_host(location: &str) -> Option<String> {
+pub(crate) fn source_host(location: &str) -> Option<String> {
     let hostport = if let Some((_, authority, _)) = authority_of(location) {
         authority
             .rsplit_once('@')
@@ -351,6 +351,46 @@ fn host_is_local(host: Option<&str>) -> bool {
                 || address.is_unspecified()
                 || link_local
                 || address == Ipv6Addr::LOCALHOST
+        }
+        Err(_) => false,
+    }
+}
+
+/// Whether a host is on a private network, judged on the text alone: not this machine, which
+/// [`Source::is_local`] decides first.
+pub(crate) fn host_is_private(host: Option<&str>) -> bool {
+    use core::net::{IpAddr, Ipv4Addr};
+    let Some(host) = host else {
+        return false;
+    };
+    if host_is_local(Some(host)) {
+        return false;
+    }
+    let v4 = |address: Ipv4Addr| {
+        let [a, b, c, _] = address.octets();
+        a == 0
+            || a == 10
+            || (a == 172 && (16..32).contains(&b))
+            || (a == 192 && b == 168)
+            || (a == 169 && b == 254)
+            || (a == 192 && b == 0 && c == 0)
+            || (a == 192 && b == 0 && c == 2)
+            || (a == 198 && (b == 18 || b == 19))
+            || (a == 198 && b == 51 && c == 100)
+            || (a == 203 && b == 0 && c == 113)
+            || a >= 240
+    };
+    match host.parse::<IpAddr>() {
+        Ok(IpAddr::V4(address)) => v4(address),
+        Ok(IpAddr::V6(address)) => {
+            if let Some(mapped) = address.to_ipv4_mapped() {
+                return v4(mapped);
+            }
+            let s = address.segments();
+            (s[0] & 0xfe00) == 0xfc00
+                || (s[0] == 0x2001 && s[1] == 0x0db8)
+                || (s[0] == 0x0100 && s[1] == 0 && s[2] == 0 && s[3] == 0)
+                || s[0] == 0x2002
         }
         Err(_) => false,
     }
