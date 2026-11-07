@@ -152,7 +152,9 @@ fn files_case(case: &Value) -> Result<(), String> {
     }
     let got = |key: &str| -> Value {
         match key {
-            "manifest_file" => read.manifest_file.map_or(Value::Null, |file| Value::from(file.as_str())),
+            "manifest_file" => read
+                .manifest_file
+                .map_or(Value::Null, |file| Value::from(file.as_str())),
             "manifest" => Value::Object(read.manifest.clone()),
             "context" => Value::from(read.context.clone()),
             "context_ignored" => Value::from(read.context_ignored.clone()),

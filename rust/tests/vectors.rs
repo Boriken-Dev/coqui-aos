@@ -481,7 +481,13 @@ fn effective_vectors() {
                         );
                         got["setup_phase"] = json!(prepared.phase.map(|phase| phase.name()));
                         got["setup_arguments"] = json!(prepared.arguments);
-                        got["steps"] = json!(prepared.steps.iter().map(ToString::to_string).collect::<Vec<_>>());
+                        got["steps"] = json!(
+                            prepared
+                                .steps
+                                .iter()
+                                .map(ToString::to_string)
+                                .collect::<Vec<_>>()
+                        );
                         got["record"] = json!(prepared.record.as_ref().map(support::setup_record));
                         got["activates"] = json!(prepared.activates);
                     }

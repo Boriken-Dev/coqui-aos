@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use coqui_aos::{
     FileKind, FileSystem, Limit, Metadata, OverlayTree, Settings, StdFs, default_paths,
-    read_document, rules_of, tree_digest,
+    read_document, read_tree, rules_of, tree_digest,
 };
 
 fn write(root: &Path, files: &[(&str, &str)]) {
@@ -206,4 +206,33 @@ fn a_tree_held_in_memory_has_the_digest_of_the_same_files_on_disk() {
     }
     let in_memory = tree_digest(&files, Path::new("/o"), &Settings::default()).expect("a digest");
     assert_eq!(on_disk.digest, in_memory.digest);
+}
+
+#[test]
+fn a_directory_read_whole_is_a_tree_a_manifest_can_be_read_from() {
+    let root = tempfile::tempdir().expect("a directory");
+    write(root.path(), ENGINEERING);
+    write(
+        root.path(),
+        &[(
+            ".git/HEAD",
+            "ref
+",
+        )],
+    );
+    let (tree, digest) = read_tree(&StdFs, root.path(), &Settings::default()).expect("a tree");
+    assert_eq!(
+        digest.digest,
+        tree_digest(&StdFs, root.path(), &Settings::default())
+            .expect("a digest")
+            .digest
+    );
+    assert!(tree.contains("flows/PLAN.md") && !tree.contains(".git/HEAD"));
+    assert_eq!(tree.text("rules/commits.md"), Some(ENGINEERING[2].1));
+    let read = coqui_aos::read_overlay(&tree, &Settings::default()).expect("an overlay");
+    assert_eq!(
+        read.manifest_file,
+        Some(coqui_aos::ManifestFile::OverlayCfg)
+    );
+    assert_eq!(read.manifest["name"], "engineering");
 }

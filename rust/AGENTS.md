@@ -15,21 +15,21 @@ Reading a manifest is static: no function here runs a script, reads a file or co
 ## Errors
 
 ```rust
-#[non_exhaustive] pub struct Error { pub class: &'static str, pub subject: String, pub line: Option<usize>, pub column: Option<usize> }
-pub fn Error::new(class: &'static str, subject: impl Into<String>) -> Error
+#[non_exhaustive] pub struct Error { pub class: Class, pub subject: String, pub line: Option<usize>, pub column: Option<usize> }
+pub fn Error::new(class: Class, subject: impl Into<String>) -> Error
 pub fn Error::at(self, line: usize, column: usize) -> Error
 pub fn Error::on_line(self, line: usize) -> Error
 ```
 
-`Clone`, `Debug`, `Eq`, `Display` (`class: subject at line N column M`), `std::error::Error`. **`class` is the contract**: the class the specification's conformance vectors name (`parse-error`, `duplicate-key`, `too-deep`, `symlink`, `undefined-variable`, ...), plus this crate's `io`, `duplicate-member`, `invalid-requirements` and `invalid-digest`. `subject` names what it is about (a variable, a path, a pointer) for a person, never text from a document; do not match on it. `line` and `column` are one-based, `column` counts Unicode scalar values; a line counts from the first line of the file, a format line included.
+`Clone`, `Debug`, `Eq`, `Display` (`class: subject at line N column M`), `std::error::Error`. **`class` is the contract**: `Class`, a `#[non_exhaustive]` enum of the classes the specification's conformance vectors name (`ParseError`, `DuplicateKey`, `TooDeep`, `Symlink`, `UndefinedVariable`, ...) and this crate's `Io`, `DuplicateMember`, `InvalidRequirements` and `InvalidDigest`; `Class::as_str` is the word the vectors write and `Class::named` reads it back. `Issue::code` is `IssueCode`, the same for a manifest's problems. `subject` names what it is about (a variable, a path, a pointer) for a person, never text from a document; do not match on it. `line` and `column` are one-based, `column` counts Unicode scalar values; a line counts from the first line of the file, a format line included.
 
-Functions that cannot refuse return no `Result`; the others return `Result<_, Error>`, except `compose` (`Cycle`) and `dependencies_of` (`PartialLock`), which return the structure the vectors expect, and both implement `Display` and `std::error::Error`.
+Functions that cannot refuse return no `Result`; the others return `Result<_, Error>`, except `compose` (`Cycle`) and `dependencies_of` (`PartialLock`), which return the structure the vectors expect, and both implement `Display` and `std::error::Error`. The closed sets of words are enums, each `#[non_exhaustive]` with `as_str` and `named`: `Runtime`, `LeftState`, `ManifestFile`, `Format`, `FailStep`, `NonDefaultId`, `Decision`, `HookEvent`, `PlannedOrigin`, `IconFormat`, `EntryRefusal`, and `Step` (which implements `Display`).
 
 ## Settings (`Settings`, `Limit`)
 
 ```rust
-#[non_exhaustive] pub struct Settings { pub manifest_bytes, manifest_depth, tree_files, tree_depth, tree_bytes, file_bytes, context_bytes, substitution_bytes, substitution_depth, substitution_steps: Limit }   // Default, Copy, Eq
-// defaults: 1 MiB, 64, 4096, 64, 64 MiB, 16 MiB, 1 MiB, 1 MiB, 32, 10_000_000
+#[non_exhaustive] pub struct Settings { pub manifest_bytes, manifest_depth, tree_files, tree_depth, tree_bytes, file_bytes, context_bytes, catalog_bytes, icon_bytes, icon_width, icon_height, hook_timeout, hook_event_timeout, hook_output_bytes, hook_payload_bytes, hook_reason_chars, substitution_bytes, substitution_depth, substitution_steps: Limit }   // Default, Copy, Eq
+// defaults: 1 MiB, 64, 4096, 64, 64 MiB, 16 MiB, 1 MiB, 4 MiB, 512 KiB, 1024, 1024, 60 s, 120 s, 64 KiB, 1 MiB, 1024 characters, 1 MiB, 32, 10_000_000
 pub fn Settings::manifest_bytes(self, limit: Limit) -> Settings   // and one setter per field, named for it
 pub fn Settings::non_defaults(&self) -> Vec<NonDefault>           // every setting that differs, read from the described type
 pub struct NonDefault { pub setting: String, pub value: String, pub default: String }
@@ -91,6 +91,7 @@ pub fn Source::is_local / holds_credentials / is_web_url(&self) -> bool
 pub struct Digest(..)                              // Copy, Ord, Display `sha256:<hex>`, FromStr, Digest::of(bytes), Digest::parse(text)
 pub fn digest_entries<'a, I>(entries: I) -> Result<TreeDigest, Error>   // I: (Vec<&[u8]> components, &TreeEntry); order does not matter; a path twice is `duplicate-member`
 pub fn tree_digest(files: &dyn FileSystem, root: &Path, settings: &Settings) -> Result<TreeDigest, Error>
+pub fn read_tree(files: &dyn FileSystem, root: &Path, settings: &Settings) -> Result<(OverlayTree, TreeDigest), Error>   // every member's bytes and the digest of one walk
 pub enum TreeEntry { File(Vec<u8>), Directory, Symlink, Special }
 pub struct TreeDigest { pub digest: Digest, pub files: BTreeMap<String, Digest> }   // lines() gives the bytes that were hashed
 ```
@@ -110,7 +111,7 @@ pub struct Metadata { pub kind: FileKind, pub len: u64 }   // Metadata::new(kind
 pub struct StdFs;                                          // feature `fs`; a reparse point is a Symlink on Windows
 ```
 
-`tree_digest` checks every entry with `metadata` before it reads or descends, and refuses a listed name that is empty, `.`, `..` or holds `/`, `\` or NUL. `StdFs::read` and `list` open through links, as `std::fs` does: a link swapped in between `metadata` and `read` is followed, so read only trees no one else can write. A name that is not Unicode is refused as `non-utf8-name`.
+`tree_digest` checks every entry with `metadata` before it reads or descends, and refuses a listed name that is empty, `.`, `..` or holds `/`, `\` or NUL. `StdFs::read` and `list` open through links, as `std::fs` does: a link swapped in between `metadata` and `read` is followed, so read only trees no one else can write. A name that is not Unicode is refused as `NonUtf8Name`.
 
 ## What an overlay's files contribute
 
@@ -136,17 +137,55 @@ pub fn environments(overlays, active, trees, os: &str, removed: &[String]) -> Re
 pub fn effective(manifest: &Document, facts: &Facts) -> Result<Effective, Error>
 pub fn Facts::new(os: impl Into<String>) -> Facts   // pub fields: os, root, identity, state, pinned, base_env, host_env, grants, secrets, secret_files, providers, provider_values, enforces_network, env_scripts_enabled, interpreters, packages, tree, settings
 pub struct Environment                               // new(base, windows), settings(Settings), get, set(name, value, secret), unset, values, is_secret
-pub fn composed_environment(overlays: &[(&Document, Facts)], base: Environment, non_defaults: &mut Vec<NonDefaultSetting>) -> Result<Environment, Error>
-pub fn preparation(change: Change, record: Option<&SetupRecord>, digest: Option<&str>, setup: Option<&SetupRun>, dependencies: &[Dependency], fails: Option<&str>) -> Preparation
+pub fn composed_environment(overlays: &[(&Document, Facts)], base: Environment, pre_env: &BTreeMap<String, HookRun>, non_defaults: &mut Vec<NonDefaultSetting>) -> ComposedEnvironment
+pub fn preparation(change: Change, record: Option<&SetupRecord>, digest: Option<&str>, setup: Option<&SetupRun>, dependencies: &[Dependency], fails: Option<FailStep>) -> Preparation
 pub fn setup_phase(change: Change, recorded: Option<&str>, digest: Option<&str>) -> Option<Phase>
 pub fn substitute(text: &str, lookup: Lookup) -> Result<String, Error>;  pub fn substitute_with(text, lookup, settings: &Settings) -> Result<String, Error>
 ```
 
 `Effective` holds `ungranted`, `supported`, `env`, `env_scripts`, `setup`, `python`, `node`, `dependencies`, `needs` and `non_defaults` (`NonDefaultSetting { id, subject }`: the spec's reports such as `unpinned` and `env-sensitive`, never a value). An `Environment` never lets a placeholder read a variable that holds a resolved secret. Substitution refuses `too-large`, `too-deep` and `too-complex` past `substitution_*`; a placeholder's variable or pattern is never quoted.
 
-## Not read yet
+## Catalogs and icons
 
-Catalogs and icons (the Store class), skills resolved through catalogs and fetched skills, and hooks (their validation, the `hook.<ext>` default, a `pre-env` hook's output) are not read by this crate; `vectors/catalog.json`, `skills.json` and `hooks.json` are counted as skipped, case by case, by the test suite.
+```rust
+pub fn read_catalog(data: &[u8], name: &str, base: Option<&str>, settings: &Settings) -> Result<Catalog, Error>
+pub fn read_catalog_document(data: &[u8], name: &str, settings: &Settings) -> Result<Document, Error>
+pub fn catalog_format(name: &str) -> Option<&'static str>      // by extension: toml, json, yaml
+pub struct Catalog { pub form: CatalogForm, pub name, description, homepage: Option<String>, pub overlays: CatalogSection, pub skills: Option<CatalogSection>, pub ignored: Vec<String> }
+pub struct CatalogSection { pub entries: BTreeMap<String, CatalogEntry>, pub refused: Vec<(String, EntryRefusal)> }
+pub struct CatalogEntry { pub source: Source, pub pin, description: Option<String>, pub about: Option<Document> }
+pub fn list_catalogs(catalogs: &[(&str, &Catalog)]) -> Result<Listing, Error>   // `invalid-label`
+pub fn Listing::choose(&self, requested: &str) -> Result<&ListedEntry, Error>   // `not-found`, `ambiguous`
+pub fn read_icon(data: &[u8], name: &str, settings: &Settings) -> Result<Icon, Error>   // Icon { format: IconFormat, width, height }
+```
+
+`name` is the catalog's file name, whose extension picks the format (any other is an AOS document); `base` is the source string the file came from, against which relative sources resolve (a directory, a Git repository, or a URL). An entry that is refused is listed in `refused` by name; a catalog with neither an `overlays` nor a `skills` table is `not-a-catalog`. Nothing is fetched. An icon is judged from its header alone: extension, size, signature, dimensions.
+
+## Skills from elsewhere
+
+```rust
+pub fn resolve_skills(overlays, requested, trees: &BTreeMap<String, OverlayTree>, catalogs: &[(&str, &Catalog)], order: &[&str], fetches: bool, settings: &Settings) -> Result<SkillPlan, Error>
+pub struct SkillPlan { pub skills: Vec<PlannedSkill>, pub missing, ambiguous, unpinned, non_defaults, not_fetched, name_mismatch, shadowing, delivered, collisions, pub to_fetch: Vec<Fetch> }
+pub fn read_fetched_skill(name: &str, files: &[(String, Vec<u8>)], pin: Option<&str>, settings: &Settings) -> Result<FetchedSkill, Error>
+pub trait SkillSource { fn fetch(&self, source: &Source) -> io::Result<Vec<(String, Vec<u8>)>>; }
+pub fn fetch_planned(plan: &SkillPlan, fetcher: &dyn SkillSource, settings: &Settings) -> Vec<FetchedPlanned>
+```
+
+The core decides what to fetch (`SkillPlan::to_fetch`: the delivered skills from elsewhere, none for a consumer that does not fetch) and checks what came back, pin first, so nothing unverified is parsed; it holds no network. A `SkillSource` is the caller's; `fetch_planned` calls it once per skill and reports a failure of it as `Io` for that skill alone. `read_fetched_skill` needs the front matter of `SKILL.md` in YAML and its `name` to be the skill's, and reports every key beyond `name`, `description`, `license`, `compatibility` and `metadata`.
+
+## Hooks
+
+```rust
+pub fn hooks_of(manifest, tree: &OverlayTree, os: &str, interpreters: &[String]) -> (Vec<Hook>, Vec<String>)   // hooks, and the hook.<ext> files reported `script-not-run`
+pub fn hook_plan(manifest, files: &OverlayTree, facts: &HookFacts, settings: &Settings) -> Result<HookPlan, Error>
+pub fn hook_matches(event: HookEvent, select: Option<&[String]>, value: &str) -> bool
+pub fn hook_payload(event: HookEvent, known: &Map<String, Value>) -> Map<String, Value>
+pub fn read_hook_output(event: HookEvent, data: &[u8], sets: &[String], settings: &Settings) -> Result<HookOutput, HookFailure>
+pub fn hook_result(event: HookEvent, run: &HookRun, settings: &Settings) -> Result<HookOutput, HookFailure>
+pub fn fire_event(event: HookEvent, runs: &[HookRun], applies: Option<&[&str]>, settings: &Settings, windows: bool) -> FiredEvent
+```
+
+Running a hook is the caller's: it builds a `HookRun` (`HookRun::new(source, stdout)` and its public fields: exit status, seconds, timeout, payload size, `sets`, `on_failure`) from what the process did, and the core checks it in a fixed order (started, payload, time, size, exit, output), combines the runs of one event to the tightest decision, and reports what could not be applied. A hook is off until the user allows it at the overlay's digest (`HookFacts::allowed`); `HookPlan::activates` is false for a guard that is off, so it never fails open. `composed_environment` takes the runs of each overlay's `pre-env` hook and returns a `ComposedEnvironment { env: Result<Environment, Error>, hook_reports, hook_non_defaults }`; a guard that failed is `HookRefused`. The hooks' bounds are `Settings::hook_*`.
 
 ## Gotchas
 

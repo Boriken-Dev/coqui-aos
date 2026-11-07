@@ -7,6 +7,7 @@ use std::path::Path;
 
 use sha2::{Digest as _, Sha256};
 
+use crate::defaults::OverlayTree;
 use crate::error::{Class, Error};
 use crate::fs::{FileKind, FileSystem, name_bytes};
 use crate::limits::Settings;
@@ -225,6 +226,35 @@ pub fn tree_digest(
     root: &Path,
     settings: &Settings,
 ) -> Result<TreeDigest, Error> {
+    Ok(walk_tree(files, root, settings, false)?.0)
+}
+
+/// The tree under `root` on `files`, read whole: every member's bytes, held in an
+/// [`OverlayTree`], and the digest of the same walk. A link is never followed, and the limits of
+/// `settings` bound what is read. Holds up to `tree_bytes` in memory.
+///
+/// # Errors
+///
+/// As [`tree_digest`].
+pub fn read_tree(
+    files: &dyn FileSystem,
+    root: &Path,
+    settings: &Settings,
+) -> Result<(OverlayTree, TreeDigest), Error> {
+    let (digest, contents) = walk_tree(files, root, settings, true)?;
+    let mut tree = OverlayTree::from_paths(digest.files.keys().cloned());
+    for (path, bytes) in contents {
+        tree = tree.with_bytes(&path, bytes);
+    }
+    Ok((tree, digest))
+}
+
+fn walk_tree(
+    files: &dyn FileSystem,
+    root: &Path,
+    settings: &Settings,
+    keep: bool,
+) -> Result<(TreeDigest, BTreeMap<String, Vec<u8>>), Error> {
     let metadata = files
         .metadata(root)
         .map_err(|error| refused(Class::Io, error.to_string()))?;
@@ -238,18 +268,20 @@ pub fn tree_digest(
         files,
         settings,
         found: BTreeMap::new(),
+        contents: keep.then(BTreeMap::new),
         bytes: 0,
         entries: 0,
     };
     walk.directory(root, &mut Vec::new(), 1)?;
     check_case(&walk.found)?;
-    Ok(finish(walk.found))
+    Ok((finish(walk.found), walk.contents.unwrap_or_default()))
 }
 
 struct Walk<'a> {
     files: &'a dyn FileSystem,
     settings: &'a Settings,
     found: BTreeMap<String, Digest>,
+    contents: Option<BTreeMap<String, Vec<u8>>>,
     bytes: u64,
     entries: usize,
 }
@@ -358,7 +390,10 @@ impl Walk<'_> {
                 format!("more than {} bytes", self.settings.tree_bytes),
             ));
         }
-        self.found.insert(member, Digest::of(&bytes));
+        self.found.insert(member.clone(), Digest::of(&bytes));
+        if let Some(contents) = &mut self.contents {
+            contents.insert(member, bytes);
+        }
         Ok(())
     }
 }

@@ -48,7 +48,7 @@ pub use defaults::{
     dependencies_of, env_files_of, harness_context_of, paths_of, rules_of, skill_entries,
     skills_of,
 };
-pub use digest::{Digest, TreeDigest, TreeEntry, digest_entries, tree_digest};
+pub use digest::{Digest, TreeDigest, TreeEntry, digest_entries, read_tree, tree_digest};
 pub use error::{Class, Error};
 pub use front_matter::{
     Case, FrontMatter, Split, SplitCase, context_file_text, read_front_matter, split_front_matter,

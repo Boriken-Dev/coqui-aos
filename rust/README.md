@@ -24,6 +24,7 @@ declares. Documentation: <https://boriken-dev.github.io/coqui-aos/>.
 - **Every limit is a setting.** `Settings` holds each bound with its default and no floor, is
   described once by guatiao's derives, and `Settings::non_defaults` lists what differs from the
   default.
+- **Catalogs, skills from elsewhere and hooks, without a network or a process**: a catalog and its icons are read, a store's listing chosen from; the core decides which skills to fetch and checks what the caller's `SkillSource` returned against its pin; hooks are read, planned and combined, and the caller runs them.
 - **Validation, names, sources, digests, composition and the environment**: the manifest's schema
   and semantic rules, overlay identities, `[git+]<location>[@<ref>][#<path>]` sources, the tree
   digest, `requires` and the composition order, defaults from an overlay's files, the order of
@@ -84,10 +85,13 @@ assert!(tree.digest.to_string().starts_with("sha256:"));
 | `read_dotenv`, `parse_dotenv`, `read_env_script_output`, `substitute` | env files, script output and `${NAME}` substitution |
 | `validate`, `applies`, `Issue` | the manifest's problems, by JSON pointer |
 | `valid_overlay_name`, `normalize_name`, `root_variable`, `Source` | identities and sources |
-| `FileSystem`, `StdFs`, `tree_digest`, `digest_entries`, `Digest` | tree digests of a directory or of entries |
+| `FileSystem`, `StdFs`, `tree_digest`, `read_tree`, `digest_entries`, `Digest` | tree digests and a whole directory read |
 | `OverlayTree`, `read_overlay`, `rules_of`, `context_of`, `paths_of`, `skills_of` | what an overlay's files contribute |
 | `compose`, `resolve`, `composition_order`, `environments` | `requires`, order and package environments |
 | `effective`, `Facts`, `Environment`, `preparation` | the environment, setup, runtime and needs for one overlay |
+| `read_catalog`, `list_catalogs`, `read_icon` | catalogs, their listing and icons |
+| `resolve_skills`, `read_fetched_skill`, `SkillSource` | skills through catalogs, pins and fetching |
+| `hook_plan`, `read_hook_output`, `fire_event` | hooks: which, with what, and what applies |
 | `Settings`, `Limit`, `Error` | every limit, and the one error type |
 
 ## Development
