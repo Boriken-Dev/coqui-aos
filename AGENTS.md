@@ -7,6 +7,7 @@ conformance vectors, shared by every implementation, are what keep them alike.
 | Shipped header | Covers |
 | --- | --- |
 | [`rust/AGENTS.md`](rust/AGENTS.md) | the `coqui-aos` crate's public API |
+| [`python/src/coqui_aos/AGENTS.md`](python/src/coqui_aos/AGENTS.md) | the `coqui_aos` package's public API |
 
 ## Layout
 
@@ -15,7 +16,8 @@ conformance vectors, shared by every implementation, are what keep them alike.
 | `rust/` | the `coqui-aos` crate: the Rust implementation, its tests and its README |
 | `tools/` | `public-api.txt`, the committed public API of the Rust crate |
 | `vectors/` | the specification's conformance vectors, copied byte for byte; `AOS-SOURCE.json` names the commit and each file's digest |
-| `python/`, `ts/`, `dart/` | the other implementations, each pure and each passing the same vectors; not present yet |
+| `python/` | the `coqui-aos` Python package (import `coqui_aos`): pure Python, 3.9 and later, its tests and its README |
+| `ts/`, `dart/` | the other implementations, each pure and each passing the same vectors; not present yet |
 
 ## Commands
 
@@ -29,6 +31,14 @@ cargo test --no-default-features
 RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
 cargo check --target wasm32-unknown-unknown --no-default-features
 cargo +nightly-2026-09-21 public-api --all-features -sss --color never > ../tools/public-api.txt   # when the API changed
+```
+
+```sh
+cd python
+dotagents pyvenv 3.14 && dotagents pyvenv 3.9      # venvs in ../.pyvenv/, once
+../.pyvenv/<version>/Scripts/python.exe -m pip install -e ".[dev]"   # bin/python on POSIX
+../.pyvenv/<version>/Scripts/python.exe -m pytest        # the vectors and the hostile-input tests
+../.pyvenv/<version>/Scripts/python.exe -m black --check src tests
 ```
 
 ## Rules

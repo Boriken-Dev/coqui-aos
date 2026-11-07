@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The `coqui-aos` Python package (`python/`, import `coqui_aos`): the same reader in pure Python 3.9
+  and later, with `ruamel.yaml` (and `tomli` below 3.11) as its only dependencies. Snake-case
+  functions, `str` enums for the closed sets, `Error` carrying `class_`, `subject`, `line` and
+  `column`, a `Settings` dataclass holding every limit with `non_defaults()`, a `FileSystem`
+  protocol with `PathFS` over `pathlib` as the default, and `SkillSource` for fetching. It passes
+  every case of `vectors/`, none skipped.
 - The `coqui-aos` Rust crate (`rust/`): the Agent Overlay Specification's reader. It reads
   `overlay.cfg`, `OVERLAY.md` (its front matter is split on bytes, then read as restricted YAML or
   the format a format line names) and env files in TOML, JSON and YAML; validates a manifest;
