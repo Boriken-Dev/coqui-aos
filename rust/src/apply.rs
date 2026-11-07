@@ -12,6 +12,7 @@ use crate::defaults::{
     dependencies_of, entry_on, env_files_of, first_variant, named,
 };
 use crate::error::Error;
+use crate::hooks::{Decision, HookEvent, HookReport, HookRun, fire_event};
 use crate::limits::Settings;
 use crate::names::{
     is_path_variable, is_reserved_variable, is_sensitive_variable, normalize_name, root_variable,
@@ -1135,17 +1136,30 @@ pub fn preparation(
     }
 }
 
-/// The environment of every active overlay, in composition order, from `base` and each
-/// overlay's root: what an agent Session gets.
+/// What [`composed_environment`] built, and what the `pre-env` hooks reported.
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct ComposedEnvironment {
+    /// The environment of the session, or why it is not built.
+    pub env: Result<Environment, Error>,
+    /// What the `pre-env` hooks' runs reported.
+    pub hook_reports: Vec<HookReport>,
+    /// `(id, subject)`: the non-default settings of those hooks' output.
+    pub hook_non_defaults: Vec<(String, String)>,
+}
+
+/// The environment of every active overlay, in composition order, from `base` and each overlay's
+/// root: what an agent Session gets. `pre_env` holds the runs the caller made of each overlay's
+/// `pre-env` hook, by identity: their output is applied after the root variables and before any
+/// overlay's declarations, so an overlay earlier in the order reads what a later one's hook set.
 ///
-/// # Errors
-///
-/// The first [`Error`] of any overlay.
+/// `env` is the first [`Error`] of any overlay, or `hook-refused` naming the overlay whose guard failed.
 pub fn composed_environment(
     active: &[(&Document, Facts)],
     base: Environment,
+    pre_env: &BTreeMap<String, HookRun>,
     non_defaults: &mut Vec<NonDefaultSetting>,
-) -> Result<Environment, Error> {
+) -> ComposedEnvironment {
     let mut env = base;
     for (_, facts) in active {
         env.set(&root_variable(&facts.identity), facts.root.clone(), false);
@@ -1153,8 +1167,41 @@ pub fn composed_environment(
             env.set(&state_variable(&facts.identity), state.clone(), false);
         }
     }
-    for (manifest, facts) in active {
-        apply_overlay(&mut env, manifest, facts, non_defaults)?;
+    let mut composed = ComposedEnvironment {
+        env: Ok(Environment::default()),
+        hook_reports: Vec::new(),
+        hook_non_defaults: Vec::new(),
+    };
+    let settings = active
+        .first()
+        .map(|(_, facts)| facts.settings)
+        .unwrap_or_default();
+    for (_, facts) in active {
+        let Some(run) = pre_env.get(&facts.identity) else {
+            continue;
+        };
+        let mut run = run.clone();
+        run.source.clone_from(&facts.identity);
+        let fired = fire_event(HookEvent::PreEnv, &[run], None, &settings, env.windows);
+        composed.hook_reports.extend(fired.reports);
+        composed.hook_non_defaults.extend(fired.non_defaults);
+        if fired.decision == Some(Decision::Refuse) {
+            composed.env = Err(Error::new("hook-refused", facts.identity.clone()));
+            return composed;
+        }
+        for (name, value) in fired.env {
+            match value {
+                Some(value) => env.set(&name, value, false),
+                None => env.unset(&name),
+            }
+        }
     }
-    Ok(env)
+    for (manifest, facts) in active {
+        if let Err(error) = apply_overlay(&mut env, manifest, facts, non_defaults) {
+            composed.env = Err(error);
+            return composed;
+        }
+    }
+    composed.env = Ok(env);
+    composed
 }

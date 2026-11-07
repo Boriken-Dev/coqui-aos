@@ -120,12 +120,7 @@ fn validation() {
                 .then_some(())
                 .ok_or(format!("nothing at {at}: {issues:?}"))
         },
-        |case| {
-            case["document"]
-                .get("hooks")
-                .is_some()
-                .then_some("the Hooks class: hooks are not read or validated by this crate yet")
-        },
+        none,
     );
 }
 
@@ -373,22 +368,49 @@ fn compose_vectors() {
                             ),
                             os == "windows",
                         );
-                    let env = composed_environment(&per, base, &mut Vec::new());
+                    let pre_env: BTreeMap<String, coqui_aos::HookRun> = facts["pre_env"]
+                        .as_object()
+                        .into_iter()
+                        .flatten()
+                        .map(|(identity, run)| (identity.clone(), support::hook_run(run)))
+                        .collect();
+                    let composed = composed_environment(&per, base, &pre_env, &mut Vec::new());
                     got.insert(
                         "env".into(),
-                        env.map_or_else(|refusal| refusal_data(&refusal), |env| env_data(&env)),
+                        composed.env.as_ref().map_or_else(refusal_data, env_data),
                     );
+                    if facts.get("pre_env").is_some() {
+                        got.insert(
+                            "hook_reports".into(),
+                            json!(
+                                composed
+                                    .hook_reports
+                                    .iter()
+                                    .map(|report| {
+                                        let mut row = vec![json!(report.id)];
+                                        row.extend(report.about.iter().map(|part| json!(part)));
+                                        row
+                                    })
+                                    .collect::<Vec<_>>()
+                            ),
+                        );
+                        got.insert(
+                            "hook_non_defaults".into(),
+                            json!(
+                                composed
+                                    .hook_non_defaults
+                                    .iter()
+                                    .map(|(a, b)| json!([a, b]))
+                                    .collect::<Vec<_>>()
+                            ),
+                        );
+                    }
                 }
             }
             let got = Value::Object(got);
             (got == *expect).then_some(()).ok_or(format!("{got}"))
         },
-        |case| {
-            case["facts"]
-                .get("pre_env")
-                .is_some()
-                .then_some("the Hooks class: a pre-env hook's output is not read by this crate yet")
-        },
+        none,
     );
 }
 

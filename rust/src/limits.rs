@@ -145,6 +145,26 @@ pub struct Settings {
     #[schema(title = "Tallest icon")]
     #[map(default = Settings::default().icon_height)]
     pub icon_height: Limit,
+    /// Seconds the consumer lets one hook run, whatever its entry asks.
+    #[schema(title = "Longest hook run")]
+    #[map(default = Settings::default().hook_timeout)]
+    pub hook_timeout: Limit,
+    /// Seconds the hooks of one event may take together.
+    #[schema(title = "Longest event of hooks")]
+    #[map(default = Settings::default().hook_event_timeout)]
+    pub hook_event_timeout: Limit,
+    /// Bytes of a hook's output.
+    #[schema(title = "Largest hook output", format = "bytes")]
+    #[map(default = Settings::default().hook_output_bytes)]
+    pub hook_output_bytes: Limit,
+    /// Bytes of the payload a hook is sent.
+    #[schema(title = "Largest hook payload", format = "bytes")]
+    #[map(default = Settings::default().hook_payload_bytes)]
+    pub hook_payload_bytes: Limit,
+    /// Characters of the reason a hook gives.
+    #[schema(title = "Longest hook reason")]
+    #[map(default = Settings::default().hook_reason_chars)]
+    pub hook_reason_chars: Limit,
     /// Bytes of one substituted value.
     #[schema(title = "Largest substituted value", format = "bytes")]
     #[map(default = Settings::default().substitution_bytes)]
@@ -173,6 +193,11 @@ impl Default for Settings {
             icon_bytes: Limit::at(512 * 1024),
             icon_width: Limit::at(1024),
             icon_height: Limit::at(1024),
+            hook_timeout: Limit::at(60),
+            hook_event_timeout: Limit::at(120),
+            hook_output_bytes: Limit::at(64 * 1024),
+            hook_payload_bytes: Limit::at(MIB),
+            hook_reason_chars: Limit::at(1024),
             substitution_bytes: Limit::at(MIB),
             substitution_depth: Limit::at(32),
             substitution_steps: Limit::at(10_000_000),
@@ -288,6 +313,41 @@ impl Settings {
     #[must_use]
     pub fn icon_height(mut self, limit: Limit) -> Self {
         self.icon_height = limit;
+        self
+    }
+
+    /// Sets `hook_timeout`.
+    #[must_use]
+    pub fn hook_timeout(mut self, limit: Limit) -> Self {
+        self.hook_timeout = limit;
+        self
+    }
+
+    /// Sets `hook_event_timeout`.
+    #[must_use]
+    pub fn hook_event_timeout(mut self, limit: Limit) -> Self {
+        self.hook_event_timeout = limit;
+        self
+    }
+
+    /// Sets `hook_output_bytes`.
+    #[must_use]
+    pub fn hook_output_bytes(mut self, limit: Limit) -> Self {
+        self.hook_output_bytes = limit;
+        self
+    }
+
+    /// Sets `hook_payload_bytes`.
+    #[must_use]
+    pub fn hook_payload_bytes(mut self, limit: Limit) -> Self {
+        self.hook_payload_bytes = limit;
+        self
+    }
+
+    /// Sets `hook_reason_chars`.
+    #[must_use]
+    pub fn hook_reason_chars(mut self, limit: Limit) -> Self {
+        self.hook_reason_chars = limit;
         self
     }
 

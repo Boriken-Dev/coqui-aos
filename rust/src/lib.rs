@@ -17,6 +17,7 @@ mod digest;
 mod error;
 mod front_matter;
 mod fs;
+mod hooks;
 mod limits;
 mod names;
 mod overlay;
@@ -27,8 +28,9 @@ mod subst;
 mod validate;
 
 pub use apply::{
-    Change, Effective, Environment, Facts, Needs, NonDefaultSetting, Phase, Preparation, ScriptRun,
-    SetupRecord, SetupRun, composed_environment, effective, preparation, read_dotenv, setup_phase,
+    Change, ComposedEnvironment, Effective, Environment, Facts, Needs, NonDefaultSetting, Phase,
+    Preparation, ScriptRun, SetupRecord, SetupRun, composed_environment, effective, preparation,
+    read_dotenv, setup_phase,
 };
 pub use catalog::{
     Catalog, CatalogEntry, CatalogForm, CatalogSection, EntryRefusal, Icon, IconFormat,
@@ -53,6 +55,11 @@ pub use front_matter::{
 #[cfg(feature = "fs")]
 pub use fs::StdFs;
 pub use fs::{FileKind, FileSystem, Metadata};
+pub use hooks::{
+    Decision, FiredEvent, Hook, HookEvent, HookFacts, HookFailure, HookOutput, HookPlan,
+    HookReport, HookRun, HookScope, OnFailure, fire_event, hook_matches, hook_payload, hook_plan,
+    hook_result, hooks_of, read_hook_output,
+};
 pub use limits::{Limit, NonDefault, Settings};
 pub use names::{
     EXCLUDED_COMPONENTS, current_os, is_reserved_variable, is_sensitive_variable, is_variable_name,

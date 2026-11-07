@@ -247,3 +247,36 @@ pub fn source(source: &Source) -> Value {
 pub fn object(value: &Value) -> Map<String, Value> {
     value.as_object().expect("an object").clone()
 }
+
+pub fn hook_run(value: &Value) -> coqui_aos::HookRun {
+    let stdout = if let Some(encoded) = value.get("stdout_base64").and_then(Value::as_str) {
+        decode(encoded)
+    } else if let Some(parts) = value.get("stdout_parts").and_then(Value::as_array) {
+        parts
+            .iter()
+            .flat_map(|part| {
+                let text = part[0].as_str().expect("text");
+                text.as_bytes()
+                    .repeat(usize::try_from(part[1].as_u64().expect("times")).expect("times"))
+            })
+            .collect()
+    } else {
+        value["stdout"]
+            .as_str()
+            .unwrap_or_default()
+            .as_bytes()
+            .to_vec()
+    };
+    let mut hook = coqui_aos::HookRun::new(value["source"].as_str().unwrap_or_default(), stdout);
+    hook.on_failure = match value["on_failure"].as_str() {
+        Some("refuse") => Some(coqui_aos::OnFailure::Refuse),
+        _ => Some(coqui_aos::OnFailure::Report),
+    };
+    hook.seconds = value["seconds"].as_u64().unwrap_or(0);
+    hook.not_run = value["not_run"].as_bool().unwrap_or(false);
+    hook.payload_size = value["payload_size"].as_u64().unwrap_or(0);
+    hook.timed_out = value["timed_out"].as_bool().unwrap_or(false);
+    hook.exit = i32::try_from(value["exit"].as_i64().unwrap_or(0)).expect("an exit status");
+    hook.sets = strings(&value["sets"]);
+    hook
+}

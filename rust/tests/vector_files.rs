@@ -1,21 +1,8 @@
-//! The vector files this crate does not read yet: every case is counted and named as skipped, so
-//! a new case or file is noticed, and the list below is the whole of what is not covered.
+//! Every vector file has a runner: a new file in `vectors/` fails here until one is written.
 
 mod support;
 
 use serde_json::Value;
-
-fn skipped(file: &str, reason: &'static str) {
-    support::run(file, |_| Ok(()), |_| Some(reason));
-}
-
-#[test]
-fn hooks_are_not_read_yet() {
-    skipped(
-        "hooks.json",
-        "the Hooks class: hooks are not read by this crate yet",
-    );
-}
 
 #[test]
 fn every_vector_file_is_run_or_named_here() {

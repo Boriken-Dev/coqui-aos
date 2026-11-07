@@ -7,6 +7,7 @@ use alloc::collections::BTreeSet;
 use serde_json::Value as Data;
 
 use super::defaults::{DEFAULT_KEYS, OverlayTree, default_paths};
+use super::hooks::HookEvent;
 use super::names::{
     is_reserved_variable, is_variable_name, overlay_name_shaped, valid_os_name, valid_overlay_name,
     valid_relative_path, valid_tool_name,
@@ -139,6 +140,14 @@ fn is_lowercase_id(text: &str, first_digit: bool, extra: &[u8]) -> bool {
                 || *byte == b'-'
                 || extra.contains(byte)
         })
+}
+
+/// A script a hook runs: a script path with an extension that names an interpreter.
+fn is_hook_run(text: &str) -> bool {
+    is_script_path(text)
+        && [".py", ".sh", ".bash", ".ps1", ".js", ".mjs", ".cjs"]
+            .iter()
+            .any(|extension| text.ends_with(extension))
 }
 
 fn is_script_path(text: &str) -> bool {
@@ -301,6 +310,7 @@ impl Check {
                 "scripts" => self.scripts(value, &at),
                 "mcp" => self.mcp(value, &at),
                 "harness" => self.harness(value, &at),
+                "hooks" => self.hooks(value, &at),
                 "about" => self.about(value, &at),
                 _ => {}
             }
@@ -331,6 +341,93 @@ impl Check {
             }
             _ => self.fail("schema", at),
         }
+    }
+
+    /// What runs at each event: a script, a table, or false for nothing.
+    fn hooks(&mut self, value: &Data, at: &str) {
+        let Some(map) = value.as_object() else {
+            self.fail("schema", at);
+            return;
+        };
+        for (name, entry) in map {
+            let Some(event) = HookEvent::named(name) else {
+                self.fail("schema", at);
+                continue;
+            };
+            let here = join(at, name);
+            match entry {
+                Data::Bool(false) => {}
+                Data::String(run) => self.require(is_hook_run(run), &here),
+                Data::Object(_) => self.hook_table(event, entry, &here),
+                _ => self.fail("schema", here),
+            }
+        }
+    }
+
+    fn hook_table(&mut self, event: HookEvent, entry: &Data, at: &str) {
+        let (selects, sets, refuses) = match event {
+            HookEvent::PreEnv | HookEvent::PreCompact => (false, false, true),
+            HookEvent::SessionStart | HookEvent::PreTool => (true, true, true),
+            HookEvent::Prompt => (false, true, true),
+            HookEvent::PostTool => (true, false, false),
+            _ => (false, event == HookEvent::Cd, false),
+        };
+        let mut known = vec!["run", "timeout", "on_failure"];
+        if selects {
+            known.push("match");
+        }
+        if sets {
+            known.push("sets");
+        }
+        let Some(map) = self.object(entry, at, &known) else {
+            return;
+        };
+        for (key, value) in map {
+            let here = join(at, key);
+            match key.as_str() {
+                "run" => self.string(value, &here, is_hook_run),
+                "timeout" => self.integer(value, &here, 1, 3600),
+                "on_failure" => self.string(value, &here, |text| {
+                    text == "report" || (refuses && text == "refuse")
+                }),
+                "match" => {
+                    let choices: &[&str] = if event == HookEvent::SessionStart {
+                        &["new", "resume", "clear", "compact", "fork"]
+                    } else {
+                        &[
+                            "read",
+                            "edit",
+                            "delete",
+                            "move",
+                            "search",
+                            "execute",
+                            "think",
+                            "fetch",
+                            "switch_mode",
+                            "other",
+                        ]
+                    };
+                    self.hook_list(value, &here, |text| choices.contains(&text));
+                }
+                "sets" => self.hook_list(value, &here, |text| {
+                    is_variable_name(text) && !is_reserved_variable(text)
+                }),
+                _ => {}
+            }
+        }
+    }
+
+    /// A list of one or more distinct strings that pass `ok`.
+    fn hook_list(&mut self, value: &Data, at: &str, ok: impl Fn(&str) -> bool) {
+        let Some(items) = value.as_array() else {
+            self.fail("schema", at);
+            return;
+        };
+        self.require(!items.is_empty(), at);
+        for (index, item) in items.iter().enumerate() {
+            self.string(item, &join(at, index), &ok);
+        }
+        self.unique(value, at);
     }
 
     fn env_map(&mut self, value: &Data, at: &str) {
@@ -928,6 +1025,19 @@ pub fn named_files(doc: &Document) -> Vec<(String, String)> {
             }
         }
     }
+    if let Some(hooks) = doc.get("hooks").and_then(Data::as_object) {
+        for (event, entry) in hooks {
+            match entry {
+                Data::String(run) => out.push((format!("/hooks/{}", token(event)), run.clone())),
+                Data::Object(map) => {
+                    if let Some(run) = map.get("run").and_then(Data::as_str) {
+                        out.push((format!("/hooks/{}/run", token(event)), run.to_owned()));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
     if let Some(scripts) = doc.get("scripts").and_then(Data::as_object) {
         for (name, target) in scripts {
             match target {
@@ -984,6 +1094,24 @@ fn files(doc: &Document, tree: &OverlayTree, check: &mut Check) {
         for name in env.keys() {
             if added.contains(&name.to_ascii_uppercase()) {
                 check.fail("env-path-conflict", format!("/env/{}", token(name)));
+            }
+        }
+    }
+    if let Some(hooks) = doc.get("hooks").and_then(Data::as_object)
+        && !super::defaults::DEFAULT_SCRIPTS
+            .iter()
+            .any(|(extension, _, _)| {
+                tree.members()
+                    .any(|path| path == format!("hook{extension}"))
+            })
+    {
+        // A table with no run runs hook.<ext>, which has to be there.
+        for (event, entry) in hooks {
+            if entry
+                .as_object()
+                .is_some_and(|table| !table.contains_key("run"))
+            {
+                check.fail("missing-file", format!("/hooks/{}", token(event)));
             }
         }
     }
