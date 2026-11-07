@@ -1,0 +1,24 @@
+/** coqui-aos: the Agent Overlay Specification (AOS) in TypeScript. The package root exports everything public. The core reads no file: `NodeFs` (`coqui-aos/node`) is the one module that needs Node. */
+export * from "./error.ts";
+export { RUNTIMES, runtime, LEFT_STATES, leftState, MANIFEST_FILES, manifestFile, FORMATS, format, FAIL_STEPS, failStep, NON_DEFAULT_IDS, nonDefaultId, type Runtime, type LeftState, type ManifestFile, type Format, type FailStep, type NonDefaultId, type Step } from "./kinds.ts";
+export * from "./limits.ts";
+export * from "./value.ts";
+export { EXCLUDED_COMPONENTS, validOverlayName, normalizeName, rootVariable, stateVariable, isVariableName, isReservedVariable, isSensitiveVariable, validRelativePath, osMatches, currentOs } from "./names.ts";
+export { readDocument, parseDotenv, readEnvScriptOutput, type DotenvLine, type ScriptOutput } from "./read.ts";
+export * from "./front_matter.ts";
+export * from "./overlay.ts";
+export * from "./validate.ts";
+export { Source, type SourceKind } from "./source.ts";
+export * from "./digest.ts";
+export * from "./tree.ts";
+export * from "./fs.ts";
+export { DEFAULT_KEYS, INTERPRETERS, defaultOn, defaultPaths, pathsOf, rulesOf, contextOf, contextIgnored, harnessContextOf, bundledSkills, skillEntries, skillsOf, envFilesOf, PartialLock, checkRequirements, dependenciesOf, type SkillOrigin, type SkillEntry, type Dependency } from "./defaults.ts";
+export * from "./compose.ts";
+export { Environment, Facts, type FactsFields } from "./environment.ts";
+export { readDotenv, effective, composedEnvironment, type NonDefaultSetting, type ScriptRun, type SetupRun, type Needs, type Effective, type ComposedEnvironment } from "./apply.ts";
+export * from "./prepare.ts";
+export * from "./subst.ts";
+export * from "./catalog.ts";
+export * from "./skills.ts";
+export { HOOK_EVENTS, hookEvent, DECISIONS, decision, ON_FAILURES, onFailure, HOOK_SCOPES, hookScope, HOOK_FAILURES, hookFailure, HookFailed, hooksOf, hookFacts, hookPlan, hookMatches, hookPayload, HookOutput, readHookOutput, HookRun, hookRun, hookResult, FiredEvent, fireEvent, type HookEvent, type Decision, type OnFailure, type HookScope, type HookFailure, type Hook, type HookFacts, type HookPlan, type HookReport } from "./hooks.ts";
+export { decodeUtf8, encodeUtf8 } from "./text.ts";
