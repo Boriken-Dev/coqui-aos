@@ -109,7 +109,7 @@ fn document_case(case: &Value) -> Result<(), String> {
     }
     let classes = support::expected_errors(expect);
     match (classes.is_empty(), &read.error) {
-        (false, Some(error)) if classes.iter().any(|class| class == error.class) => {
+        (false, Some(error)) if classes.iter().any(|class| class == error.class.as_str()) => {
             if let Some(line) = expect.get("line").and_then(Value::as_u64)
                 && error.line != Some(usize::try_from(line).expect("line"))
             {
@@ -136,7 +136,7 @@ fn files_case(case: &Value) -> Result<(), String> {
             let Some(class) = expect.get("error").and_then(Value::as_str) else {
                 return Err(format!("refused {error}"));
             };
-            if error.class != class {
+            if error.class.as_str() != class {
                 return Err(format!("refused {error}, expected {class}"));
             }
             if let Some(line) = expect.get("line").and_then(Value::as_u64)
@@ -208,7 +208,7 @@ fn front_matter() {
                         == Some(got))
                     .then_some(())
                     .ok_or(format!("text {:?}", String::from_utf8_lossy(got))),
-                    Err(error) => (expect["error"] == error.class)
+                    Err(error) => (expect["error"] == error.class.as_str())
                         .then_some(())
                         .ok_or(format!("refused {error}")),
                 };

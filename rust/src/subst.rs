@@ -1,7 +1,7 @@
 //! Substitution in env values: `${NAME}` and its operators, a fixed set of string operations. Nothing runs and no file
 //! is read; `$NAME`, `$(...)` and backticks are characters.
 
-use crate::error::Error;
+use crate::error::{Class, Error};
 use crate::limits::Settings;
 
 /// What a placeholder reads: the value, none when the variable is unset, or an error for one it may not read.
@@ -20,14 +20,14 @@ impl Run<'_> {
         let spent = self.steps.get().saturating_add(cost as u64);
         self.steps.set(spent);
         if !self.limits.substitution_steps.allows(spent) {
-            return Err(Error::new("too-complex", "a pattern"));
+            return Err(Error::new(Class::TooComplex, "a pattern"));
         }
         Ok(())
     }
 
     fn fits(&self, out: &str) -> Result<(), Error> {
         if !self.limits.substitution_bytes.allows(out.len()) {
-            return Err(Error::new("too-large", "a substituted value"));
+            return Err(Error::new(Class::TooLarge, "a substituted value"));
         }
         Ok(())
     }
@@ -69,7 +69,7 @@ pub fn substitute_with(
 
 fn substitute_chars(text: &[char], run: &Run<'_>) -> Result<String, Error> {
     if !run.limits.substitution_depth.allows(run.depth.get()) {
-        return Err(Error::new("too-deep", "an expression"));
+        return Err(Error::new(Class::TooDeep, "an expression"));
     }
     run.depth.set(run.depth.get() + 1);
     let result = substitute_inner(text, run);
@@ -151,7 +151,7 @@ fn name_at(text: &[char]) -> usize {
 }
 
 fn required(name: &str, run: &Run<'_>) -> Result<String, Error> {
-    (run.lookup)(name)?.ok_or_else(|| Error::new("undefined-variable", name))
+    (run.lookup)(name)?.ok_or_else(|| Error::new(Class::UndefinedVariable, name))
 }
 
 /// The text for `${body}`, or none when it is no expression the specification defines.
@@ -381,7 +381,7 @@ impl Token {
 }
 
 fn compile(pattern: &[char]) -> Result<Vec<Token>, Error> {
-    let invalid = || Error::new("invalid-pattern", "a bracket expression");
+    let invalid = || Error::new(Class::InvalidPattern, "a bracket expression");
     let mut out = Vec::new();
     let mut index = 0;
     while index < pattern.len() {

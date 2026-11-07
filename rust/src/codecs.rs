@@ -7,10 +7,10 @@
 
 use serde_json::{Map, Number, Value};
 
-use crate::error::Error;
+use crate::error::{Class, Error};
 use crate::limits::Limit;
 
-fn refusal(class: &'static str, detail: &str) -> Error {
+fn refusal(class: Class, detail: &str) -> Error {
     Error::new(class, detail)
 }
 
@@ -23,7 +23,7 @@ fn number(text: &str) -> Result<Value, Error> {
     } else {
         text.parse::<i64>().map(Value::from).map_err(|_| {
             refusal(
-                "integer-range",
+                Class::IntegerRange,
                 "an integer outside the signed 64-bit range",
             )
         })
@@ -33,7 +33,7 @@ fn number(text: &str) -> Result<Value, Error> {
 fn float(value: f64) -> Result<Value, Error> {
     Number::from_f64(value)
         .map(Value::Number)
-        .ok_or_else(|| refusal("non-finite-float", "a float that is not finite"))
+        .ok_or_else(|| refusal(Class::NonFiniteFloat, "a float that is not finite"))
 }
 
 /// Builds a value from a stream of scalars, keys and containers, with no recursion, refusing a
@@ -69,7 +69,7 @@ impl Builder {
         if let Some(Frame::Map(map, slot)) = self.stack.last_mut() {
             if map.contains_key(&key) {
                 return Err(refusal(
-                    "duplicate-key",
+                    Class::DuplicateKey,
                     "a key appears twice in one mapping",
                 ));
             }
@@ -80,19 +80,19 @@ impl Builder {
 
     fn value(&mut self, value: Value) -> Result<(), Error> {
         if value.is_null() && !self.nulls {
-            return Err(refusal("null-value", "a null"));
+            return Err(refusal(Class::NullValue, "a null"));
         }
         match self.stack.last_mut() {
             None => {
                 if self.root.is_some() {
-                    return Err(refusal("parse-error", "more than one document"));
+                    return Err(refusal(Class::ParseError, "more than one document"));
                 }
                 self.root = Some(value);
             }
             Some(Frame::List(list)) => list.push(value),
             Some(Frame::Map(map, slot)) => {
                 let key = slot.take().ok_or_else(|| {
-                    refusal("non-string-key", "a mapping key that is not a string")
+                    refusal(Class::NonStringKey, "a mapping key that is not a string")
                 })?;
                 map.insert(key, value);
             }
@@ -103,7 +103,7 @@ impl Builder {
     fn open(&mut self, frame: Frame) -> Result<(), Error> {
         if !self.depth.allows(self.stack.len() + 1) {
             return Err(refusal(
-                "too-deep",
+                Class::TooDeep,
                 &format!("nested deeper than {}", self.depth),
             ));
         }
@@ -123,7 +123,7 @@ impl Builder {
         let value = match self.stack.pop() {
             Some(Frame::List(list)) => Value::Array(list),
             Some(Frame::Map(map, _)) => Value::Object(map),
-            None => return Err(refusal("parse-error", "a container closed twice")),
+            None => return Err(refusal(Class::ParseError, "a container closed twice")),
         };
         self.value(value)
     }
@@ -186,19 +186,19 @@ fn at_offset(error: Error, bytes: &[u8], offset: usize) -> Error {
 
 /// TOML 1.0, a date or time refused.
 pub(crate) fn toml(bytes: &[u8], depth: Limit) -> Result<Value, Error> {
-    let text = core::str::from_utf8(bytes).map_err(|_| refusal("invalid-utf8", "not UTF-8"))?;
+    let text = core::str::from_utf8(bytes).map_err(|_| refusal(Class::InvalidUtf8, "not UTF-8"))?;
     let table = ::toml::from_str::<::toml::Table>(text).map_err(|error| {
         let message = error.message().to_owned();
         let class = if message.contains("overflow") {
-            "integer-range"
+            Class::IntegerRange
         } else if message.contains("recurs") || !depth.allows(nesting(text)) {
-            "too-deep"
+            Class::TooDeep
         } else {
-            "parse-error"
+            Class::ParseError
         };
         let why = match class {
-            "integer-range" => "an integer outside the signed 64-bit range",
-            "too-deep" => "nested past what the reader follows",
+            Class::IntegerRange => "an integer outside the signed 64-bit range",
+            Class::TooDeep => "nested past what the reader follows",
             _ => "not valid TOML",
         };
         let refused = refusal(class, why);
@@ -213,7 +213,10 @@ pub(crate) fn toml(bytes: &[u8], depth: Limit) -> Result<Value, Error> {
 fn toml_value(item: ::toml::Value, level: usize, depth: Limit) -> Result<Value, Error> {
     let container = matches!(item, ::toml::Value::Array(_) | ::toml::Value::Table(_));
     if container && !depth.allows(level) {
-        return Err(refusal("too-deep", &format!("nested deeper than {depth}")));
+        return Err(refusal(
+            Class::TooDeep,
+            &format!("nested deeper than {depth}"),
+        ));
     }
     Ok(match item {
         ::toml::Value::String(text) => Value::String(text),
@@ -221,7 +224,10 @@ fn toml_value(item: ::toml::Value, level: usize, depth: Limit) -> Result<Value, 
         ::toml::Value::Float(value) => float(value)?,
         ::toml::Value::Boolean(flag) => Value::Bool(flag),
         ::toml::Value::Datetime(_) => {
-            return Err(refusal("datetime-value", "a date or time has no AOS type"));
+            return Err(refusal(
+                Class::DatetimeValue,
+                "a date or time has no AOS type",
+            ));
         }
         ::toml::Value::Array(items) => Value::Array(
             items
@@ -242,7 +248,7 @@ fn toml_value(item: ::toml::Value, level: usize, depth: Limit) -> Result<Value, 
 /// RFC 8259 JSON: a duplicate key, a lone surrogate, `NaN`, `Infinity` and comments refused,
 /// and a number kept as the text it was written as.
 pub(crate) fn json(bytes: &[u8], depth: Limit, nulls: bool) -> Result<Value, Error> {
-    let text = core::str::from_utf8(bytes).map_err(|_| refusal("invalid-utf8", "not UTF-8"))?;
+    let text = core::str::from_utf8(bytes).map_err(|_| refusal(Class::InvalidUtf8, "not UTF-8"))?;
     JsonReader {
         bytes: text.as_bytes(),
         at: 0,
@@ -263,7 +269,7 @@ struct JsonReader<'a> {
 type JsonResult<T> = Result<T, (Error, usize)>;
 
 impl JsonReader<'_> {
-    fn fail<T>(&self, class: &'static str, detail: &str) -> JsonResult<T> {
+    fn fail<T>(&self, class: Class, detail: &str) -> JsonResult<T> {
         Err((refusal(class, detail), self.at))
     }
 
@@ -284,7 +290,7 @@ impl JsonReader<'_> {
         loop {
             self.space();
             let Some(&byte) = self.bytes.get(self.at) else {
-                return self.fail("parse-error", "the document ends early");
+                return self.fail(Class::ParseError, "the document ends early");
             };
             if expect_value {
                 let is_key = builder.wants_key();
@@ -317,7 +323,7 @@ impl JsonReader<'_> {
                             builder.key(text).map_err(|error| (error, self.at))?;
                             self.space();
                             if self.bytes.get(self.at) != Some(&b':') {
-                                return self.fail("parse-error", "a key without a colon");
+                                return self.fail(Class::ParseError, "a key without a colon");
                             }
                             self.at += 1;
                             continue;
@@ -326,7 +332,9 @@ impl JsonReader<'_> {
                             .value(Value::String(text))
                             .map_err(|error| (error, self.at))?;
                     }
-                    _ if is_key => return self.fail("parse-error", "a key that is not a string"),
+                    _ if is_key => {
+                        return self.fail(Class::ParseError, "a key that is not a string");
+                    }
                     b't' => self.word(b"true", &mut builder, Value::Bool(true))?,
                     b'f' => self.word(b"false", &mut builder, Value::Bool(false))?,
                     b'n' => self.word(b"null", &mut builder, Value::Null)?,
@@ -334,7 +342,7 @@ impl JsonReader<'_> {
                         let value = self.number()?;
                         builder.value(value).map_err(|error| (error, self.at))?;
                     }
-                    _ => return self.fail("parse-error", "not a JSON value"),
+                    _ => return self.fail(Class::ParseError, "not a JSON value"),
                 }
                 expect_value = false;
             } else {
@@ -347,13 +355,13 @@ impl JsonReader<'_> {
                         self.at += 1;
                         builder.close().map_err(|error| (error, self.at))?;
                     }
-                    _ => return self.fail("parse-error", "an unexpected character"),
+                    _ => return self.fail(Class::ParseError, "an unexpected character"),
                 }
             }
             if builder.stack.is_empty() && builder.root.is_some() {
                 self.space();
                 if self.at != self.bytes.len() {
-                    return self.fail("parse-error", "text after the document");
+                    return self.fail(Class::ParseError, "text after the document");
                 }
                 return Ok(builder.root.take().unwrap_or(Value::Null));
             }
@@ -362,7 +370,7 @@ impl JsonReader<'_> {
 
     fn word(&mut self, word: &[u8], builder: &mut Builder, value: Value) -> JsonResult<()> {
         if !self.bytes[self.at..].starts_with(word) {
-            return self.fail("parse-error", "not a JSON value");
+            return self.fail(Class::ParseError, "not a JSON value");
         }
         self.at += word.len();
         builder.value(value).map_err(|error| (error, self.at))
@@ -384,14 +392,14 @@ impl JsonReader<'_> {
         let leading_zero = self.bytes.get(self.at) == Some(&b'0');
         let whole = self.digits();
         if whole == 0 || (leading_zero && whole > 1) {
-            return self.fail("parse-error", "a malformed number");
+            return self.fail(Class::ParseError, "a malformed number");
         }
         let mut fraction = false;
         if self.bytes.get(self.at) == Some(&b'.') {
             self.at += 1;
             fraction = true;
             if self.digits() == 0 {
-                return self.fail("parse-error", "a malformed number");
+                return self.fail(Class::ParseError, "a malformed number");
             }
         }
         if matches!(self.bytes.get(self.at), Some(b'e' | b'E')) {
@@ -401,18 +409,18 @@ impl JsonReader<'_> {
                 self.at += 1;
             }
             if self.digits() == 0 {
-                return self.fail("parse-error", "a malformed number");
+                return self.fail(Class::ParseError, "a malformed number");
             }
         }
         let text = core::str::from_utf8(&self.bytes[start..self.at]).unwrap_or_default();
         if fraction {
             let value: f64 = text.parse().unwrap_or(f64::NAN);
             if !value.is_finite() {
-                return self.fail("non-finite-float", "a number too large for a float");
+                return self.fail(Class::NonFiniteFloat, "a number too large for a float");
             }
         } else if text.parse::<i64>().is_err() {
             return self.fail(
-                "integer-range",
+                Class::IntegerRange,
                 "an integer outside the signed 64-bit range",
             );
         }
@@ -430,7 +438,7 @@ impl JsonReader<'_> {
                 self.at += 4;
                 Ok(value)
             }
-            None => self.fail("parse-error", "a malformed \\u escape"),
+            None => self.fail(Class::ParseError, "a malformed \\u escape"),
         }
     }
 
@@ -439,7 +447,7 @@ impl JsonReader<'_> {
         let mut out = String::new();
         loop {
             let Some(&byte) = self.bytes.get(self.at) else {
-                return self.fail("parse-error", "a string that does not end");
+                return self.fail(Class::ParseError, "a string that does not end");
             };
             match byte {
                 b'"' => {
@@ -449,7 +457,7 @@ impl JsonReader<'_> {
                 b'\\' => {
                     self.at += 1;
                     let Some(&escape) = self.bytes.get(self.at) else {
-                        return self.fail("parse-error", "a string that does not end");
+                        return self.fail(Class::ParseError, "a string that does not end");
                     };
                     self.at += 1;
                     match escape {
@@ -465,28 +473,28 @@ impl JsonReader<'_> {
                             let first = self.hex4()?;
                             let code = if (0xd800..0xdc00).contains(&first) {
                                 if !self.bytes[self.at..].starts_with(b"\\u") {
-                                    return self.fail("invalid-unicode", "a lone surrogate");
+                                    return self.fail(Class::InvalidUnicode, "a lone surrogate");
                                 }
                                 self.at += 2;
                                 let second = self.hex4()?;
                                 if !(0xdc00..0xe000).contains(&second) {
-                                    return self.fail("invalid-unicode", "a lone surrogate");
+                                    return self.fail(Class::InvalidUnicode, "a lone surrogate");
                                 }
                                 0x10000 + ((first - 0xd800) << 10) + (second - 0xdc00)
                             } else if (0xdc00..0xe000).contains(&first) {
-                                return self.fail("invalid-unicode", "a lone surrogate");
+                                return self.fail(Class::InvalidUnicode, "a lone surrogate");
                             } else {
                                 first
                             };
                             match char::from_u32(code) {
                                 Some(c) => out.push(c),
-                                None => return self.fail("invalid-unicode", "not a character"),
+                                None => return self.fail(Class::InvalidUnicode, "not a character"),
                             }
                         }
-                        _ => return self.fail("parse-error", "an unknown escape"),
+                        _ => return self.fail(Class::ParseError, "an unknown escape"),
                     }
                 }
-                0..=0x1f => return self.fail("parse-error", "a control character in a string"),
+                0..=0x1f => return self.fail(Class::ParseError, "a control character in a string"),
                 _ => {
                     // The text is UTF-8, so the run up to the next quote, backslash or control
                     // character is whole characters.
@@ -512,24 +520,27 @@ impl JsonReader<'_> {
 pub(crate) fn yaml(bytes: &[u8], depth: Limit) -> Result<Value, Error> {
     use granit_parser::{Event, Parser, ScalarStyle, Scanner, StrInput, TokenType};
 
-    let text = core::str::from_utf8(bytes).map_err(|_| refusal("invalid-utf8", "not UTF-8"))?;
+    let text = core::str::from_utf8(bytes).map_err(|_| refusal(Class::InvalidUtf8, "not UTF-8"))?;
     if text.contains(['\u{85}', '\u{2028}', '\u{2029}']) {
         return Err(refusal(
-            "parse-error",
+            Class::ParseError,
             "a Unicode line break YAML 1.1 and 1.2 read differently",
         ));
     }
-    let located = |error: &granit_parser::ScanError, class: &'static str| {
+    let located = |error: &granit_parser::ScanError, class: Class| {
         let marker = error.marker();
         let class = if !depth.allows(nesting(text)) {
-            "too-deep"
+            Class::TooDeep
         } else {
             class
         };
         refusal(class, "not valid YAML").at(marker.line(), marker.col() + 1)
     };
     if text.char_indices().any(|(at, c)| c == '\u{feff}' && at > 0) {
-        return Err(refusal("parse-error", "a byte-order mark on a later line"));
+        return Err(refusal(
+            Class::ParseError,
+            "a byte-order mark on a later line",
+        ));
     }
     for token in Scanner::new(StrInput::new(text)) {
         match token {
@@ -538,10 +549,10 @@ pub(crate) fn yaml(bytes: &[u8], depth: Limit) -> Result<Value, Error> {
                     token.token_type(),
                     TokenType::VersionDirective(..) | TokenType::TagDirective(..)
                 ) {
-                    return Err(refusal("yaml-directive", "a %YAML or %TAG directive"));
+                    return Err(refusal(Class::YamlDirective, "a %YAML or %TAG directive"));
                 }
             }
-            Err(error) => return Err(located(&error, "parse-error")),
+            Err(error) => return Err(located(&error, Class::ParseError)),
         }
     }
     let mut builder = Builder::new(depth, false);
@@ -551,20 +562,20 @@ pub(crate) fn yaml(bytes: &[u8], depth: Limit) -> Result<Value, Error> {
         match event {
             Event::DocumentStart(_, version) => {
                 if version.is_some() {
-                    return Err(refusal("yaml-directive", "a %YAML directive"));
+                    return Err(refusal(Class::YamlDirective, "a %YAML directive"));
                 }
                 documents += 1;
                 if documents > 1 {
-                    return Err(refusal("parse-error", "more than one document"));
+                    return Err(refusal(Class::ParseError, "more than one document"));
                 }
             }
-            Event::Alias(_) => return Err(refusal("yaml-anchor", "an alias")),
+            Event::Alias(_) => return Err(refusal(Class::YamlAnchor, "an alias")),
             Event::Scalar(value, style, anchor, tag) => {
                 if anchor != 0 {
-                    return Err(refusal("yaml-anchor", "an anchor"));
+                    return Err(refusal(Class::YamlAnchor, "an anchor"));
                 }
                 if tag.is_some() {
-                    return Err(refusal("yaml-tag", "a tag"));
+                    return Err(refusal(Class::YamlTag, "a tag"));
                 }
                 let plain = matches!(style, ScalarStyle::Plain);
                 if builder.wants_key() {
@@ -572,13 +583,13 @@ pub(crate) fn yaml(bytes: &[u8], depth: Limit) -> Result<Value, Error> {
                         let typed = core_scalar(&value)?;
                         if !matches!(typed, Scalar::Text) {
                             return Err(refusal(
-                                "non-string-key",
+                                Class::NonStringKey,
                                 "a mapping key that is not a string",
                             ));
                         }
                     }
                     if value == "<<" {
-                        return Err(refusal("yaml-merge-key", "a merge key"));
+                        return Err(refusal(Class::YamlMergeKey, "a merge key"));
                     }
                     builder.key(value.into_owned())?;
                 } else {
@@ -597,14 +608,14 @@ pub(crate) fn yaml(bytes: &[u8], depth: Limit) -> Result<Value, Error> {
             }
             Event::SequenceStart(_, anchor, tag) | Event::MappingStart(_, anchor, tag) => {
                 if anchor != 0 {
-                    return Err(refusal("yaml-anchor", "an anchor"));
+                    return Err(refusal(Class::YamlAnchor, "an anchor"));
                 }
                 if tag.is_some() {
-                    return Err(refusal("yaml-tag", "a tag"));
+                    return Err(refusal(Class::YamlTag, "a tag"));
                 }
                 if builder.wants_key() {
                     return Err(refusal(
-                        "non-string-key",
+                        Class::NonStringKey,
                         "a mapping key that is not a string",
                     ));
                 }
@@ -620,7 +631,7 @@ pub(crate) fn yaml(bytes: &[u8], depth: Limit) -> Result<Value, Error> {
         Ok(())
     };
     for event in Parser::new_from_str(text) {
-        let (event, span) = event.map_err(|error| located(&error, "parse-error"))?;
+        let (event, span) = event.map_err(|error| located(&error, Class::ParseError))?;
         step(event).map_err(|error| error.at(span.start.line(), span.start.col() + 1))?;
     }
     Ok(builder.root.unwrap_or_else(|| Value::Object(Map::new())))
@@ -636,7 +647,7 @@ enum Scalar {
 /// A plain scalar's type under the YAML 1.2 core schema.
 fn core_scalar(value: &str) -> Result<Scalar, Error> {
     if matches!(value, "" | "~" | "null" | "Null" | "NULL") {
-        return Err(refusal("null-value", "a null"));
+        return Err(refusal(Class::NullValue, "a null"));
     }
     if matches!(value, "true" | "True" | "TRUE") {
         return Ok(Scalar::Bool(true));
@@ -652,7 +663,7 @@ fn core_scalar(value: &str) -> Result<Scalar, Error> {
             .map(Scalar::Integer)
             .ok_or_else(|| {
                 refusal(
-                    "integer-range",
+                    Class::IntegerRange,
                     "an integer outside the signed 64-bit range",
                 )
             })
@@ -679,7 +690,7 @@ fn core_scalar(value: &str) -> Result<Scalar, Error> {
     }
     let infinity = matches!(unsigned, ".inf" | ".Inf" | ".INF");
     if infinity || matches!(value, ".nan" | ".NaN" | ".NAN") {
-        return Err(refusal("non-finite-float", "a float that is not finite"));
+        return Err(refusal(Class::NonFiniteFloat, "a float that is not finite"));
     }
     Ok(Scalar::Text)
 }

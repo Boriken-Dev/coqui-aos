@@ -1,7 +1,7 @@
 //! Where an overlay comes from: `[git+]<location>[@<ref>][#<path>]`
 //! (`spec/v0/distribution.md`).
 
-use crate::error::Error;
+use crate::error::{Class, Error};
 use crate::names::valid_relative_path;
 
 /// What kind of location a source names.
@@ -106,7 +106,7 @@ impl Source {
     /// location: one or a ref that starts with `-`, a remote helper (`::`) or a scheme other than
     /// `https`, `http`, `ssh`, `git` and `file`.
     pub fn parse(text: &str) -> Result<Self, Error> {
-        let refuse = |why: &str| Error::new("invalid-source", why);
+        let refuse = |why: &str| Error::new(Class::InvalidSource, why);
         let mut raw = text.trim();
         if raw.is_empty() {
             return Err(refuse("empty"));

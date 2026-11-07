@@ -55,7 +55,8 @@ fn an_env_script_s_output_is_held_to_the_depth_setting() {
     assert_eq!(
         read_env_script_output(deep, &tight)
             .expect_err("refused")
-            .class,
+            .class
+            .as_str(),
         "too-deep"
     );
     assert!(read_env_script_output(br#"{"A": "b"}"#, &tight).is_ok());
@@ -66,7 +67,7 @@ fn an_unclosed_expression_repeated_is_refused_quickly() {
     let text = "${".repeat(200_000);
     let started = Instant::now();
     let error = substitute(&text, &|_| Ok(None)).expect_err("refused");
-    assert_eq!(error.class, "too-complex");
+    assert_eq!(error.class.as_str(), "too-complex");
     assert!(started.elapsed() < Duration::from_secs(10));
 }
 
@@ -74,7 +75,7 @@ fn an_unclosed_expression_repeated_is_refused_quickly() {
 fn a_refused_requirements_line_is_never_quoted() {
     let error = check_requirements("--index-url https://user:SECRET@host/simple\n", false)
         .expect_err("refused");
-    assert_eq!(error.class, "invalid-requirements");
+    assert_eq!(error.class.as_str(), "invalid-requirements");
     assert_eq!(error.line, Some(1));
     assert!(!format!("{error:?} {error}").contains("SECRET"));
 }
@@ -95,7 +96,7 @@ fn a_source_s_debug_output_shows_no_credential() {
 fn a_toml_refusal_quotes_nothing_from_the_document() {
     let error =
         read_document(b"password = \"hunter2\"\n= 1\n", &Settings::default()).expect_err("refused");
-    assert_eq!(error.class, "parse-error");
+    assert_eq!(error.class.as_str(), "parse-error");
     assert!(!format!("{error:?} {error}").contains("hunter2"));
     assert!(error.line.is_some());
 }
@@ -119,7 +120,7 @@ fn a_member_listed_twice_is_refused() {
     ];
     let error = digest_entries(entries.iter().map(|(path, entry)| (path.clone(), entry)))
         .expect_err("refused");
-    assert_eq!(error.class, "duplicate-member");
+    assert_eq!(error.class.as_str(), "duplicate-member");
 }
 
 #[test]
@@ -183,7 +184,7 @@ fn directories_nested_past_the_depth_setting_are_refused_not_followed() {
     };
     let settings = Settings::default().tree_depth(Limit::at(5));
     let error = tree_digest(&files, Path::new("/o"), &settings).expect_err("refused");
-    assert_eq!(error.class, "too-large");
+    assert_eq!(error.class.as_str(), "too-large");
     assert!(error.subject.contains("deeper than 5"), "{error}");
 }
 
@@ -196,7 +197,7 @@ fn a_listed_name_that_is_not_one_path_component_is_refused() {
         };
         let error =
             tree_digest(&files, Path::new("/o"), &Settings::default()).expect_err("refused");
-        assert_eq!(error.class, "invalid-name", "{name:?}");
+        assert_eq!(error.class.as_str(), "invalid-name", "{name:?}");
     }
 }
 
@@ -208,5 +209,5 @@ fn empty_directories_count_against_the_entry_limit() {
     };
     let settings = Settings::default().tree_files(Limit::at(3));
     let error = tree_digest(&files, Path::new("/o"), &settings).expect_err("refused");
-    assert_eq!(error.class, "too-large");
+    assert_eq!(error.class.as_str(), "too-large");
 }

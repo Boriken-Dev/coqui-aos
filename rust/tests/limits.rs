@@ -22,7 +22,7 @@ fn a_value_that_doubles_line_after_line_is_refused_before_it_is_large() {
     let mut env = Environment::new(Vec::new(), false);
     let started = Instant::now();
     let error = read_dotenv(text.as_bytes(), &mut env).expect_err("refused");
-    assert_eq!(error.class, "too-large", "{error}");
+    assert_eq!(error.class.as_str(), "too-large", "{error}");
     assert!(started.elapsed() < Duration::from_secs(5));
 }
 
@@ -32,7 +32,7 @@ fn expressions_nested_past_the_limit_are_refused_not_followed_down_the_stack() {
     let text = "${U:-".repeat(depth) + "x" + &"}".repeat(depth);
     let env = Environment::new(Vec::new(), false);
     let error = substitute(&text, &lookup(&env)).expect_err("refused");
-    assert_eq!(error.class, "too-deep", "{error}");
+    assert_eq!(error.class.as_str(), "too-deep", "{error}");
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn a_pattern_that_would_take_forever_is_refused_quickly() {
     env.set("A", "a".repeat(20_000), false);
     let started = Instant::now();
     let error = substitute("${A//*z/}", &lookup(&env)).expect_err("refused");
-    assert_eq!(error.class, "too-complex", "{error}");
+    assert_eq!(error.class.as_str(), "too-complex", "{error}");
     assert!(started.elapsed() < Duration::from_secs(5));
     env.set("P", "/usr/bin:/bin".to_owned(), false);
     assert_eq!(
@@ -58,7 +58,8 @@ fn a_substitution_limit_is_a_setting_with_no_floor() {
     assert_eq!(
         substitute_with(nested, &lookup(&env), &tight)
             .expect_err("refused")
-            .class,
+            .class
+            .as_str(),
         "too-deep"
     );
     assert_eq!(

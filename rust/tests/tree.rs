@@ -122,11 +122,11 @@ fn a_tree_past_a_limit_is_refused_naming_the_limit() {
     write(root.path(), RUST);
     let settings = Settings::default().tree_files(Limit::at(2));
     let refused = tree_digest(&StdFs, root.path(), &settings).expect_err("refused");
-    assert_eq!(refused.class, "too-large");
+    assert_eq!(refused.class.as_str(), "too-large");
     assert!(refused.subject.contains("more than 2 files"), "{refused}");
     let small = Settings::default().file_bytes(Limit::at(4));
     let refused = tree_digest(&StdFs, root.path(), &small).expect_err("refused");
-    assert_eq!(refused.class, "too-large");
+    assert_eq!(refused.class.as_str(), "too-large");
 }
 
 /// A tree held in memory, so a link, a device and a name that is not UTF-8 can be had on every
@@ -180,7 +180,7 @@ fn a_link_in_the_tree_is_refused_and_never_followed() {
         .with("/o/overlay.cfg", FileKind::File, b"name = \"x\"\n")
         .with("/o/shortcut", FileKind::Symlink, b"");
     let error = tree_digest(&files, Path::new("/o"), &Settings::default()).expect_err("refused");
-    assert_eq!(error.class, "symlink");
+    assert_eq!(error.class.as_str(), "symlink");
     assert_eq!(error.subject, "shortcut");
 }
 
@@ -188,7 +188,7 @@ fn a_link_in_the_tree_is_refused_and_never_followed() {
 fn a_device_in_the_tree_is_refused() {
     let files = Memory::default().with("/o/pipe", FileKind::Other, b"");
     let error = tree_digest(&files, Path::new("/o"), &Settings::default()).expect_err("refused");
-    assert_eq!(error.class, "special-file");
+    assert_eq!(error.class.as_str(), "special-file");
 }
 
 #[test]

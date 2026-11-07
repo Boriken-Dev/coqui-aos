@@ -147,7 +147,7 @@ fn fetched_case(case: &Value) -> Result<(), String> {
         }
         Err(error) => (support::expected_errors(expect)
             .iter()
-            .any(|class| class == error.class))
+            .any(|class| class == error.class.as_str()))
         .then_some(())
         .ok_or(format!("refused {error}, expected {expect}")),
     }
@@ -229,7 +229,7 @@ fn a_plan_is_fetched_through_the_callers_source_and_checked_against_its_pins() {
                 item.outcome
                     .as_ref()
                     .map(|_| ())
-                    .map_err(|error| error.class)
+                    .map_err(|error| error.class.as_str())
             })
             .expect("fetched")
     };

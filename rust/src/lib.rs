@@ -48,7 +48,7 @@ pub use defaults::{
     skills_of,
 };
 pub use digest::{Digest, TreeDigest, TreeEntry, digest_entries, tree_digest};
-pub use error::Error;
+pub use error::{Class, Error};
 pub use front_matter::{
     Case, FrontMatter, Split, SplitCase, context_file_text, read_front_matter, split_front_matter,
 };
@@ -77,4 +77,4 @@ pub use skills::{
 };
 pub use source::{Source, SourceKind};
 pub use subst::{Lookup, substitute, substitute_with};
-pub use validate::{Issue, applies, named_files, skill_flags, valid_license, validate};
+pub use validate::{Issue, IssueCode, applies, named_files, skill_flags, valid_license, validate};

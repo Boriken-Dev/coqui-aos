@@ -93,7 +93,7 @@ fn catalogs_case(case: &Value) -> Result<(), String> {
     let listing = match list_catalogs(&labelled) {
         Ok(listing) => listing,
         Err(error) => {
-            return (expect["error"] == error.class)
+            return (expect["error"] == error.class.as_str())
                 .then_some(())
                 .ok_or(format!("refused {error}, expected {expect}"));
         }
@@ -115,7 +115,7 @@ fn catalogs_case(case: &Value) -> Result<(), String> {
                 request.to_owned(),
                 match listing.choose(request) {
                     Ok(entry) => json!({"catalog": entry.catalog, "name": entry.name}),
-                    Err(error) => json!({"error": error.class}),
+                    Err(error) => json!({"error": error.class.as_str()}),
                 },
             );
         }
@@ -145,7 +145,7 @@ fn icon_case(case: &Value) -> Result<(), String> {
                 json!({"format": read.format.as_str(), "width": read.width, "height": read.height});
             (got == *expect).then_some(()).ok_or(format!("{got}"))
         }
-        Err(error) => (expect["error"] == error.class)
+        Err(error) => (expect["error"] == error.class.as_str())
             .then_some(())
             .ok_or(format!("refused {error}, expected {expect}")),
     }
@@ -169,7 +169,7 @@ fn catalogs_and_icons() {
                     let got = catalog_json(&catalog);
                     (got == *expect).then_some(()).ok_or(format!("{got}"))
                 }
-                Err(error) => (expect["error"] == error.class)
+                Err(error) => (expect["error"] == error.class.as_str())
                     .then_some(())
                     .ok_or(format!("refused {error}, expected {expect}")),
             }

@@ -9,7 +9,7 @@ use serde_json::Value as Data;
 use super::defaults::{
     OverlayTree, SkillOrigin, context_of, declared, dependencies_of, rules_of, skill_entries,
 };
-use super::error::Error;
+use super::error::{Class, Error};
 use super::names::{normalize_name, root_variable};
 use super::read::Document;
 use super::skills::{Delivery, Held};
@@ -357,7 +357,7 @@ pub fn environments(
             continue;
         };
         for dependency in dependencies_of(manifest, tree(identity), os)
-            .map_err(|lock| Error::new("partial-lock", lock.0))?
+            .map_err(|lock| Error::new(Class::PartialLock, lock.0))?
         {
             let group = key(&dependency.runtime, &dependency.environment, identity);
             match groups.iter_mut().find(|(existing, _)| *existing == group) {
@@ -432,7 +432,7 @@ pub fn environments(
             continue;
         };
         for dependency in dependencies_of(manifest, tree(identity), os)
-            .map_err(|lock| Error::new("partial-lock", lock.0))?
+            .map_err(|lock| Error::new(Class::PartialLock, lock.0))?
         {
             let group = key(&dependency.runtime, &dependency.environment, identity);
             out.left.push(LeftEnvironment {

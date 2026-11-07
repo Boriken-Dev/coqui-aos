@@ -2,7 +2,7 @@
 //! split of a document into metadata and body, one step on bytes before any parser, and the
 //! metadata read as restricted YAML unless a format line names another format.
 
-use crate::error::Error;
+use crate::error::{Class, Error};
 use crate::limits::Settings;
 use crate::read::{Document, choose_format, parse_payload};
 
@@ -289,18 +289,18 @@ pub fn read_front_matter(data: &[u8], settings: &Settings) -> FrontMatter {
         SplitCase::None if almost_a_fence(data) => found(
             Case::Malformed,
             None,
-            Some(Error::new("malformed-fence", "").on_line(1)),
+            Some(Error::new(Class::MalformedFence, "").on_line(1)),
         ),
         SplitCase::None => found(Case::None, Some(Document::new()), None),
         SplitCase::Empty => found(Case::Empty, Some(Document::new()), None),
         SplitCase::Unterminated => found(
             Case::Unterminated,
             None,
-            Some(Error::new("unterminated-front-matter", "").on_line(1)),
+            Some(Error::new(Class::UnterminatedFrontMatter, "").on_line(1)),
         ),
         SplitCase::TooLarge => refused(
             Case::TooLarge,
-            Error::new("too-large", "front matter").on_line(1),
+            Error::new(Class::TooLarge, "front matter").on_line(1),
         ),
         _ => {
             let metadata = split.metadata.unwrap_or_default();
@@ -309,7 +309,7 @@ pub fn read_front_matter(data: &[u8], settings: &Settings) -> FrontMatter {
                 Ok(chosen) => chosen,
                 Err(error) => {
                     let case = match error.class {
-                        "unsupported-format" | "no-format-named" => Case::UnknownFormat,
+                        Class::UnsupportedFormat | Class::NoFormatNamed => Case::UnknownFormat,
                         _ => Case::DoesNotParse,
                     };
                     return found(case, None, Some(error.on_line(first_line)));
@@ -328,7 +328,7 @@ pub fn read_front_matter(data: &[u8], settings: &Settings) -> FrontMatter {
                 }
                 Err(error) => {
                     let case = match error.class {
-                        "not-a-mapping" => Case::NotAMapping,
+                        Class::NotAMapping => Case::NotAMapping,
                         _ => Case::DoesNotParse,
                     };
                     let line = error.line.map_or(first_line, |line| first_line + line - 1);
@@ -349,7 +349,7 @@ pub fn read_front_matter(data: &[u8], settings: &Settings) -> FrontMatter {
 pub fn context_file_text<'a>(data: &'a [u8], settings: &Settings) -> Result<&'a [u8], Error> {
     let split = split_front_matter(data, settings);
     if split.case == SplitCase::TooLarge {
-        return Err(Error::new("too-large", "front matter").on_line(1));
+        return Err(Error::new(Class::TooLarge, "front matter").on_line(1));
     }
     Ok(split.body(data))
 }

@@ -4,7 +4,7 @@
 use alloc::collections::BTreeMap;
 
 use crate::defaults::{OverlayTree, context_ignored, context_of, harness_context_of};
-use crate::error::Error;
+use crate::error::{Class, Error};
 use crate::front_matter::read_front_matter;
 use crate::limits::Settings;
 use crate::read::{Document, read_document};
@@ -39,7 +39,10 @@ pub struct OverlayRead {
 pub fn read_overlay(tree: &OverlayTree, settings: &Settings) -> Result<OverlayRead, Error> {
     let has = |name: &str| tree.contains(name);
     if has("OVERLAY.md") && has("overlay.cfg") {
-        return Err(Error::new("two-manifests", "OVERLAY.md and overlay.cfg"));
+        return Err(Error::new(
+            Class::TwoManifests,
+            "OVERLAY.md and overlay.cfg",
+        ));
     }
     let manifest_file = if has("OVERLAY.md") {
         Some("OVERLAY.md")
@@ -82,10 +85,10 @@ pub fn read_overlay(tree: &OverlayTree, settings: &Settings) -> Result<OverlayRe
         .any(|byte| !matches!(byte, b' ' | b'\t' | b'\r' | b'\n'));
     if body_is_named && has_body {
         if !settings.context_bytes.allows(body.len()) {
-            return Err(Error::new("too-large", "the body of OVERLAY.md").on_line(body_line));
+            return Err(Error::new(Class::TooLarge, "the body of OVERLAY.md").on_line(body_line));
         }
         if core::str::from_utf8(body).is_err() {
-            return Err(Error::new("invalid-utf8", "the body of OVERLAY.md").on_line(body_line));
+            return Err(Error::new(Class::InvalidUtf8, "the body of OVERLAY.md").on_line(body_line));
         }
     }
     let issues = validate(&manifest, Some(tree))

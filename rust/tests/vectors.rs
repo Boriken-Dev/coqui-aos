@@ -106,7 +106,7 @@ fn validation() {
             if let Some(class) = expect.get("class").and_then(Value::as_str)
                 && !issues
                     .iter()
-                    .any(|issue| issue.at == at && issue.code == class)
+                    .any(|issue| issue.at == at && issue.code.as_str() == class)
             {
                 return Err(format!("no {class} at {at}: {issues:?}"));
             }
@@ -201,7 +201,7 @@ fn digest() {
                     let got = json!({"digest": tree.digest.to_string(), "lines": lines});
                     (got == *expect).then_some(()).ok_or(format!("{got}"))
                 }
-                Err(error) => (expect["error"] == error.class)
+                Err(error) => (expect["error"] == error.class.as_str())
                     .then_some(())
                     .ok_or(error.to_string()),
             }
@@ -247,7 +247,7 @@ fn env_data(env: &Environment) -> Value {
 }
 
 fn refusal_data(refusal: &Error) -> Value {
-    json!({"error": refusal.class, "subject": refusal.subject})
+    json!({"error": refusal.class.as_str(), "subject": refusal.subject})
 }
 
 #[test]
@@ -296,7 +296,7 @@ fn compose_vectors() {
                     got.insert("active".into(), json!(composition.active));
                     got.insert(
                         "env".into(),
-                        json!({"error": lock.class, "subject": lock.subject}),
+                        json!({"error": lock.class.as_str(), "subject": lock.subject}),
                     );
                 }
                 Ok(installed) => {

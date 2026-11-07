@@ -6,7 +6,7 @@ use alloc::collections::BTreeMap;
 
 use serde_json::Value;
 
-use crate::error::Error;
+use crate::error::{Class, Error};
 use crate::limits::Settings;
 use crate::names::{normalize_name, valid_overlay_name, valid_relative_path, valid_tool_name};
 use crate::read::{Document, parse_payload, read_document};
@@ -141,7 +141,7 @@ pub fn read_catalog_document(
         return read_document(data, &bounded);
     };
     if !bounded.manifest_bytes.allows(data.len()) {
-        return Err(Error::new("too-large", "a catalog"));
+        return Err(Error::new(Class::TooLarge, "a catalog"));
     }
     let data = data.strip_prefix(b"\xef\xbb\xbf").unwrap_or(data);
     parse_payload(data, format, &bounded, false)
@@ -474,11 +474,12 @@ pub fn read_catalog(
     let overlays = document.get("overlays").and_then(Value::as_object);
     let skills = document.get("skills").and_then(Value::as_object);
     if overlays.is_none() && skills.is_none() {
-        return Err(Error::new("not-a-catalog", ""));
+        return Err(Error::new(Class::NotACatalog, ""));
     }
     let origin = match base {
         Some(base) => Some(
-            Source::parse(base).map_err(|_| Error::new("invalid-source", "the catalog's base"))?,
+            Source::parse(base)
+                .map_err(|_| Error::new(Class::InvalidSource, "the catalog's base"))?,
         ),
         None => None,
     };
@@ -576,7 +577,7 @@ pub fn list_catalogs(catalogs: &[(&str, &Catalog)]) -> Result<Listing, Error> {
     let mut seen = alloc::collections::BTreeSet::new();
     for (label, _) in catalogs {
         if !valid_overlay_name(label) || !seen.insert(normalize_name(label)) {
-            return Err(Error::new("invalid-label", ""));
+            return Err(Error::new(Class::InvalidLabel, ""));
         }
     }
     let mut offered: BTreeMap<String, Vec<(&str, &str)>> = BTreeMap::new();
@@ -629,15 +630,17 @@ impl Listing {
             None => (None, requested),
         };
         if !valid_overlay_name(name) || label.is_some_and(|label| !valid_overlay_name(label)) {
-            return Err(Error::new("not-found", ""));
+            return Err(Error::new(Class::NotFound, ""));
         }
         let mut found = self.entries.iter().filter(|entry| {
             entry.identity == normalize_name(name)
                 && label.is_none_or(|label| normalize_name(&entry.catalog) == normalize_name(label))
         });
-        let first = found.next().ok_or_else(|| Error::new("not-found", ""))?;
+        let first = found
+            .next()
+            .ok_or_else(|| Error::new(Class::NotFound, ""))?;
         if found.next().is_some() {
-            return Err(Error::new("ambiguous", ""));
+            return Err(Error::new(Class::Ambiguous, ""));
         }
         Ok(first)
     }
@@ -684,7 +687,7 @@ fn le(data: &[u8]) -> u32 {
 
 fn png_size(data: &[u8]) -> Result<(u32, u32), Error> {
     if data.len() < 24 || data[8..16] != *b"\x00\x00\x00\x0dIHDR" {
-        return Err(Error::new("icon-unreadable", ""));
+        return Err(Error::new(Class::IconUnreadable, ""));
     }
     let be = |bytes: &[u8]| {
         bytes
@@ -695,7 +698,7 @@ fn png_size(data: &[u8]) -> Result<(u32, u32), Error> {
 }
 
 fn webp_size(data: &[u8]) -> Result<(u32, u32), Error> {
-    let unreadable = || Error::new("icon-unreadable", "");
+    let unreadable = || Error::new(Class::IconUnreadable, "");
     if data.len() < 20 || u64::from(le(&data[4..8])) + 8 > data.len() as u64 {
         return Err(unreadable());
     }
@@ -728,30 +731,30 @@ pub fn read_icon(data: &[u8], name: &str, settings: &Settings) -> Result<Icon, E
             extension.to_ascii_lowercase()
         });
     if !matches!(extension.as_str(), "png" | "webp") {
-        return Err(Error::new("icon-format", ""));
+        return Err(Error::new(Class::IconFormat, ""));
     }
     if !settings.icon_bytes.allows(data.len()) {
-        return Err(Error::new("icon-too-large", ""));
+        return Err(Error::new(Class::IconTooLarge, ""));
     }
     let format = if data.starts_with(b"\x89PNG\r\n\x1a\n") {
         IconFormat::Png
     } else if data.get(..4) == Some(b"RIFF") && data.get(8..12) == Some(b"WEBP") {
         IconFormat::Webp
     } else {
-        return Err(Error::new("icon-format", ""));
+        return Err(Error::new(Class::IconFormat, ""));
     };
     if format.as_str() != extension {
-        return Err(Error::new("icon-mismatch", ""));
+        return Err(Error::new(Class::IconMismatch, ""));
     }
     let (width, height) = match format {
         IconFormat::Png => png_size(data)?,
         IconFormat::Webp => webp_size(data)?,
     };
     if width == 0 || height == 0 {
-        return Err(Error::new("icon-unreadable", ""));
+        return Err(Error::new(Class::IconUnreadable, ""));
     }
     if !settings.icon_width.allows(width) || !settings.icon_height.allows(height) {
-        return Err(Error::new("icon-dimensions", ""));
+        return Err(Error::new(Class::IconDimensions, ""));
     }
     Ok(Icon {
         format,

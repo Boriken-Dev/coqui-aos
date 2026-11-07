@@ -10,7 +10,7 @@ use crate::catalog::Catalog;
 use crate::compose::{composition_order, resolve};
 use crate::defaults::{OverlayTree, SkillOrigin, skill_entries};
 use crate::digest::{Digest, TreeEntry, digest_entries};
-use crate::error::Error;
+use crate::error::{Class, Error};
 use crate::front_matter::{Case, read_front_matter, split_front_matter};
 use crate::limits::Settings;
 use crate::names::normalize_name;
@@ -206,8 +206,8 @@ pub fn resolve_skills(
     fetches: bool,
     settings: &Settings,
 ) -> Result<SkillPlan, Error> {
-    let resolution =
-        resolve(overlays, requested).map_err(|cycle| Error::new("cycle", cycle.0.join(" -> ")))?;
+    let resolution = resolve(overlays, requested)
+        .map_err(|cycle| Error::new(Class::Cycle, cycle.0.join(" -> ")))?;
     let active = composition_order(overlays, &resolution.install_order);
     crate::catalog::list_catalogs(catalogs)?;
     let rank: Vec<String> = order.iter().map(|label| normalize_name(label)).collect();
@@ -384,14 +384,14 @@ pub fn read_fetched_skill(
     if let Some(pin) = pin
         && Digest::parse(pin).ok() != Some(digest)
     {
-        return Err(Error::new("pin-mismatch", name));
+        return Err(Error::new(Class::PinMismatch, name));
     }
     let Some((_, skill)) = files.iter().find(|(path, _)| path == "SKILL.md") else {
-        return Err(Error::new("not-a-skill", name));
+        return Err(Error::new(Class::NotASkill, name));
     };
     let found = read_front_matter(skill, settings);
     if let Some(error) = found.error {
-        let mut refused = Error::new("skill-unreadable", error.class);
+        let mut refused = Error::new(Class::SkillUnreadable, error.class.as_str());
         refused.line = error.line;
         return Err(refused);
     }
@@ -403,13 +403,13 @@ pub fn read_fetched_skill(
             .is_some_and(|metadata| metadata.starts_with(b"#!"))
     {
         return Err(Error::new(
-            "skill-unreadable",
+            Class::SkillUnreadable,
             "front matter in YAML is required",
         ));
     }
     let data = found.data.unwrap_or_default();
     if data.get("name").and_then(serde_json::Value::as_str) != Some(name) {
-        return Err(Error::new("skill-name-mismatch", name));
+        return Err(Error::new(Class::SkillNameMismatch, name));
     }
     let mut reported: Vec<String> = data
         .keys()
@@ -459,7 +459,7 @@ pub fn fetch_planned(
                 Ok(files) => {
                     read_fetched_skill(&fetch.name, &files, fetch.pin.as_deref(), settings)
                 }
-                Err(_) => Err(Error::new("io", fetch.name.clone())),
+                Err(_) => Err(Error::new(Class::Io, fetch.name.clone())),
             },
         })
         .collect()

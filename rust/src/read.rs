@@ -6,7 +6,7 @@
 use serde_json::Value;
 
 use crate::codecs;
-use crate::error::Error;
+use crate::error::{Class, Error};
 use crate::limits::Settings;
 use crate::names::{is_reserved_variable, is_variable_name};
 
@@ -27,7 +27,7 @@ pub(crate) fn choose_format<'a>(
         None => (rest, &rest[rest.len()..]),
     };
     let line = core::str::from_utf8(line)
-        .map_err(|_| Error::new("invalid-utf8", "the format line is not UTF-8"))?;
+        .map_err(|_| Error::new(Class::InvalidUtf8, "the format line is not UTF-8"))?;
     let word = line
         .split([' ', '\t', '\u{c}', '\r'])
         .rfind(|word| !word.is_empty())
@@ -36,7 +36,7 @@ pub(crate) fn choose_format<'a>(
     let name = word.trim_start_matches('.').to_ascii_lowercase();
     if name.is_empty() {
         return Err(Error::new(
-            "no-format-named",
+            Class::NoFormatNamed,
             "the format line names no format",
         ));
     }
@@ -49,7 +49,7 @@ pub(crate) fn choose_format<'a>(
                 .bytes()
                 .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'));
             return Err(Error::new(
-                "unsupported-format",
+                Class::UnsupportedFormat,
                 if safe {
                     format!("{name} is not toml, json or yaml")
                 } else {
@@ -71,12 +71,13 @@ pub(crate) fn parse_payload(
     lined: bool,
 ) -> Result<Document, Error> {
     let text =
-        core::str::from_utf8(payload).map_err(|_| Error::new("invalid-utf8", "not UTF-8"))?;
+        core::str::from_utf8(payload).map_err(|_| Error::new(Class::InvalidUtf8, "not UTF-8"))?;
     if text.starts_with('\u{feff}') {
-        return Err(
-            Error::new("parse-error", "a byte-order mark where the document starts")
-                .at(1 + usize::from(lined), 1),
-        );
+        return Err(Error::new(
+            Class::ParseError,
+            "a byte-order mark where the document starts",
+        )
+        .at(1 + usize::from(lined), 1));
     }
     if text.trim_matches([' ', '\t', '\r', '\n']).is_empty() {
         return Ok(Document::new());
@@ -90,7 +91,10 @@ pub(crate) fn parse_payload(
     .map_err(|error| shift(error, usize::from(lined)))?;
     match value {
         Value::Object(map) => Ok(map),
-        _ => Err(Error::new("not-a-mapping", "the document is not a mapping")),
+        _ => Err(Error::new(
+            Class::NotAMapping,
+            "the document is not a mapping",
+        )),
     }
 }
 
@@ -105,7 +109,7 @@ pub(crate) fn parse_payload(
 pub fn read_document(data: &[u8], settings: &Settings) -> Result<Document, Error> {
     if !settings.manifest_bytes.allows(data.len()) {
         return Err(Error::new(
-            "too-large",
+            Class::TooLarge,
             format!("over {} bytes", settings.manifest_bytes),
         ));
     }
@@ -157,7 +161,8 @@ fn assignment(text: &str) -> Option<(&str, &str)> {
 /// two names equal without regard to ASCII case.
 pub fn parse_dotenv(data: &[u8]) -> Result<Vec<DotenvLine>, Error> {
     let data = data.strip_prefix(b"\xef\xbb\xbf").unwrap_or(data);
-    let text = core::str::from_utf8(data).map_err(|_| Error::new("invalid-utf8", "not UTF-8"))?;
+    let text =
+        core::str::from_utf8(data).map_err(|_| Error::new(Class::InvalidUtf8, "not UTF-8"))?;
     let mut lines: Vec<DotenvLine> = Vec::new();
     for (number, line) in text.split('\n').enumerate() {
         let line = line.strip_suffix('\r').unwrap_or(line);
@@ -172,7 +177,7 @@ pub fn parse_dotenv(data: &[u8]) -> Result<Vec<DotenvLine>, Error> {
         });
         let Some((name, value)) = exported.and_then(assignment).or_else(|| assignment(start))
         else {
-            let mut error = Error::new("dotenv-syntax", "a line that is no NAME=VALUE");
+            let mut error = Error::new(Class::DotenvSyntax, "a line that is no NAME=VALUE");
             error.line = Some(number + 1);
             return Err(error);
         };
@@ -190,7 +195,7 @@ pub fn parse_dotenv(data: &[u8]) -> Result<Vec<DotenvLine>, Error> {
             .iter()
             .any(|earlier| earlier.name.eq_ignore_ascii_case(name))
         {
-            let mut error = Error::new("duplicate-key", format!("{name} is set twice"));
+            let mut error = Error::new(Class::DuplicateKey, format!("{name} is set twice"));
             error.line = Some(number + 1);
             return Err(error);
         }
@@ -216,7 +221,8 @@ pub type ScriptOutput = Vec<(String, Option<String>)>;
 /// objects of variable names that are not reserved, mapped to a string without a zero byte or
 /// to null.
 pub fn read_env_script_output(data: &[u8], settings: &Settings) -> Result<ScriptOutput, Error> {
-    let text = core::str::from_utf8(data).map_err(|_| Error::new("invalid-utf8", "not UTF-8"))?;
+    let text =
+        core::str::from_utf8(data).map_err(|_| Error::new(Class::InvalidUtf8, "not UTF-8"))?;
     let whole = text.trim_matches([' ', '\t', '\r', '\n']);
     if whole.is_empty() {
         return Ok(Vec::new());
@@ -226,7 +232,7 @@ pub fn read_env_script_output(data: &[u8], settings: &Settings) -> Result<Script
     };
     let objects = match json(whole) {
         Ok(value) => vec![value],
-        Err(error) if error.class == "parse-error" => {
+        Err(error) if error.class == Class::ParseError => {
             let mut objects = Vec::new();
             for line in text.split('\n') {
                 let line = line.strip_suffix('\r').unwrap_or(line);
@@ -241,12 +247,12 @@ pub fn read_env_script_output(data: &[u8], settings: &Settings) -> Result<Script
     let mut out: ScriptOutput = Vec::new();
     for object in objects {
         let Value::Object(map) = object else {
-            return Err(Error::new("env-script-output", "not an object"));
+            return Err(Error::new(Class::EnvScriptOutput, "not an object"));
         };
         for (name, value) in map {
             if !is_variable_name(&name) || is_reserved_variable(&name) {
                 return Err(Error::new(
-                    "env-script-output",
+                    Class::EnvScriptOutput,
                     "a name that may not be set",
                 ));
             }
@@ -254,7 +260,10 @@ pub fn read_env_script_output(data: &[u8], settings: &Settings) -> Result<Script
                 Value::Null => None,
                 Value::String(text) if !text.contains('\0') => Some(text),
                 _ => {
-                    return Err(Error::new("env-script-output", "a value that is not text"));
+                    return Err(Error::new(
+                        Class::EnvScriptOutput,
+                        "a value that is not text",
+                    ));
                 }
             };
             out.retain(|(earlier, _)| *earlier != name);

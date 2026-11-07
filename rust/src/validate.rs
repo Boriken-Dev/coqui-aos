@@ -14,6 +14,131 @@ use super::names::{
 };
 use super::read::Document;
 
+/// What is wrong with a manifest, by the class the specification's vectors name it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
+pub enum IssueCode {
+    /// `env-name-case-duplicate`.
+    EnvNameCaseDuplicate,
+    /// `env-path-conflict`.
+    EnvPathConflict,
+    /// `integer-required`.
+    IntegerRequired,
+    /// `invalid-source`.
+    InvalidSource,
+    /// `license-expression`.
+    LicenseExpression,
+    /// `local-source`.
+    LocalSource,
+    /// `manifest-file`.
+    ManifestFile,
+    /// `mcp-command`.
+    McpCommand,
+    /// `mcp-duplicate-server`.
+    McpDuplicateServer,
+    /// `mcp-duplicate-skill`.
+    McpDuplicateSkill,
+    /// `mcp-unknown-server`.
+    McpUnknownServer,
+    /// `mcp-url`.
+    McpUrl,
+    /// `missing-file`.
+    MissingFile,
+    /// `missing-skill`.
+    MissingSkill,
+    /// `ref-not-allowed`.
+    RefNotAllowed,
+    /// `reserved-name`.
+    ReservedName,
+    /// `reserved-variable`.
+    ReservedVariable,
+    /// `schema`.
+    Schema,
+    /// `skill-ambiguous`.
+    SkillAmbiguous,
+    /// `skill-case`.
+    SkillCase,
+    /// `skill-duplicate`.
+    SkillDuplicate,
+    /// `skill-name`.
+    SkillName,
+    /// `source-credentials`.
+    SourceCredentials,
+    /// `two-manifests`.
+    TwoManifests,
+}
+
+impl IssueCode {
+    /// The class as the specification's vectors write it.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::EnvNameCaseDuplicate => "env-name-case-duplicate",
+            Self::EnvPathConflict => "env-path-conflict",
+            Self::IntegerRequired => "integer-required",
+            Self::InvalidSource => "invalid-source",
+            Self::LicenseExpression => "license-expression",
+            Self::LocalSource => "local-source",
+            Self::ManifestFile => "manifest-file",
+            Self::McpCommand => "mcp-command",
+            Self::McpDuplicateServer => "mcp-duplicate-server",
+            Self::McpDuplicateSkill => "mcp-duplicate-skill",
+            Self::McpUnknownServer => "mcp-unknown-server",
+            Self::McpUrl => "mcp-url",
+            Self::MissingFile => "missing-file",
+            Self::MissingSkill => "missing-skill",
+            Self::RefNotAllowed => "ref-not-allowed",
+            Self::ReservedName => "reserved-name",
+            Self::ReservedVariable => "reserved-variable",
+            Self::Schema => "schema",
+            Self::SkillAmbiguous => "skill-ambiguous",
+            Self::SkillCase => "skill-case",
+            Self::SkillDuplicate => "skill-duplicate",
+            Self::SkillName => "skill-name",
+            Self::SourceCredentials => "source-credentials",
+            Self::TwoManifests => "two-manifests",
+        }
+    }
+
+    /// The class a vector's name stands for.
+    #[must_use]
+    pub fn named(name: &str) -> Option<Self> {
+        match name {
+            "env-name-case-duplicate" => Some(Self::EnvNameCaseDuplicate),
+            "env-path-conflict" => Some(Self::EnvPathConflict),
+            "integer-required" => Some(Self::IntegerRequired),
+            "invalid-source" => Some(Self::InvalidSource),
+            "license-expression" => Some(Self::LicenseExpression),
+            "local-source" => Some(Self::LocalSource),
+            "manifest-file" => Some(Self::ManifestFile),
+            "mcp-command" => Some(Self::McpCommand),
+            "mcp-duplicate-server" => Some(Self::McpDuplicateServer),
+            "mcp-duplicate-skill" => Some(Self::McpDuplicateSkill),
+            "mcp-unknown-server" => Some(Self::McpUnknownServer),
+            "mcp-url" => Some(Self::McpUrl),
+            "missing-file" => Some(Self::MissingFile),
+            "missing-skill" => Some(Self::MissingSkill),
+            "ref-not-allowed" => Some(Self::RefNotAllowed),
+            "reserved-name" => Some(Self::ReservedName),
+            "reserved-variable" => Some(Self::ReservedVariable),
+            "schema" => Some(Self::Schema),
+            "skill-ambiguous" => Some(Self::SkillAmbiguous),
+            "skill-case" => Some(Self::SkillCase),
+            "skill-duplicate" => Some(Self::SkillDuplicate),
+            "skill-name" => Some(Self::SkillName),
+            "source-credentials" => Some(Self::SourceCredentials),
+            "two-manifests" => Some(Self::TwoManifests),
+            _ => None,
+        }
+    }
+}
+
+impl core::fmt::Display for IssueCode {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// One problem with a manifest.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
@@ -22,7 +147,7 @@ pub struct Issue {
     pub at: String,
     /// What: `schema`, `integer-required`, `reserved-name`, `reserved-variable`,
     /// `env-path-conflict`, `missing-file`, `missing-skill`, and the like.
-    pub code: &'static str,
+    pub code: IssueCode,
 }
 
 /// Whether a manifest with these problems is still applied: a problem under `/about`, which
@@ -178,7 +303,7 @@ fn is_header_name(text: &str) -> bool {
 }
 
 impl Check {
-    fn fail(&mut self, code: &'static str, at: impl Into<String>) {
+    fn fail(&mut self, code: IssueCode, at: impl Into<String>) {
         self.issues.push(Issue {
             at: at.into(),
             code,
@@ -188,7 +313,7 @@ impl Check {
     /// Checks `value` with `ok`, reporting `at` when it fails.
     fn require(&mut self, ok: bool, at: &str) {
         if !ok {
-            self.fail("schema", at);
+            self.fail(IssueCode::Schema, at);
         }
     }
 
@@ -204,7 +329,7 @@ impl Check {
     /// An integer in `low..=high`; a float of any value is `integer-required`.
     fn integer(&mut self, value: &Data, at: &str, low: i64, high: i64) {
         if value.is_f64() {
-            self.fail("integer-required", at);
+            self.fail(IssueCode::IntegerRequired, at);
         } else {
             let fine = value.as_i64().is_some_and(|n| (low..=high).contains(&n));
             self.require(fine, at);
@@ -215,7 +340,7 @@ impl Check {
         match value.as_array() {
             Some(items) => items,
             None => {
-                self.fail("schema", at);
+                self.fail(IssueCode::Schema, at);
                 &[]
             }
         }
@@ -232,7 +357,7 @@ impl Check {
             let mut seen = BTreeSet::new();
             for item in items {
                 if !seen.insert(item.to_string()) {
-                    self.fail("schema", at);
+                    self.fail(IssueCode::Schema, at);
                     return;
                 }
             }
@@ -242,12 +367,12 @@ impl Check {
     /// A mapping whose keys are only `known`; `None` for something that is not one.
     fn object<'a>(&mut self, value: &'a Data, at: &str, known: &[&str]) -> Option<&'a Document> {
         let Some(map) = value.as_object() else {
-            self.fail("schema", at);
+            self.fail(IssueCode::Schema, at);
             return None;
         };
         for key in map.keys() {
             if !known.contains(&key.as_str()) {
-                self.fail("schema", join(at, key));
+                self.fail(IssueCode::Schema, join(at, key));
             }
         }
         Some(map)
@@ -256,7 +381,7 @@ impl Check {
     fn required(&mut self, map: &Document, at: &str, keys: &[&str]) {
         for key in keys {
             if !map.contains_key(*key) {
-                self.fail("schema", at);
+                self.fail(IssueCode::Schema, at);
             }
         }
     }
@@ -339,19 +464,19 @@ impl Check {
                     }
                 }
             }
-            _ => self.fail("schema", at),
+            _ => self.fail(IssueCode::Schema, at),
         }
     }
 
     /// What runs at each event: a script, a table, or false for nothing.
     fn hooks(&mut self, value: &Data, at: &str) {
         let Some(map) = value.as_object() else {
-            self.fail("schema", at);
+            self.fail(IssueCode::Schema, at);
             return;
         };
         for (name, entry) in map {
             let Some(event) = HookEvent::named(name) else {
-                self.fail("schema", at);
+                self.fail(IssueCode::Schema, at);
                 continue;
             };
             let here = join(at, name);
@@ -359,7 +484,7 @@ impl Check {
                 Data::Bool(false) => {}
                 Data::String(run) => self.require(is_hook_run(run), &here),
                 Data::Object(_) => self.hook_table(event, entry, &here),
-                _ => self.fail("schema", here),
+                _ => self.fail(IssueCode::Schema, here),
             }
         }
     }
@@ -420,7 +545,7 @@ impl Check {
     /// A list of one or more distinct strings that pass `ok`.
     fn hook_list(&mut self, value: &Data, at: &str, ok: impl Fn(&str) -> bool) {
         let Some(items) = value.as_array() else {
-            self.fail("schema", at);
+            self.fail(IssueCode::Schema, at);
             return;
         };
         self.require(!items.is_empty(), at);
@@ -432,7 +557,7 @@ impl Check {
 
     fn env_map(&mut self, value: &Data, at: &str) {
         let Some(map) = value.as_object() else {
-            self.fail("schema", at);
+            self.fail(IssueCode::Schema, at);
             return;
         };
         for (name, entry) in map {
@@ -564,10 +689,10 @@ impl Check {
             return;
         };
         if map.contains_key("requirements") && map.contains_key("lock") {
-            self.fail("schema", at);
+            self.fail(IssueCode::Schema, at);
         }
         if map.contains_key("lock_digest") && !map.contains_key("lock") {
-            self.fail("schema", at);
+            self.fail(IssueCode::Schema, at);
         }
         for (key, value) in map {
             let here = join(at, key);
@@ -588,7 +713,7 @@ impl Check {
 
     fn scripts(&mut self, value: &Data, at: &str) {
         let Some(map) = value.as_object() else {
-            self.fail("schema", at);
+            self.fail(IssueCode::Schema, at);
             return;
         };
         for (name, target) in map {
@@ -674,7 +799,7 @@ impl Check {
             _ => false,
         };
         if misshapen {
-            self.fail("schema", at);
+            self.fail(IssueCode::Schema, at);
         }
         for (key, value) in map {
             let here = join(at, key);
@@ -711,7 +836,7 @@ impl Check {
                             self.require(fine, &join(&here, header));
                         }
                     } else {
-                        self.fail("schema", here);
+                        self.fail(IssueCode::Schema, here);
                     }
                 }
                 _ => {}
@@ -721,14 +846,14 @@ impl Check {
 
     fn harness(&mut self, value: &Data, at: &str) {
         let Some(map) = value.as_object() else {
-            self.fail("schema", at);
+            self.fail(IssueCode::Schema, at);
             return;
         };
         for (id, hints) in map {
             let here = join(at, id);
             self.require(is_lowercase_id(id, true, b""), &here);
             let Some(hints) = hints.as_object() else {
-                self.fail("schema", here);
+                self.fail(IssueCode::Schema, here);
                 continue;
             };
             for (key, value) in hints {
@@ -776,7 +901,7 @@ impl Check {
                     if let Some(license) = value.as_str()
                         && !valid_license(license)
                     {
-                        self.fail("license-expression", here);
+                        self.fail(IssueCode::LicenseExpression, here);
                     }
                 }
                 "authors" => self.each(value, &here, |check, author, at| {
@@ -892,27 +1017,36 @@ fn semantic(doc: &Document, check: &mut Check) {
             && overlay_name_shaped(name)
             && !valid_overlay_name(name)
         {
-            check.fail("reserved-name", format!("/requires/{index}"));
+            check.fail(IssueCode::ReservedName, format!("/requires/{index}"));
         }
     }
     let mut env_names = BTreeSet::new();
     if let Some(env) = doc.get("env").and_then(Data::as_object) {
         for name in env.keys() {
             if !env_names.insert(name.to_ascii_uppercase()) {
-                check.fail("env-name-case-duplicate", format!("/env/{}", token(name)));
+                check.fail(
+                    IssueCode::EnvNameCaseDuplicate,
+                    format!("/env/{}", token(name)),
+                );
             }
             if is_reserved_variable(name) {
-                check.fail("reserved-variable", format!("/env/{}", token(name)));
+                check.fail(IssueCode::ReservedVariable, format!("/env/{}", token(name)));
             }
         }
     }
     for (index, entry) in super::defaults::declared(doc, "paths").iter().enumerate() {
         if let Some(variable) = entry.get("variable").and_then(Data::as_str) {
             if env_names.contains(&variable.to_ascii_uppercase()) {
-                check.fail("env-path-conflict", format!("/paths/{index}/variable"));
+                check.fail(
+                    IssueCode::EnvPathConflict,
+                    format!("/paths/{index}/variable"),
+                );
             }
             if is_reserved_variable(variable) {
-                check.fail("reserved-variable", format!("/paths/{index}/variable"));
+                check.fail(
+                    IssueCode::ReservedVariable,
+                    format!("/paths/{index}/variable"),
+                );
             }
         }
     }
@@ -932,19 +1066,25 @@ fn semantic(doc: &Document, check: &mut Check) {
             continue;
         };
         if !names.insert(server.get("name").map(Data::to_string)) {
-            check.fail("mcp-duplicate-server", format!("/mcp/servers/{index}/name"));
+            check.fail(
+                IssueCode::McpDuplicateServer,
+                format!("/mcp/servers/{index}/name"),
+            );
         }
         if let Some(command) = server.get("command").and_then(Data::as_str)
             && command.contains(['/', '\\'])
             && !valid_relative_path(command)
         {
-            check.fail("mcp-command", format!("/mcp/servers/{index}/command"));
+            check.fail(
+                IssueCode::McpCommand,
+                format!("/mcp/servers/{index}/command"),
+            );
         }
         if let Some(url) = server.get("url").and_then(Data::as_str) {
             let after = url.split_once("://").map_or(url, |(_, rest)| rest);
             let authority = after.split('/').next().unwrap_or_default();
             if url.contains('#') || authority.contains('@') {
-                check.fail("mcp-url", format!("/mcp/servers/{index}/url"));
+                check.fail(IssueCode::McpUrl, format!("/mcp/servers/{index}/url"));
             }
         }
         if let Some(env) = server.get("env").and_then(Data::as_object) {
@@ -952,13 +1092,13 @@ fn semantic(doc: &Document, check: &mut Check) {
             for name in env.keys() {
                 if is_reserved_variable(name) {
                     check.fail(
-                        "reserved-variable",
+                        IssueCode::ReservedVariable,
                         format!("/mcp/servers/{index}/env/{}", token(name)),
                     );
                 }
                 if !seen.insert(name.to_ascii_uppercase()) {
                     check.fail(
-                        "env-name-case-duplicate",
+                        IssueCode::EnvNameCaseDuplicate,
                         format!("/mcp/servers/{index}/env/{}", token(name)),
                     );
                 }
@@ -972,10 +1112,16 @@ fn semantic(doc: &Document, check: &mut Check) {
             continue;
         };
         if !linked.insert(link.get("name").map(Data::to_string)) {
-            check.fail("mcp-duplicate-skill", format!("/mcp/skills/{index}/name"));
+            check.fail(
+                IssueCode::McpDuplicateSkill,
+                format!("/mcp/skills/{index}/name"),
+            );
         }
         if !names.contains(&link.get("server").map(Data::to_string)) {
-            check.fail("mcp-unknown-server", format!("/mcp/skills/{index}/server"));
+            check.fail(
+                IssueCode::McpUnknownServer,
+                format!("/mcp/skills/{index}/server"),
+            );
         }
     }
 }
@@ -1082,7 +1228,7 @@ pub fn named_files(doc: &Document) -> Vec<(String, String)> {
 fn files(doc: &Document, tree: &OverlayTree, check: &mut Check) {
     for (at, path) in named_files(doc) {
         if !tree.contains(&path) {
-            check.fail("missing-file", at);
+            check.fail(IssueCode::MissingFile, at);
         }
     }
     if let Some(env) = doc.get("env").and_then(Data::as_object) {
@@ -1093,7 +1239,7 @@ fn files(doc: &Document, tree: &OverlayTree, check: &mut Check) {
             .collect();
         for name in env.keys() {
             if added.contains(&name.to_ascii_uppercase()) {
-                check.fail("env-path-conflict", format!("/env/{}", token(name)));
+                check.fail(IssueCode::EnvPathConflict, format!("/env/{}", token(name)));
             }
         }
     }
@@ -1111,7 +1257,7 @@ fn files(doc: &Document, tree: &OverlayTree, check: &mut Check) {
                 .as_object()
                 .is_some_and(|table| !table.contains_key("run"))
             {
-                check.fail("missing-file", format!("/hooks/{}", token(event)));
+                check.fail(IssueCode::MissingFile, format!("/hooks/{}", token(event)));
             }
         }
     }
@@ -1125,13 +1271,13 @@ fn files(doc: &Document, tree: &OverlayTree, check: &mut Check) {
             continue;
         }
         if entry.is_object() {
-            check.fail("skill-ambiguous", skill_at(entry, index));
+            check.fail(IssueCode::SkillAmbiguous, skill_at(entry, index));
         } else if !bundled.contains(name) {
-            check.fail("skill-case", skill_at(entry, index));
+            check.fail(IssueCode::SkillCase, skill_at(entry, index));
         }
     }
     if tree.contains("OVERLAY.md") && tree.contains("overlay.cfg") {
-        check.fail("two-manifests", "");
+        check.fail(IssueCode::TwoManifests, "");
     }
     if let Some(links) = doc
         .get("mcp")
@@ -1142,7 +1288,7 @@ fn files(doc: &Document, tree: &OverlayTree, check: &mut Check) {
             if let Some(name) = link.get("name").and_then(Data::as_str)
                 && !tree.contains(&format!("skills/{name}/SKILL.md"))
             {
-                check.fail("missing-skill", format!("/mcp/skills/{index}/name"));
+                check.fail(IssueCode::MissingSkill, format!("/mcp/skills/{index}/name"));
             }
         }
     }
@@ -1174,30 +1320,30 @@ fn skills(doc: &Document, check: &mut Check) {
         };
         let at = skill_at(entry, index);
         if valid_tool_name(name) && !valid_relative_path(name) {
-            check.fail("skill-name", at.clone());
+            check.fail(IssueCode::SkillName, at.clone());
         }
         if !seen.insert(name.to_lowercase()) {
-            check.fail("skill-duplicate", at);
+            check.fail(IssueCode::SkillDuplicate, at);
         }
         if let Some(table) = entry.as_object()
             && let Some(source) = table.get("source").and_then(Data::as_str)
         {
             let there = format!("/skills/{index}");
             let Ok(parsed) = super::source::Source::parse(source) else {
-                check.fail("invalid-source", format!("{there}/source"));
+                check.fail(IssueCode::InvalidSource, format!("{there}/source"));
                 continue;
             };
             if parsed.is_local() {
-                check.fail("local-source", format!("{there}/source"));
+                check.fail(IssueCode::LocalSource, format!("{there}/source"));
             } else if parsed.kind == super::source::SourceKind::Url && !parsed.is_web_url() {
-                check.fail("invalid-source", format!("{there}/source"));
+                check.fail(IssueCode::InvalidSource, format!("{there}/source"));
             } else if parsed.holds_credentials() {
-                check.fail("source-credentials", format!("{there}/source"));
+                check.fail(IssueCode::SourceCredentials, format!("{there}/source"));
             }
             if table.contains_key("ref")
                 && (parsed.kind != super::source::SourceKind::Git || parsed.reference.is_some())
             {
-                check.fail("ref-not-allowed", format!("{there}/ref"));
+                check.fail(IssueCode::RefNotAllowed, format!("{there}/ref"));
             }
         }
     }
@@ -1210,7 +1356,7 @@ fn manifest_named(doc: &Document, check: &mut Check) {
         let is_context = at.starts_with("/context/")
             || (at.starts_with("/harness/") && at.contains("/context/"));
         if path == "overlay.cfg" || (path == "OVERLAY.md" && !is_context) {
-            check.fail("manifest-file", at);
+            check.fail(IssueCode::ManifestFile, at);
         }
     }
 }

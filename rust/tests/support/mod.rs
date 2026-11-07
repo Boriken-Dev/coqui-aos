@@ -130,7 +130,7 @@ pub fn compare(got: Result<Value, Error>, expect: &Value) -> Result<(), String> 
             .then_some(())
             .ok_or(format!("read {data}, expected {}", expect["data"])),
         Ok(data) => Err(format!("read {data}, expected an error {errors:?}")),
-        Err(error) if errors.iter().any(|class| class == error.class) => Ok(()),
+        Err(error) if errors.iter().any(|class| class == error.class.as_str()) => Ok(()),
         Err(error) => Err(format!("refused {error}, expected {expect}")),
     }
 }

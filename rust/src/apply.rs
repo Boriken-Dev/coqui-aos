@@ -11,7 +11,7 @@ use crate::defaults::{
     Dependency, INTERPRETERS, OverlayTree, declared, default_paths, default_script,
     dependencies_of, entry_on, env_files_of, first_variant, named,
 };
-use crate::error::Error;
+use crate::error::{Class, Error};
 use crate::hooks::{Decision, HookEvent, HookReport, HookRun, fire_event};
 use crate::limits::Settings;
 use crate::names::{
@@ -113,7 +113,7 @@ impl Environment {
             return Ok(None);
         };
         if self.secret.contains(&self.values[index].0) {
-            return Err(Error::new("secret-placeholder", name));
+            return Err(Error::new(Class::SecretPlaceholder, name));
         }
         Ok(Some(self.values[index].1.clone()))
     }
@@ -268,7 +268,7 @@ impl Facts {
         let provider = entry.get("provider").and_then(Data::as_str);
         let key = entry.get("key").and_then(Data::as_str).unwrap_or_default();
         if provider == Some("file") && !valid_relative_path(key) {
-            return Err(Error::new("invalid-reference", key));
+            return Err(Error::new(Class::InvalidReference, key));
         }
         if !self.granted(entry) {
             return Ok(None);
@@ -350,7 +350,7 @@ fn apply_mapping(
     let before = env.clone();
     for (name, entry) in mapping {
         if is_reserved_variable(name) {
-            return Err(Error::new("reserved-variable", name));
+            return Err(Error::new(Class::ReservedVariable, name));
         }
         let entry = match entry {
             Data::String(text) => {
@@ -375,7 +375,7 @@ fn apply_mapping(
                 if entry.get("optional") == Some(&Data::Bool(true)) {
                     continue;
                 }
-                return Err(Error::new("unresolved-reference", name));
+                return Err(Error::new(Class::UnresolvedReference, name));
             };
             secret = true;
             if entry.get("provider").and_then(Data::as_str) == Some("env") {
@@ -549,8 +549,8 @@ fn apply_overlay_inner(
 ) -> Result<Vec<ScriptRun>, Error> {
     let (os, root, tree) = (facts.os.as_str(), facts.root.as_str(), &facts.tree);
     let mut paths = default_paths(manifest, tree);
-    let dependencies =
-        dependencies_of(manifest, tree, os).map_err(|lock| Error::new("partial-lock", &lock.0))?;
+    let dependencies = dependencies_of(manifest, tree, os)
+        .map_err(|lock| Error::new(Class::PartialLock, &lock.0))?;
     for dependency in &dependencies {
         if let Some(packages) = facts.packages.get(&dependency.runtime) {
             let variable = if dependency.runtime == "python" {
@@ -576,7 +576,7 @@ fn apply_overlay_inner(
         .keys()
         .find(|name| listed.contains(&name.to_ascii_uppercase()))
     {
-        return Err(Error::new("env-path-conflict", name));
+        return Err(Error::new(Class::EnvPathConflict, name));
     }
     for item in env_files_of(manifest, tree) {
         if !entry_on(&item, os) {
@@ -585,20 +585,20 @@ fn apply_overlay_inner(
         let path = named(&item).unwrap_or_default().to_owned();
         let dotenv = item.get("format").and_then(Data::as_str) == Some("dotenv");
         let Some(text) = tree.text(&path) else {
-            return Err(Error::new("missing-file", &path));
+            return Err(Error::new(Class::MissingFile, &path));
         };
-        let invalid = || Error::new("invalid-env-file", &path);
+        let invalid = || Error::new(Class::InvalidEnvFile, &path);
         if dotenv {
             let lines = parse_dotenv(text.as_bytes()).map_err(|_| invalid())?;
             if let Some(line) = lines
                 .iter()
                 .find(|line| listed.contains(&line.name.to_ascii_uppercase()))
             {
-                return Err(Error::new("env-path-conflict", &line.name));
+                return Err(Error::new(Class::EnvPathConflict, &line.name));
             }
             for line in lines {
                 if is_reserved_variable(&line.name) {
-                    return Err(Error::new("reserved-variable", &line.name));
+                    return Err(Error::new(Class::ReservedVariable, &line.name));
                 }
                 let value = if line.literal {
                     line.text
@@ -621,7 +621,7 @@ fn apply_overlay_inner(
                 .keys()
                 .find(|name| listed.contains(&name.to_ascii_uppercase()))
             {
-                return Err(Error::new("env-path-conflict", name));
+                return Err(Error::new(Class::EnvPathConflict, name));
             }
             apply_mapping(env, &mapping, facts, root, non_defaults)?;
         }
@@ -803,7 +803,7 @@ pub fn effective(manifest: &Document, facts: &Facts) -> Result<Effective, Error>
     };
     let python = variant("python");
     let dependencies = dependencies_of(manifest, &facts.tree, os)
-        .map_err(|lock| Error::new("partial-lock", &lock.0))?;
+        .map_err(|lock| Error::new(Class::PartialLock, &lock.0))?;
     for dependency in &dependencies {
         // Installing fetches packages: it needs the network, locked or not.
         non_defaults.push(NonDefaultSetting::new("deps-network", &dependency.file));
@@ -1186,7 +1186,7 @@ pub fn composed_environment(
         composed.hook_reports.extend(fired.reports);
         composed.hook_non_defaults.extend(fired.non_defaults);
         if fired.decision == Some(Decision::Refuse) {
-            composed.env = Err(Error::new("hook-refused", facts.identity.clone()));
+            composed.env = Err(Error::new(Class::HookRefused, facts.identity.clone()));
             return composed;
         }
         for (name, value) in fired.env {

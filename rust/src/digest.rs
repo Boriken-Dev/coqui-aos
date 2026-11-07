@@ -7,7 +7,7 @@ use std::path::Path;
 
 use sha2::{Digest as _, Sha256};
 
-use crate::error::Error;
+use crate::error::{Class, Error};
 use crate::fs::{FileKind, FileSystem, name_bytes};
 use crate::limits::Settings;
 use crate::names::{EXCLUDED_COMPONENTS, valid_relative_path};
@@ -33,7 +33,7 @@ impl Digest {
             .filter(|hex| hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
             .ok_or_else(|| {
                 Error::new(
-                    "invalid-digest",
+                    Class::InvalidDigest,
                     "a digest is sha256: and 64 hexadecimal digits",
                 )
             })?;
@@ -41,7 +41,7 @@ impl Digest {
         for (index, byte) in bytes.iter_mut().enumerate() {
             *byte = u8::from_str_radix(&hex[index * 2..index * 2 + 2], 16).map_err(|_| {
                 Error::new(
-                    "invalid-digest",
+                    Class::InvalidDigest,
                     "a digest is sha256: and 64 hexadecimal digits",
                 )
             })?;
@@ -73,7 +73,7 @@ impl core::str::FromStr for Digest {
     }
 }
 
-fn refused(class: &'static str, path: impl Into<String>) -> Error {
+fn refused(class: Class, path: impl Into<String>) -> Error {
     Error::new(class, path)
 }
 
@@ -158,13 +158,13 @@ where
         let bytes = match entry {
             TreeEntry::File(bytes) => bytes,
             TreeEntry::Symlink => {
-                return Err(refused("symlink", shown(&components)));
+                return Err(refused(Class::Symlink, shown(&components)));
             }
-            _ => return Err(refused("special-file", shown(&components))),
+            _ => return Err(refused(Class::SpecialFile, shown(&components))),
         };
         let path = member_path(&components)?;
         if files.insert(path.clone(), Digest::of(bytes)).is_some() {
-            return Err(refused("duplicate-member", path));
+            return Err(refused(Class::DuplicateMember, path));
         }
     }
     check_case(&files)?;
@@ -177,12 +177,12 @@ fn member_path(components: &[&[u8]]) -> Result<String, Error> {
     for component in components {
         names.push(
             core::str::from_utf8(component)
-                .map_err(|_| refused("non-utf8-name", shown(components)))?,
+                .map_err(|_| refused(Class::NonUtf8Name, shown(components)))?,
         );
     }
     let path = names.join("/");
     if !valid_relative_path(&path) {
-        return Err(refused("invalid-name", shown(components)));
+        return Err(refused(Class::InvalidName, shown(components)));
     }
     Ok(path)
 }
@@ -193,7 +193,7 @@ fn check_case(files: &BTreeMap<String, Digest>) -> Result<(), Error> {
         if let Some(other) = folded.insert(path.to_ascii_lowercase(), path)
             && other != path
         {
-            return Err(refused("case-collision", path.clone()));
+            return Err(refused(Class::CaseCollision, path.clone()));
         }
     }
     Ok(())
@@ -227,10 +227,10 @@ pub fn tree_digest(
 ) -> Result<TreeDigest, Error> {
     let metadata = files
         .metadata(root)
-        .map_err(|error| refused("io", error.to_string()))?;
+        .map_err(|error| refused(Class::Io, error.to_string()))?;
     if metadata.kind != FileKind::Directory {
         return Err(refused(
-            "io",
+            Class::Io,
             "the root is not a directory (a link is never followed)",
         ));
     }
@@ -263,7 +263,7 @@ impl Walk<'_> {
     ) -> Result<(), Error> {
         if !self.settings.tree_depth.allows(depth) {
             return Err(refused(
-                "too-large",
+                Class::TooLarge,
                 format!(
                     "directories nested deeper than {}",
                     self.settings.tree_depth
@@ -273,7 +273,7 @@ impl Walk<'_> {
         let mut names = self
             .files
             .list(path)
-            .map_err(|error| refused("io", error.to_string()))?;
+            .map_err(|error| refused(Class::Io, error.to_string()))?;
         names.sort_by_key(|name| name_bytes(name));
         for name in names {
             let bytes = name_bytes(&name);
@@ -282,7 +282,7 @@ impl Walk<'_> {
                 || bytes == b".."
                 || bytes.iter().any(|byte| matches!(byte, b'/' | b'\\' | 0))
             {
-                return Err(refused("invalid-name", shown(&[bytes.as_slice()])));
+                return Err(refused(Class::InvalidName, shown(&[bytes.as_slice()])));
             }
             components.push(bytes);
             let result = self.entry(&path.join(&name), components, depth);
@@ -301,19 +301,19 @@ impl Walk<'_> {
         let metadata = self
             .files
             .metadata(path)
-            .map_err(|error| refused("io", error.to_string()))?;
+            .map_err(|error| refused(Class::Io, error.to_string()))?;
         let directory = metadata.kind == FileKind::Directory;
         let borrowed: Vec<&[u8]> = components.iter().map(Vec::as_slice).collect();
         if excluded(&borrowed, directory) {
             return Ok(());
         }
         match metadata.kind {
-            FileKind::Symlink => return Err(refused("symlink", shown(&borrowed))),
+            FileKind::Symlink => return Err(refused(Class::Symlink, shown(&borrowed))),
             FileKind::Directory => {
                 self.entries += 1;
                 if !self.settings.tree_files.allows(self.entries) {
                     return Err(refused(
-                        "too-large",
+                        Class::TooLarge,
                         format!(
                             "more than {} files and directories",
                             self.settings.tree_files
@@ -323,13 +323,13 @@ impl Walk<'_> {
                 return self.directory(path, components, depth + 1);
             }
             FileKind::File => {}
-            _ => return Err(refused("special-file", shown(&borrowed))),
+            _ => return Err(refused(Class::SpecialFile, shown(&borrowed))),
         }
         let member = member_path(&borrowed)?;
         self.entries += 1;
         if !self.settings.tree_files.allows(self.entries) {
             return Err(refused(
-                "too-large",
+                Class::TooLarge,
                 format!(
                     "more than {} files and directories",
                     self.settings.tree_files
@@ -344,17 +344,17 @@ impl Walk<'_> {
         let bytes = self
             .files
             .read(path, most)
-            .map_err(|error| refused("io", format!("{member}: {error}")))?;
+            .map_err(|error| refused(Class::Io, format!("{member}: {error}")))?;
         if !self.settings.file_bytes.allows(bytes.len()) {
             return Err(refused(
-                "too-large",
+                Class::TooLarge,
                 format!("{member} is larger than {} bytes", self.settings.file_bytes),
             ));
         }
         self.bytes = self.bytes.saturating_add(bytes.len() as u64);
         if !self.settings.tree_bytes.allows(self.bytes) {
             return Err(refused(
-                "too-large",
+                Class::TooLarge,
                 format!("more than {} bytes", self.settings.tree_bytes),
             ));
         }

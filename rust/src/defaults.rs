@@ -5,7 +5,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 
 use serde_json::Value as Data;
 
-use super::error::Error;
+use super::error::{Class, Error};
 use super::front_matter::split_front_matter;
 use super::limits::{Limit, Settings};
 use super::names::{normalize_name, os_matches, valid_relative_path, valid_tool_name};
@@ -602,7 +602,7 @@ pub(crate) fn requirements_locked(text: &str, path: &str) -> Result<bool, Partia
 pub fn check_requirements(text: &str, locked: bool) -> Result<(), Error> {
     let joined = text.replace("\\\r\n", " ").replace("\\\n", " ");
     for (number, line) in joined.lines().enumerate() {
-        let refused = |why: &str| Error::new("invalid-requirements", why).on_line(number + 1);
+        let refused = |why: &str| Error::new(Class::InvalidRequirements, why).on_line(number + 1);
         let line = line.split(" #").next().unwrap_or_default().trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
