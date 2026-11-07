@@ -1,0 +1,4467 @@
+{
+  "description": "Validating a data model value. 'files', when present, lists the overlay's files and every file a field names must be among them. An invalid case names the pointer of the offending value ('at'); an implementation reports a problem there or inside it. A case whose document writes 'about' also states whether the manifest still 'applies': a problem under /about never stops it.",
+  "spec": "spec/v0/manifest.md#validation",
+  "cases": [
+    {
+      "id": "files-missing-skill",
+      "description": "A listed name with no SKILL.md is for the consumer's catalogs to resolve: valid, and flagged.",
+      "document": {
+        "skills": [
+          "k"
+        ]
+      },
+      "files": [
+        "skills/k/README.md"
+      ],
+      "expect": {
+        "valid": true,
+        "flags": [
+          "/skills/0"
+        ]
+      }
+    },
+    {
+      "id": "skills-from-elsewhere",
+      "description": "Bundled, named and sourced together; only the bare name with no directory is flagged.",
+      "document": {
+        "skills": [
+          "summarize-docs",
+          "pdf",
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab"
+          }
+        ]
+      },
+      "files": [
+        "skills/summarize-docs/SKILL.md"
+      ],
+      "expect": {
+        "valid": true,
+        "flags": [
+          "/skills/1"
+        ]
+      }
+    },
+    {
+      "id": "skills-table-ref",
+      "description": "A table with a ref, for a Git source written without one.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review",
+            "ref": "v1"
+          }
+        ]
+      },
+      "files": [],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-table-source-ref",
+      "description": "A Git source may carry its own ref instead.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git@v1#skills/review"
+          }
+        ]
+      },
+      "files": [],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "context-harness-names-body",
+      "description": "A harness's context may name the body of OVERLAY.md.",
+      "document": {
+        "harness": {
+          "codex": {
+            "context": [
+              "OVERLAY.md"
+            ]
+          }
+        }
+      },
+      "files": [
+        "OVERLAY.md"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-source-private-address",
+      "description": "A private address is no local source; it is reported when the skill is resolved.",
+      "document": {
+        "skills": [
+          {
+            "name": "a",
+            "source": "https://10.1.2.3/skills.git"
+          }
+        ]
+      },
+      "files": [],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-table-account",
+      "description": "An SSH account is not a credential.",
+      "document": {
+        "skills": [
+          {
+            "name": "a",
+            "source": "git@github.com:example/skills.git#a"
+          },
+          {
+            "name": "b",
+            "source": "ssh://git@github.com/example/skills.git#b"
+          }
+        ]
+      },
+      "files": [],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-table-web",
+      "description": "A web URL can be a source.",
+      "document": {
+        "skills": [
+          {
+            "name": "a",
+            "source": "https://example.org/skills/a",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab"
+          }
+        ]
+      },
+      "files": [],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-table-no-files",
+      "description": "Without the files, a validator checks a table's shape and its source alone.",
+      "document": {
+        "skills": [
+          {
+            "name": "a",
+            "source": "https://example.org/skills/a"
+          },
+          "b"
+        ]
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-bundled-defaults-off",
+      "description": "With the default off, a listed name that is bundled is still bundled, not flagged.",
+      "document": {
+        "defaults": {
+          "skills": false
+        },
+        "skills": [
+          "k"
+        ]
+      },
+      "files": [
+        "skills/k/SKILL.md",
+        "skills/other/SKILL.md"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No manifest reads as the empty mapping.",
+      "document": {},
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "core",
+      "description": "The core fields.",
+      "document": {
+        "name": "x",
+        "description": "d",
+        "requires": [
+          "engineering",
+          "Team_Review"
+        ],
+        "routing": [
+          "- a → `$X_OVERLAY_ROOT/a.md`"
+        ],
+        "rules": [
+          "rules/a.md"
+        ],
+        "priority": -5
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "name-empty",
+      "description": "An empty name is a string.",
+      "document": {
+        "name": ""
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "unknown-keys",
+      "description": "Unknown top-level keys of any data model type.",
+      "document": {
+        "x_ext": {
+          "a": [
+            1,
+            2.5,
+            true,
+            "s",
+            {
+              "b": []
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "relative-paths",
+      "description": "Dot-names that are not '.' or '..' are fine.",
+      "document": {
+        "rules": [
+          ".hidden/a.md",
+          "a/..b/c.md",
+          "...x",
+          "a b/c d.md",
+          ".github/a.md",
+          "console/a.md",
+          "com10/a.md",
+          "x.pyco"
+        ]
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "env-forms",
+      "description": "Every env value form.",
+      "document": {
+        "env": {
+          "A": "x",
+          "B": {
+            "value": "y",
+            "if_unset": true
+          },
+          "C": {
+            "path": "conf/c.toml"
+          },
+          "D": {
+            "provider": "env",
+            "key": "D",
+            "optional": true
+          },
+          "E": {
+            "provider": "vault",
+            "key": "k",
+            "version": 2,
+            "strict": true,
+            "mount": "kv"
+          },
+          "F": {
+            "secret": "s",
+            "if_unset": false
+          },
+          "G": ""
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "env-files",
+      "description": "Env files as paths and mappings.",
+      "document": {
+        "env_files": [
+          "env/a.cfg",
+          {
+            "path": "env/b.env",
+            "format": "dotenv"
+          },
+          {
+            "path": "env/w.cfg",
+            "format": "aos",
+            "os": [
+              "windows"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "paths",
+      "description": "Path additions.",
+      "document": {
+        "paths": [
+          {
+            "variable": "PATH",
+            "path": "bin"
+          },
+          {
+            "variable": "PYTHONPATH",
+            "path": "lib",
+            "position": "append",
+            "os": [
+              "unix"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "env-scripts",
+      "description": "Env scripts.",
+      "document": {
+        "env_scripts": [
+          {
+            "interpreter": "python",
+            "path": "env/a.py",
+            "args": [
+              "-q"
+            ],
+            "timeout": 0,
+            "os": [
+              "linux"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "setup",
+      "description": "Setup variants, a custom interpreter name included.",
+      "document": {
+        "setup": [
+          {
+            "interpreter": "powershell",
+            "path": "s/a.ps1",
+            "os": [
+              "windows"
+            ]
+          },
+          {
+            "interpreter": "deno",
+            "path": "s/a.ts",
+            "timeout": 10,
+            "network": true
+          }
+        ]
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "runtime",
+      "description": "Runtime with every key.",
+      "document": {
+        "runtime": {
+          "os": [
+            "linux",
+            "haiku"
+          ],
+          "commands": [
+            "git",
+            {
+              "name": "gh",
+              "os": [
+                "macos"
+              ]
+            }
+          ],
+          "python": [
+            {
+              "version": "3",
+              "requirements": "r.txt"
+            },
+            {
+              "version": "3.11.4",
+              "lock": "l.txt",
+              "lock_digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+            }
+          ],
+          "node": [
+            {
+              "version": "20.1"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-context",
+      "description": "Skills and context.",
+      "document": {
+        "skills": [
+          "a",
+          "b.c",
+          "9z"
+        ],
+        "context": [
+          "CONTEXT.md"
+        ]
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "scripts",
+      "description": "Every script form.",
+      "document": {
+        "scripts": {
+          "a": "bin/a.py",
+          "b": "bin/b.ps1",
+          "c": "x/c.mjs",
+          "d": {
+            "path": "bin/d",
+            "interpreter": "bash",
+            "os": [
+              "unix"
+            ]
+          },
+          "e": false
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "harness",
+      "description": "Harness hints with a harness's own keys.",
+      "document": {
+        "harness": {
+          "claude-code": {
+            "context": [
+              "kb/c.md"
+            ],
+            "skills": false,
+            "model": "m",
+            "effort": "high",
+            "own": {
+              "x": 1
+            }
+          },
+          "codex": {}
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "mcp",
+      "description": "Both transports and a skill link.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "node",
+              "args": [
+                "s.js"
+              ],
+              "env": {
+                "A": "x",
+                "B": {
+                  "provider": "env",
+                  "key": "B"
+                }
+              },
+              "env_passthrough": [
+                "C"
+              ],
+              "timeout": 2.5
+            },
+            {
+              "name": "r",
+              "transport": "streamable-http",
+              "url": "https://h.example/x",
+              "headers_env": {
+                "Authorization": "TOKEN"
+              }
+            }
+          ],
+          "skills": [
+            {
+              "name": "k",
+              "server": "s"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "files-present",
+      "description": "Every named file exists.",
+      "document": {
+        "rules": [
+          "rules/a.md"
+        ],
+        "skills": [
+          "k"
+        ],
+        "setup": [
+          {
+            "interpreter": "sh",
+            "path": "s.sh"
+          }
+        ]
+      },
+      "files": [
+        "rules/a.md",
+        "skills/k/SKILL.md",
+        "s.sh"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "defaults-off",
+      "description": "Every default turned off.",
+      "document": {
+        "defaults": {
+          "bin": false,
+          "lib": false,
+          "env": false,
+          "env_scripts": false,
+          "setup": false,
+          "context": false,
+          "skills": false,
+          "rules": false
+        }
+      },
+      "files": [
+        "bin/tool",
+        "lib/python/m.py",
+        "rules/a.md",
+        "CONTEXT.md",
+        "skills/k/SKILL.md",
+        "env",
+        "env.py",
+        "setup.sh"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "defaults-on",
+      "description": "true is the default, and may be written.",
+      "document": {
+        "defaults": {
+          "bin": true,
+          "skills": true
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "env-path-bin-off",
+      "description": "env may set PATH when the bin default is off.",
+      "document": {
+        "env": {
+          "PATH": "/opt/bin"
+        },
+        "defaults": {
+          "bin": false
+        }
+      },
+      "files": [
+        "bin/tool",
+        "lib/python/m.py"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "env-path-no-bin",
+      "description": "env may set PATH when no bin/ is present.",
+      "document": {
+        "env": {
+          "PATH": "/opt/bin"
+        }
+      },
+      "files": [
+        "lib/python/m.py",
+        "bin.txt"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "env-pythonpath-bare-lib",
+      "description": "A bare lib/ is no convention: env may set PYTHONPATH.",
+      "document": {
+        "env": {
+          "PYTHONPATH": "/opt/lib"
+        }
+      },
+      "files": [
+        "lib/m.py"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "about-every-field",
+      "description": "Every informational field, its icon among the files.",
+      "document": {
+        "name": "release-notes",
+        "description": "Long text.\nSecond line.",
+        "about": {
+          "summary": "Release notes and changelogs, written the same way everywhere.",
+          "icon": "icon.webp",
+          "homepage": "https://example.org/overlays/release-notes",
+          "repository": "https://github.com/example/overlays",
+          "license": "MIT OR Apache-2.0",
+          "authors": [
+            "Example Docs Team <docs@example.org>",
+            "Ana Pérez"
+          ],
+          "tags": [
+            "documentation",
+            "release",
+            "changelog-2"
+          ]
+        }
+      },
+      "files": [
+        "icon.webp"
+      ],
+      "expect": {
+        "valid": true,
+        "applies": true
+      }
+    },
+    {
+      "id": "about-forms",
+      "description": "A WebP or PNG in any ASCII case, an SPDX expression with WITH, + and LicenseRef-, empty lists.",
+      "document": {
+        "about": {
+          "icon": "img/Icon.PNG",
+          "license": "(GPL-2.0+ WITH Classpath-exception-2.0 OR LicenseRef-team) AND MIT",
+          "authors": [],
+          "tags": []
+        }
+      },
+      "expect": {
+        "valid": true,
+        "applies": true
+      }
+    },
+    {
+      "id": "defaults-hooks",
+      "description": "hooks is a key of defaults: false turns off hook.<ext>'s default events and keeps the declared ones.",
+      "document": {
+        "defaults": {
+          "hooks": false
+        },
+        "hooks": {
+          "pre-tool": {
+            "match": [
+              "execute"
+            ],
+            "on_failure": "refuse"
+          }
+        }
+      },
+      "files": [
+        "hook.sh"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "fixture-about-icon-svg",
+      "description": "tests/fixtures/invalid/about-icon-svg.cfg",
+      "document": {
+        "about": {
+          "icon": "icon.svg"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/icon",
+        "applies": true
+      }
+    },
+    {
+      "id": "fixture-about-license-expression",
+      "description": "tests/fixtures/invalid/about-license-expression.cfg",
+      "document": {
+        "about": {
+          "license": "MIT or Apache-2.0"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/license",
+        "applies": true
+      }
+    },
+    {
+      "id": "fixture-about-unknown-key",
+      "description": "tests/fixtures/invalid/about-unknown-key.cfg",
+      "document": {
+        "about": {
+          "licence": "MIT"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about",
+        "applies": true
+      }
+    },
+    {
+      "id": "fixture-context-absolute",
+      "description": "tests/fixtures/invalid/context-absolute.cfg",
+      "document": {
+        "context": [
+          "/etc/passwd"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/context/0"
+      }
+    },
+    {
+      "id": "fixture-context-backslash",
+      "description": "tests/fixtures/invalid/context-backslash.cfg",
+      "document": {
+        "context": [
+          "kb\\notes.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/context/0"
+      }
+    },
+    {
+      "id": "fixture-defaults-string",
+      "description": "tests/fixtures/invalid/defaults-string.cfg",
+      "document": {
+        "defaults": {
+          "bin": "no"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/defaults/bin"
+      }
+    },
+    {
+      "id": "fixture-defaults-unknown-key",
+      "description": "tests/fixtures/invalid/defaults-unknown-key.cfg",
+      "document": {
+        "defaults": {
+          "bin": false,
+          "lib_node": false
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/defaults"
+      }
+    },
+    {
+      "id": "fixture-env-bad-name",
+      "description": "tests/fixtures/invalid/env-bad-name.cfg",
+      "document": {
+        "env": {
+          "1BAD": "x"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env"
+      }
+    },
+    {
+      "id": "fixture-env-case-duplicate",
+      "description": "tests/fixtures/invalid/env-case-duplicate.cfg",
+      "document": {
+        "env": {
+          "Path": "a",
+          "PATH": "b"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/PATH"
+      }
+    },
+    {
+      "id": "fixture-env-files-absolute",
+      "description": "tests/fixtures/invalid/env-files-absolute.cfg",
+      "document": {
+        "env_files": [
+          "/etc/environment"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env_files/0"
+      }
+    },
+    {
+      "id": "fixture-env-files-bad-format",
+      "description": "tests/fixtures/invalid/env-files-bad-format.cfg",
+      "document": {
+        "env_files": [
+          {
+            "path": "env/a.ini",
+            "format": "ini"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env_files/0"
+      }
+    },
+    {
+      "id": "fixture-env-number",
+      "description": "tests/fixtures/invalid/env-number.cfg",
+      "document": {
+        "env": {
+          "X": 3
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/X"
+      }
+    },
+    {
+      "id": "fixture-env-optional-literal",
+      "description": "tests/fixtures/invalid/env-optional-literal.cfg",
+      "document": {
+        "env": {
+          "X": {
+            "value": "a",
+            "optional": true
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/X"
+      }
+    },
+    {
+      "id": "fixture-env-path-escape",
+      "description": "tests/fixtures/invalid/env-path-escape.cfg",
+      "document": {
+        "env": {
+          "X": {
+            "path": "../x"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/X"
+      }
+    },
+    {
+      "id": "fixture-env-provider-nested",
+      "description": "tests/fixtures/invalid/env-provider-nested.cfg",
+      "document": {
+        "env": {
+          "X": {
+            "provider": "vault",
+            "key": "a",
+            "opts": {
+              "a": 1
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/X"
+      }
+    },
+    {
+      "id": "fixture-env-provider-no-key",
+      "description": "tests/fixtures/invalid/env-provider-no-key.cfg",
+      "document": {
+        "env": {
+          "X": {
+            "provider": "env"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/X"
+      }
+    },
+    {
+      "id": "fixture-env-provider-reserved",
+      "description": "tests/fixtures/invalid/env-provider-reserved.cfg",
+      "document": {
+        "env": {
+          "X": {
+            "provider": "env",
+            "key": "A",
+            "secret": "s"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/X"
+      }
+    },
+    {
+      "id": "fixture-env-scripts-negative-timeout",
+      "description": "tests/fixtures/invalid/env-scripts-negative-timeout.cfg",
+      "document": {
+        "env_scripts": [
+          {
+            "interpreter": "python",
+            "path": "env/a.py",
+            "timeout": -1
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env_scripts/0/timeout"
+      }
+    },
+    {
+      "id": "fixture-env-scripts-no-interpreter",
+      "description": "tests/fixtures/invalid/env-scripts-no-interpreter.cfg",
+      "document": {
+        "env_scripts": [
+          {
+            "path": "env/a.py"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env_scripts/0"
+      }
+    },
+    {
+      "id": "fixture-env-two-sources",
+      "description": "tests/fixtures/invalid/env-two-sources.cfg",
+      "document": {
+        "env": {
+          "X": {
+            "value": "a",
+            "path": "b"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/X"
+      }
+    },
+    {
+      "id": "fixture-harness-bad-id",
+      "description": "tests/fixtures/invalid/harness-bad-id.cfg",
+      "document": {
+        "harness": {
+          "Claude Code": {
+            "skills": false
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness"
+      }
+    },
+    {
+      "id": "fixture-harness-skills-string",
+      "description": "tests/fixtures/invalid/harness-skills-string.cfg",
+      "document": {
+        "harness": {
+          "codex": {
+            "skills": "no"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness/codex/skills"
+      }
+    },
+    {
+      "id": "fixture-hooks-match-on-prompt",
+      "description": "tests/fixtures/invalid/hooks-match-on-prompt.cfg",
+      "document": {
+        "hooks": {
+          "prompt": {
+            "match": [
+              "execute"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/prompt"
+      }
+    },
+    {
+      "id": "fixture-hooks-refuse-after-tool",
+      "description": "tests/fixtures/invalid/hooks-refuse-after-tool.cfg",
+      "document": {
+        "hooks": {
+          "post-tool": {
+            "on_failure": "refuse"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/post-tool"
+      }
+    },
+    {
+      "id": "fixture-hooks-run-extension",
+      "description": "tests/fixtures/invalid/hooks-run-extension.cfg",
+      "document": {
+        "hooks": {
+          "session-start": "hooks/start.txt"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/session-start"
+      }
+    },
+    {
+      "id": "fixture-hooks-timeout-zero",
+      "description": "tests/fixtures/invalid/hooks-timeout-zero.cfg",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "timeout": 0
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool"
+      }
+    },
+    {
+      "id": "fixture-hooks-true",
+      "description": "tests/fixtures/invalid/hooks-true.cfg",
+      "document": {
+        "hooks": {
+          "turn-end": true
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/turn-end"
+      }
+    },
+    {
+      "id": "fixture-hooks-unknown-event",
+      "description": "tests/fixtures/invalid/hooks-unknown-event.cfg",
+      "document": {
+        "hooks": {
+          "pre_tool": "hook.py"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks"
+      }
+    },
+    {
+      "id": "fixture-hooks-unknown-kind",
+      "description": "tests/fixtures/invalid/hooks-unknown-kind.cfg",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "match": [
+              "Bash"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool"
+      }
+    },
+    {
+      "id": "fixture-mcp-bad-transport",
+      "description": "tests/fixtures/invalid/mcp-bad-transport.cfg",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "bad",
+              "transport": "carrier-pigeon",
+              "command": "x"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/transport"
+      }
+    },
+    {
+      "id": "fixture-mcp-env-bad-value",
+      "description": "tests/fixtures/invalid/mcp-env-bad-value.cfg",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "a",
+              "transport": "stdio",
+              "command": "x",
+              "env": {
+                "X": {
+                  "file": "a"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/env/X"
+      }
+    },
+    {
+      "id": "fixture-mcp-unknown-server",
+      "description": "tests/fixtures/invalid/mcp-unknown-server.cfg",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "a",
+              "transport": "stdio",
+              "command": "x"
+            }
+          ],
+          "skills": [
+            {
+              "name": "s",
+              "server": "b"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/skills/0/server"
+      }
+    },
+    {
+      "id": "fixture-mcp-url-credentials",
+      "description": "tests/fixtures/invalid/mcp-url-credentials.cfg",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "a",
+              "transport": "streamable-http",
+              "url": "https://user:pw@mcp.example.org/x"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/url"
+      }
+    },
+    {
+      "id": "fixture-paths-bad-position",
+      "description": "tests/fixtures/invalid/paths-bad-position.cfg",
+      "document": {
+        "paths": [
+          {
+            "variable": "PATH",
+            "path": "bin",
+            "position": "middle"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/paths/0"
+      }
+    },
+    {
+      "id": "fixture-paths-env-conflict",
+      "description": "tests/fixtures/invalid/paths-env-conflict.cfg",
+      "document": {
+        "env": {
+          "PATH": "/usr/bin"
+        },
+        "paths": [
+          {
+            "variable": "PATH",
+            "path": "bin"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/paths/0/variable"
+      }
+    },
+    {
+      "id": "fixture-paths-missing-variable",
+      "description": "tests/fixtures/invalid/paths-missing-variable.cfg",
+      "document": {
+        "paths": [
+          {
+            "path": "bin"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/paths/0"
+      }
+    },
+    {
+      "id": "fixture-paths-unknown-key",
+      "description": "tests/fixtures/invalid/paths-unknown-key.cfg",
+      "document": {
+        "paths": [
+          {
+            "variable": "PATH",
+            "path": "bin",
+            "separator": ";"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/paths/0"
+      }
+    },
+    {
+      "id": "fixture-priority-float",
+      "description": "tests/fixtures/invalid/priority-float.cfg",
+      "document": {
+        "priority": 500.0
+      },
+      "expect": {
+        "valid": false,
+        "at": "/priority"
+      }
+    },
+    {
+      "id": "fixture-priority-string",
+      "description": "tests/fixtures/invalid/priority-string.cfg",
+      "document": {
+        "priority": "first"
+      },
+      "expect": {
+        "valid": false,
+        "at": "/priority"
+      }
+    },
+    {
+      "id": "fixture-requires-bad-name",
+      "description": "tests/fixtures/invalid/requires-bad-name.cfg",
+      "document": {
+        "requires": [
+          "../escape"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/requires/0"
+      }
+    },
+    {
+      "id": "fixture-requires-reserved",
+      "description": "tests/fixtures/invalid/requires-reserved.cfg",
+      "document": {
+        "requires": [
+          "project"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/requires/0"
+      }
+    },
+    {
+      "id": "fixture-rules-dotdot",
+      "description": "tests/fixtures/invalid/rules-dotdot.cfg",
+      "document": {
+        "rules": [
+          "../outside.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "fixture-runtime-bad-digest",
+      "description": "tests/fixtures/invalid/runtime-bad-digest.cfg",
+      "document": {
+        "runtime": {
+          "python": [
+            {
+              "lock": "l.txt",
+              "lock_digest": "sha1:abc"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/runtime/python/0/lock_digest"
+      }
+    },
+    {
+      "id": "fixture-runtime-bad-environment",
+      "description": "tests/fixtures/invalid/runtime-bad-environment.cfg",
+      "document": {
+        "runtime": {
+          "python": [
+            {
+              "environment": "-shared"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/runtime/python/0/environment"
+      }
+    },
+    {
+      "id": "fixture-runtime-bad-version",
+      "description": "tests/fixtures/invalid/runtime-bad-version.cfg",
+      "document": {
+        "runtime": {
+          "python": [
+            {
+              "version": ">=3.9"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/runtime/python/0/version"
+      }
+    },
+    {
+      "id": "fixture-runtime-digest-without-lock",
+      "description": "tests/fixtures/invalid/runtime-digest-without-lock.cfg",
+      "document": {
+        "runtime": {
+          "python": [
+            {
+              "lock_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/runtime/python/0"
+      }
+    },
+    {
+      "id": "fixture-runtime-lock-and-requirements",
+      "description": "tests/fixtures/invalid/runtime-lock-and-requirements.cfg",
+      "document": {
+        "runtime": {
+          "python": [
+            {
+              "requirements": "r.txt",
+              "lock": "l.txt"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/runtime/python/0"
+      }
+    },
+    {
+      "id": "fixture-runtime-node-package-name",
+      "description": "tests/fixtures/invalid/runtime-node-package-name.cfg",
+      "document": {
+        "runtime": {
+          "node": [
+            {
+              "package": "web/packages.json"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/runtime/node/0/package"
+      }
+    },
+    {
+      "id": "fixture-runtime-unknown-key",
+      "description": "tests/fixtures/invalid/runtime-unknown-key.cfg",
+      "document": {
+        "runtime": {
+          "ruby": [
+            {
+              "version": "3"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/runtime"
+      }
+    },
+    {
+      "id": "fixture-scripts-exe-name",
+      "description": "tests/fixtures/invalid/scripts-exe-name.cfg",
+      "document": {
+        "scripts": {
+          "tool.exe": "bin/tool.py"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/scripts"
+      }
+    },
+    {
+      "id": "fixture-scripts-map-no-interpreter",
+      "description": "tests/fixtures/invalid/scripts-map-no-interpreter.cfg",
+      "document": {
+        "scripts": {
+          "tool": {
+            "path": "bin/tool"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/scripts/tool"
+      }
+    },
+    {
+      "id": "fixture-scripts-true",
+      "description": "tests/fixtures/invalid/scripts-true.cfg",
+      "document": {
+        "scripts": {
+          "tool": true
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/scripts/tool"
+      }
+    },
+    {
+      "id": "fixture-scripts-unknown-extension",
+      "description": "tests/fixtures/invalid/scripts-unknown-extension.cfg",
+      "document": {
+        "scripts": {
+          "tool": "bin/tool.rb"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/scripts/tool"
+      }
+    },
+    {
+      "id": "fixture-setup-bad-os",
+      "description": "tests/fixtures/invalid/setup-bad-os.cfg",
+      "document": {
+        "setup": [
+          {
+            "interpreter": "sh",
+            "path": "setup.sh",
+            "os": [
+              "Windows"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/setup/0/os/0"
+      }
+    },
+    {
+      "id": "fixture-setup-float-timeout",
+      "description": "tests/fixtures/invalid/setup-float-timeout.cfg",
+      "document": {
+        "setup": [
+          {
+            "interpreter": "sh",
+            "path": "setup.sh",
+            "timeout": 30.0
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/setup/0/timeout"
+      }
+    },
+    {
+      "id": "fixture-setup-network-string",
+      "description": "tests/fixtures/invalid/setup-network-string.cfg",
+      "document": {
+        "setup": [
+          {
+            "interpreter": "sh",
+            "path": "setup.sh",
+            "network": "yes"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/setup/0/network"
+      }
+    },
+    {
+      "id": "fixture-setup-table",
+      "description": "tests/fixtures/invalid/setup-table.cfg",
+      "document": {
+        "setup": {
+          "interpreter": "sh",
+          "path": "setup.sh"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/setup"
+      }
+    },
+    {
+      "id": "fixture-skills-bad-name",
+      "description": "tests/fixtures/invalid/skills-bad-name.cfg",
+      "document": {
+        "skills": [
+          "-x"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "fixture-skills-duplicate",
+      "description": "tests/fixtures/invalid/skills-duplicate.cfg",
+      "document": {
+        "skills": [
+          "a",
+          "a"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills"
+      }
+    },
+    {
+      "id": "fixture-skills-local-source",
+      "description": "tests/fixtures/invalid/skills-local-source.cfg",
+      "document": {
+        "skills": [
+          {
+            "name": "r",
+            "source": "../r"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "fixture-skills-source-credentials",
+      "description": "tests/fixtures/invalid/skills-source-credentials.cfg",
+      "document": {
+        "skills": [
+          {
+            "name": "r",
+            "source": "https://u:p@example.org/r.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "fixture-skills-table-no-source",
+      "description": "tests/fixtures/invalid/skills-table-no-source.cfg",
+      "document": {
+        "skills": [
+          {
+            "name": "r"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "fixture-skills-table-unknown-key",
+      "description": "tests/fixtures/invalid/skills-table-unknown-key.cfg",
+      "document": {
+        "skills": [
+          {
+            "name": "r",
+            "source": "https://example.org/r",
+            "pinn": "sha256:abababababababababababababababababababababababababababababababab"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "fixture-unknown-key-null-json",
+      "description": "tests/fixtures/invalid/unknown-key-null-json.cfg",
+      "document": {
+        "organization_extension": {
+          "a": [
+            1,
+            2.5,
+            true
+          ]
+        },
+        "routing": [
+          7
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/routing/0"
+      }
+    },
+    {
+      "id": "skills-entry-number",
+      "description": "An entry is a name or a table.",
+      "document": {
+        "skills": [
+          5
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-table-unknown-key",
+      "description": "A misspelt pin must not fetch a skill unpinned.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review",
+            "pinn": "sha256:abababababababababababababababababababababababababababababababab"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-table-no-source",
+      "description": "A table without a source: a bare name is the string form.",
+      "document": {
+        "skills": [
+          {
+            "name": "review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-table-no-name",
+      "description": "A table without a name.",
+      "document": {
+        "skills": [
+          {
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-table-bad-pin",
+      "description": "A pin is a digest.",
+      "document": {
+        "skills": [
+          {
+            "pin": "sha1:0123",
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-table-bad-ref",
+      "description": "A ref has the form a catalog's has.",
+      "document": {
+        "skills": [
+          {
+            "ref": "release/1.0",
+            "name": "review",
+            "source": "https://github.com/example/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-table-blank-source",
+      "description": "A source that is only white space.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "   "
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-ref-beside-ref",
+      "description": "A ref beside an @ref.",
+      "document": {
+        "skills": [
+          {
+            "ref": "v2",
+            "name": "review",
+            "source": "https://github.com/example/skills.git@v1"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/ref",
+        "class": "ref-not-allowed"
+      }
+    },
+    {
+      "id": "skills-ref-on-web-url",
+      "description": "A ref on a source that is not Git.",
+      "document": {
+        "skills": [
+          {
+            "ref": "v2",
+            "name": "review",
+            "source": "https://example.org/skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/ref",
+        "class": "ref-not-allowed"
+      }
+    },
+    {
+      "id": "skills-source-relative",
+      "description": "A relative directory: a manifest names no place on the consumer's machine.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "../review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-absolute",
+      "description": "An absolute directory.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "/srv/skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-drive",
+      "description": "A drive path.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "C:\\skills\\review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-unc",
+      "description": "A UNC path.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "\\\\host\\share\\review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-home",
+      "description": "A home directory: nothing in a source is expanded, and it is a local path.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "~/.ssh"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-local-git",
+      "description": "A Git location that is a local path.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "../review.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-explicit-local-git",
+      "description": "git+ on a local path.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "git+/srv/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-file-git",
+      "description": "A file: URL to a repository.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "file:///srv/review.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-file-url",
+      "description": "A file: URL.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "file:///etc/passwd"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-file-url-case",
+      "description": "The scheme compares without ASCII case.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "FILE:///etc/passwd"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-other-scheme",
+      "description": "A URL source is http or https.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "ftp://example.org/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "invalid-source"
+      }
+    },
+    {
+      "id": "skills-source-option",
+      "description": "A location starting with '-' would reach git as an option.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "-oProxyCommand=x.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "invalid-source"
+      }
+    },
+    {
+      "id": "skills-source-helper",
+      "description": "Git's remote-helper syntax runs a program.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "ext::sh -c x.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "invalid-source"
+      }
+    },
+    {
+      "id": "skills-source-bad-path",
+      "description": "A #path that leaves the location.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#../x"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "invalid-source"
+      }
+    },
+    {
+      "id": "skills-source-password",
+      "description": "A password in a URL.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://user:secret@github.com/example/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "source-credentials"
+      }
+    },
+    {
+      "id": "skills-source-token-user",
+      "description": "A user in a web URL is how a token travels.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://token@github.com/example/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "source-credentials"
+      }
+    },
+    {
+      "id": "skills-source-ssh-password",
+      "description": "A password in an SSH URL.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "ssh://git:secret@github.com/example/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "source-credentials"
+      }
+    },
+    {
+      "id": "skills-source-query",
+      "description": "A query holds tokens too.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://example.org/skills/review?token=t"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "source-credentials"
+      }
+    },
+    {
+      "id": "skills-name-device",
+      "description": "A skill name becomes a directory: a Windows device name cannot.",
+      "document": {
+        "skills": [
+          "con"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0",
+        "class": "skill-name"
+      }
+    },
+    {
+      "id": "skills-name-device-extension",
+      "description": "Nor with an extension.",
+      "document": {
+        "skills": [
+          "NUL.txt"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0",
+        "class": "skill-name"
+      }
+    },
+    {
+      "id": "skills-name-trailing-dot",
+      "description": "A trailing dot aliases the name without it on Windows.",
+      "document": {
+        "skills": [
+          "pdf."
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0",
+        "class": "skill-name"
+      }
+    },
+    {
+      "id": "skills-name-short",
+      "description": "The shape of a Windows short name.",
+      "document": {
+        "skills": [
+          "PROGRA~1"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-name-pyc",
+      "description": "A name a tree digest leaves out.",
+      "document": {
+        "skills": [
+          "x.pyc"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0",
+        "class": "skill-name"
+      }
+    },
+    {
+      "id": "skills-name-table-device",
+      "description": "A table's name is held to the same rule.",
+      "document": {
+        "skills": [
+          {
+            "name": "aux",
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/name",
+        "class": "skill-name"
+      }
+    },
+    {
+      "id": "skills-duplicate-case",
+      "description": "Names equal without regard to ASCII case are one directory on Windows and macOS.",
+      "document": {
+        "skills": [
+          "Review",
+          "review"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/1",
+        "class": "skill-duplicate"
+      }
+    },
+    {
+      "id": "skills-duplicate-table",
+      "description": "A name and a table for one skill.",
+      "document": {
+        "skills": [
+          "review",
+          {
+            "name": "REVIEW",
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/1/name",
+        "class": "skill-duplicate"
+      }
+    },
+    {
+      "id": "skills-table-also-bundled",
+      "description": "A table whose name is also bundled is ambiguous within the overlay.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "files": [
+        "skills/review/SKILL.md"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/name",
+        "class": "skill-ambiguous"
+      }
+    },
+    {
+      "id": "skills-table-also-bundled-case",
+      "description": "Compared without regard to ASCII case.",
+      "document": {
+        "skills": [
+          {
+            "name": "Review",
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "files": [
+        "skills/review/SKILL.md"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/name",
+        "class": "skill-ambiguous"
+      }
+    },
+    {
+      "id": "skills-table-also-bundled-default-off",
+      "description": "Whether or not the default offers the bundled one.",
+      "document": {
+        "defaults": {
+          "skills": false
+        },
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "files": [
+        "skills/review/SKILL.md"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/name",
+        "class": "skill-ambiguous"
+      }
+    },
+    {
+      "id": "skills-name-case-of-bundled",
+      "description": "A name differing from a bundled skill only in case resolves to neither.",
+      "document": {
+        "skills": [
+          "Review"
+        ]
+      },
+      "files": [
+        "skills/review/SKILL.md"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/skills/0",
+        "class": "skill-case"
+      }
+    },
+    {
+      "id": "two-manifests",
+      "description": "A validator that knows the files refuses OVERLAY.md beside overlay.cfg.",
+      "document": {},
+      "files": [
+        "OVERLAY.md",
+        "overlay.cfg"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "",
+        "class": "two-manifests"
+      }
+    },
+    {
+      "id": "skills-source-user-before-host",
+      "description": "An @ in a URL's authority is user information, never a ref: this names evil.example with a user, not github.com.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "git+https://evil.example@github.com#skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "source-credentials"
+      }
+    },
+    {
+      "id": "skills-source-password-before-host",
+      "description": "So a password there is a credential.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "git+https://user:secret@github.com"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "source-credentials"
+      }
+    },
+    {
+      "id": "skills-source-backslash-authority",
+      "description": "A backslash in an authority, which URL parsers read differently.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://evil.example\\@github.com/example/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "invalid-source"
+      }
+    },
+    {
+      "id": "skills-source-control",
+      "description": "A control character in a source.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/\u001b[2Kskills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "invalid-source"
+      }
+    },
+    {
+      "id": "skills-source-bidi",
+      "description": "A character that reorders displayed text.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills‮.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "invalid-source"
+      }
+    },
+    {
+      "id": "skills-source-ref-newline",
+      "description": "A line break in a ref.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git@a\nb"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "invalid-source"
+      }
+    },
+    {
+      "id": "skills-source-option-user",
+      "description": "A user that is an option, as ssh would read it.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "ssh://-oProxyCommand=calc@host.example/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "invalid-source"
+      }
+    },
+    {
+      "id": "skills-source-option-encoded",
+      "description": "Percent-encoded too.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "ssh://%2doProxyCommand=calc@host.example/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "invalid-source"
+      }
+    },
+    {
+      "id": "skills-source-option-port",
+      "description": "A port that is an option.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "ssh://host.example:-oProxyCommand=calc/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "invalid-source"
+      }
+    },
+    {
+      "id": "skills-source-option-scp-path",
+      "description": "An scp-like path that is an option.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "git@host.example:-oFoo/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "invalid-source"
+      }
+    },
+    {
+      "id": "skills-source-loopback",
+      "description": "A host that is this machine is a local source.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "http://127.0.0.1:8080/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-localhost",
+      "description": "localhost.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://localhost/skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-localhost-subdomain",
+      "description": "A name under localhost.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://skills.localhost/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-ipv6-loopback",
+      "description": "The IPv6 loopback.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "http://[::1]:8000/skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-mapped-loopback",
+      "description": "An IPv4-mapped loopback.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "http://[::ffff:127.0.0.1]/skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-link-local",
+      "description": "A link-local address, where cloud metadata answers.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "http://169.254.169.254/latest/meta-data/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-unspecified",
+      "description": "The unspecified address.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "http://0.0.0.0/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-ssh-localhost",
+      "description": "Over SSH.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "ssh://localhost/etc/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-scp-localhost",
+      "description": "scp-like.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "git+localhost:/etc/skills"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-file-no-slashes",
+      "description": "A file: location without slashes.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "file:/etc/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-git-file-no-slashes",
+      "description": "With git+.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "git+file:/etc/skills"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-name-trailing-newline",
+      "description": "A pattern matches the whole string: a trailing line feed is no part of a name.",
+      "document": {
+        "skills": [
+          "pdf\n"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-pin-trailing-newline",
+      "description": "Nor of a digest.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab\n"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "rules-names-overlay-md",
+      "description": "A manifest is no rules file: rules would carry its front matter to the agent.",
+      "document": {
+        "rules": [
+          "OVERLAY.md"
+        ]
+      },
+      "files": [
+        "OVERLAY.md"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/rules/0",
+        "class": "manifest-file"
+      }
+    },
+    {
+      "id": "context-names-overlay-cfg",
+      "description": "Nor is overlay.cfg context.",
+      "document": {
+        "context": [
+          "overlay.cfg"
+        ]
+      },
+      "files": [
+        "overlay.cfg"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/context/0",
+        "class": "manifest-file"
+      }
+    },
+    {
+      "id": "env-files-names-overlay-md",
+      "description": "Nor an env file.",
+      "document": {
+        "env_files": [
+          "OVERLAY.md"
+        ]
+      },
+      "files": [
+        "OVERLAY.md"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/env_files/0",
+        "class": "manifest-file"
+      }
+    },
+    {
+      "id": "files-missing-rule",
+      "description": "A rules file that does not exist.",
+      "document": {
+        "rules": [
+          "rules/a.md"
+        ]
+      },
+      "files": [],
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "files-missing-mcp-skill",
+      "description": "An MCP skill link without SKILL.md.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "x"
+            }
+          ],
+          "skills": [
+            {
+              "name": "k",
+              "server": "s"
+            }
+          ]
+        }
+      },
+      "files": [],
+      "expect": {
+        "valid": false,
+        "at": "/mcp/skills/0/name"
+      }
+    },
+    {
+      "id": "files-missing-lock",
+      "description": "A lock file that does not exist.",
+      "document": {
+        "runtime": {
+          "python": [
+            {
+              "lock": "l.txt"
+            }
+          ]
+        }
+      },
+      "files": [],
+      "expect": {
+        "valid": false,
+        "at": "/runtime/python/0/lock"
+      }
+    },
+    {
+      "id": "env-null-like",
+      "description": "An env value must be a string or a mapping.",
+      "document": {
+        "env": {
+          "A": true
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/A"
+      }
+    },
+    {
+      "id": "env-empty-provider-key",
+      "description": "A provider's key is not empty.",
+      "document": {
+        "env": {
+          "A": {
+            "provider": "env",
+            "key": ""
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/A"
+      }
+    },
+    {
+      "id": "env-provider-uppercase",
+      "description": "A provider name is lowercase.",
+      "document": {
+        "env": {
+          "A": {
+            "provider": "Env",
+            "key": "A"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/A"
+      }
+    },
+    {
+      "id": "paths-dot",
+      "description": "A path addition cannot be '.'.",
+      "document": {
+        "paths": [
+          {
+            "variable": "PATH",
+            "path": "."
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/paths/0/path"
+      }
+    },
+    {
+      "id": "relative-drive",
+      "description": "A drive prefix is not relative.",
+      "document": {
+        "rules": [
+          "C:/x.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-empty-component",
+      "description": "An empty component.",
+      "document": {
+        "rules": [
+          "a//b.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-trailing-slash",
+      "description": "A trailing slash is an empty component.",
+      "document": {
+        "context": [
+          "kb/"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/context/0"
+      }
+    },
+    {
+      "id": "relative-control",
+      "description": "A control character.",
+      "document": {
+        "rules": [
+          "a\u0001.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "mcp-http-with-command",
+      "description": "An HTTP server takes no command.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "r",
+              "transport": "streamable-http",
+              "url": "https://h.example/x",
+              "command": "x"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0"
+      }
+    },
+    {
+      "id": "mcp-url-fragment",
+      "description": "A URL with a fragment.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "r",
+              "transport": "streamable-http",
+              "url": "https://h.example/x#f"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/url"
+      }
+    },
+    {
+      "id": "mcp-zero-timeout",
+      "description": "An MCP timeout is positive.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "x",
+              "timeout": 0
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/timeout"
+      }
+    },
+    {
+      "id": "mcp-duplicate-server",
+      "description": "Server names are unique.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "x"
+            },
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "y"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/1/name"
+      }
+    },
+    {
+      "id": "runtime-commands-bad",
+      "description": "A command name has no path.",
+      "document": {
+        "runtime": {
+          "commands": [
+            "/usr/bin/git"
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/runtime/commands/0"
+      }
+    },
+    {
+      "id": "harness-model-empty",
+      "description": "A model hint is not empty.",
+      "document": {
+        "harness": {
+          "codex": {
+            "model": ""
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness/codex/model"
+      }
+    },
+    {
+      "id": "top-level-not-null-safe",
+      "description": "Arrays of the wrong type.",
+      "document": {
+        "requires": "engineering"
+      },
+      "expect": {
+        "valid": false,
+        "at": "/requires"
+      }
+    },
+    {
+      "id": "relative-excluded",
+      "description": "A path into an excluded directory.",
+      "document": {
+        "rules": [
+          "node_modules/x.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-excluded-case",
+      "description": "An excluded name in another case.",
+      "document": {
+        "context": [
+          ".GIT/x.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/context/0"
+      }
+    },
+    {
+      "id": "relative-pyc",
+      "description": "A .pyc entry, in any case.",
+      "document": {
+        "scripts": {
+          "x": {
+            "path": "bin/x.PYC",
+            "interpreter": "python"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/scripts/x"
+      }
+    },
+    {
+      "id": "relative-device",
+      "description": "A Windows device name.",
+      "document": {
+        "rules": [
+          "kb/aux.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-trailing-dot",
+      "description": "A component ending in a dot.",
+      "document": {
+        "rules": [
+          "kb./a.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-trailing-space",
+      "description": "A component ending in a space.",
+      "document": {
+        "rules": [
+          "kb /a.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-short-name",
+      "description": "An 8.3 short name.",
+      "document": {
+        "rules": [
+          "KB~1/a.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-question",
+      "description": "A character Windows refuses.",
+      "document": {
+        "rules": [
+          "kb/a?.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-c1",
+      "description": "A C1 control character.",
+      "document": {
+        "rules": [
+          "kb/a.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-bidi",
+      "description": "A bidirectional override.",
+      "document": {
+        "rules": [
+          "kb/a‮.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "reserved-root-variable",
+      "description": "An overlay cannot set another overlay's root variable.",
+      "document": {
+        "env": {
+          "ENGINEERING_OVERLAY_ROOT": {
+            "path": "fake"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/ENGINEERING_OVERLAY_ROOT"
+      }
+    },
+    {
+      "id": "reserved-state-variable",
+      "description": "Nor a state variable, in any case.",
+      "document": {
+        "env": {
+          "x_overlay_state": "y"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/x_overlay_state"
+      }
+    },
+    {
+      "id": "reserved-aos-variable",
+      "description": "Nor an AOS_ variable.",
+      "document": {
+        "env": {
+          "AOS_OVERLAY_ROOT": "y"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/AOS_OVERLAY_ROOT"
+      }
+    },
+    {
+      "id": "reserved-paths-variable",
+      "description": "Nor through a path addition.",
+      "document": {
+        "paths": [
+          {
+            "variable": "TEAM_OVERLAY_ROOT",
+            "path": "bin"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/paths/0/variable"
+      }
+    },
+    {
+      "id": "reserved-mcp-variable",
+      "description": "Nor in an MCP server's environment.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "x",
+              "env": {
+                "AOS_OVERLAY_STATE": "y"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/env"
+      }
+    },
+    {
+      "id": "file-key-escape",
+      "description": "A file provider's key is a relative path.",
+      "document": {
+        "env": {
+          "A": {
+            "provider": "file",
+            "key": "../id_ed25519"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/A"
+      }
+    },
+    {
+      "id": "env-key-name",
+      "description": "An env provider's key is a variable name.",
+      "document": {
+        "env": {
+          "A": {
+            "provider": "env",
+            "key": "A=B"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/A"
+      }
+    },
+    {
+      "id": "env-value-nul",
+      "description": "A zero byte in a value.",
+      "document": {
+        "env": {
+          "A": "x\u0000y"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/A"
+      }
+    },
+    {
+      "id": "args-nul",
+      "description": "A zero byte in an argument.",
+      "document": {
+        "setup": [
+          {
+            "interpreter": "sh",
+            "path": "s.sh",
+            "args": [
+              "a\u0000b"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/setup/0/args/0"
+      }
+    },
+    {
+      "id": "timeout-too-large",
+      "description": "A timeout past the signed 32-bit range.",
+      "document": {
+        "setup": [
+          {
+            "interpreter": "sh",
+            "path": "s.sh",
+            "timeout": 2147483648
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/setup/0/timeout"
+      }
+    },
+    {
+      "id": "mcp-timeout-tiny",
+      "description": "An MCP timeout below a millisecond.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "x",
+              "timeout": 1e-300
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/timeout"
+      }
+    },
+    {
+      "id": "version-too-long",
+      "description": "A version component of more than nine digits.",
+      "document": {
+        "runtime": {
+          "python": [
+            {
+              "version": "3.9999999999"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/runtime/python/0/version"
+      }
+    },
+    {
+      "id": "mcp-url-userinfo",
+      "description": "A URL with user information, checked without a format checker.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "r",
+              "transport": "streamable-http",
+              "url": "https://u:p@h.example/x"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/url"
+      }
+    },
+    {
+      "id": "mcp-command-absolute",
+      "description": "A command with a separator is a relative path under the root.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "/bin/sh",
+              "args": [
+                "-c",
+                "x"
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/command"
+      }
+    },
+    {
+      "id": "mcp-command-escape",
+      "description": "A command cannot leave the root.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "../tools/x"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/command"
+      }
+    },
+    {
+      "id": "mcp-url-no-host",
+      "description": "A URL with no host.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "r",
+              "transport": "streamable-http",
+              "url": "http:///x"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/url"
+      }
+    },
+    {
+      "id": "env-path-default-bin",
+      "description": "With paths not written, a bin/ puts PATH in the default paths, so env cannot set it, in any case.",
+      "document": {
+        "env": {
+          "Path": "/opt/bin"
+        }
+      },
+      "files": [
+        "bin/tool"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/env/Path"
+      }
+    },
+    {
+      "id": "env-pythonpath-default-lib",
+      "description": "Likewise a lib/python/ and PYTHONPATH.",
+      "document": {
+        "env": {
+          "PYTHONPATH": "/opt/lib"
+        }
+      },
+      "files": [
+        "lib/python/m.py"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/env/PYTHONPATH"
+      }
+    },
+    {
+      "id": "env-path-declared-paths",
+      "description": "A paths entry for another directory keeps the bin default, so env still cannot set PATH.",
+      "document": {
+        "env": {
+          "PATH": "/opt/bin"
+        },
+        "paths": [
+          {
+            "variable": "MANPATH",
+            "path": "man"
+          }
+        ]
+      },
+      "files": [
+        "bin/tool"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/env/PATH"
+      }
+    },
+    {
+      "id": "defaults-not-table",
+      "description": "defaults is a table of booleans, not one switch.",
+      "document": {
+        "defaults": false
+      },
+      "expect": {
+        "valid": false,
+        "at": "/defaults"
+      }
+    },
+    {
+      "id": "hooks-not-a-table",
+      "description": "hooks maps events; it is not one script.",
+      "document": {
+        "hooks": "hook.py"
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks"
+      }
+    },
+    {
+      "id": "hooks-run-absolute",
+      "description": "A hook is a script in the overlay, never a program elsewhere.",
+      "document": {
+        "hooks": {
+          "prompt": "/usr/bin/guard.sh"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/prompt"
+      }
+    },
+    {
+      "id": "hooks-run-escape",
+      "description": "A hook's path cannot leave the root.",
+      "document": {
+        "hooks": {
+          "prompt": "../guard.py"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/prompt"
+      }
+    },
+    {
+      "id": "hooks-run-space",
+      "description": "A hook's path uses the characters a scripts path does, so a consumer can put it on a command line unquoted.",
+      "document": {
+        "hooks": {
+          "prompt": "hooks/my guard.sh"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/prompt"
+      }
+    },
+    {
+      "id": "hooks-run-backslash",
+      "description": "A backslash is no separator.",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "run": "hooks\\guard.ps1"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool"
+      }
+    },
+    {
+      "id": "hooks-run-exe",
+      "description": "A hook is a script with an interpreter, never a program file.",
+      "document": {
+        "hooks": {
+          "prompt": "bin/guard.exe"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/prompt"
+      }
+    },
+    {
+      "id": "hooks-run-manifest",
+      "description": "No field names a manifest, a hook's run included.",
+      "document": {
+        "hooks": {
+          "prompt": "overlay.cfg"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/prompt",
+        "class": "manifest-file"
+      }
+    },
+    {
+      "id": "hooks-timeout-float",
+      "description": "A timeout is an integer: 5.0 is not 5.",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "timeout": 5.0
+          }
+        }
+      },
+      "files": [
+        "hook.py"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool/timeout"
+      }
+    },
+    {
+      "id": "hooks-timeout-too-large",
+      "description": "At most an hour.",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "timeout": 3601
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool"
+      }
+    },
+    {
+      "id": "hooks-timeout-bool",
+      "description": "A boolean is not a number of seconds.",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "timeout": true
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool"
+      }
+    },
+    {
+      "id": "hooks-match-empty",
+      "description": "An empty match would never run: it is refused rather than read as every one.",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "match": []
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool"
+      }
+    },
+    {
+      "id": "hooks-match-duplicate",
+      "description": "A kind listed twice.",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "match": [
+              "execute",
+              "execute"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool"
+      }
+    },
+    {
+      "id": "hooks-match-string",
+      "description": "match is an array.",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "match": "execute"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool"
+      }
+    },
+    {
+      "id": "hooks-match-harness-tool",
+      "description": "match names tool kinds, never one harness's tool names.",
+      "document": {
+        "hooks": {
+          "post-tool": {
+            "match": [
+              "Write"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/post-tool"
+      }
+    },
+    {
+      "id": "hooks-match-reason-unknown",
+      "description": "A harness's own reason (startup) is not one of the session reasons.",
+      "document": {
+        "hooks": {
+          "session-start": {
+            "match": [
+              "startup"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/session-start"
+      }
+    },
+    {
+      "id": "hooks-match-on-pre-compact",
+      "description": "pre-compact takes no match.",
+      "document": {
+        "hooks": {
+          "pre-compact": {
+            "match": [
+              "manual"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-compact"
+      }
+    },
+    {
+      "id": "hooks-match-on-pre-env",
+      "description": "Nor pre-env.",
+      "document": {
+        "hooks": {
+          "pre-env": {
+            "match": [
+              "new"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-env"
+      }
+    },
+    {
+      "id": "hooks-match-on-session-end",
+      "description": "Only session-start, pre-tool and post-tool take match.",
+      "document": {
+        "hooks": {
+          "session-end": {
+            "match": [
+              "new"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/session-end"
+      }
+    },
+    {
+      "id": "hooks-on-failure-unknown",
+      "description": "on_failure is report or refuse; a hook's failure never chooses a decision of its own.",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "on_failure": "deny"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool"
+      }
+    },
+    {
+      "id": "hooks-refuse-on-turn-end",
+      "description": "turn-end cannot be refused: the turn has ended.",
+      "document": {
+        "hooks": {
+          "turn-end": {
+            "on_failure": "refuse"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/turn-end"
+      }
+    },
+    {
+      "id": "hooks-refuse-on-session-end",
+      "description": "Nor session-end.",
+      "document": {
+        "hooks": {
+          "session-end": {
+            "on_failure": "refuse"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/session-end"
+      }
+    },
+    {
+      "id": "hooks-refuse-on-cd",
+      "description": "Nor cd: the directory has changed.",
+      "document": {
+        "hooks": {
+          "cd": {
+            "on_failure": "refuse"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/cd"
+      }
+    },
+    {
+      "id": "hooks-table-unknown-key",
+      "description": "A table holds run, match, timeout and on_failure; a harness's matcher is not one.",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "matcher": "Bash"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool"
+      }
+    },
+    {
+      "id": "hooks-table-os",
+      "description": "A hook has no os key: hook.<ext>, chosen by runtime, gives each OS its own.",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "run": "hooks/guard.sh",
+            "os": [
+              "unix"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool"
+      }
+    },
+    {
+      "id": "hooks-run-missing",
+      "description": "A script hooks names must be in the overlay.",
+      "document": {
+        "hooks": {
+          "prompt": "hooks/prompt.py"
+        }
+      },
+      "files": [
+        "hook.py"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/hooks/prompt"
+      }
+    },
+    {
+      "id": "hooks-table-no-hook-file",
+      "description": "A table with no run runs hook.<ext>, which must be at the root.",
+      "document": {
+        "hooks": {
+          "pre-tool": {
+            "match": [
+              "execute"
+            ]
+          }
+        }
+      },
+      "files": [
+        "hooks/hook.py"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-tool"
+      }
+    },
+    {
+      "id": "hooks-table-no-hook-file-other-extension",
+      "description": "hook.cfg is no hook.<ext>.",
+      "document": {
+        "hooks": {
+          "prompt": {}
+        }
+      },
+      "files": [
+        "hook.cfg",
+        "Hook.py"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/hooks/prompt"
+      }
+    },
+    {
+      "id": "defaults-hooks-string",
+      "description": "The hooks default is turned off by false, nothing else.",
+      "document": {
+        "defaults": {
+          "hooks": "no"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/defaults/hooks"
+      }
+    },
+    {
+      "id": "hooks-sets-on-post-tool",
+      "description": "post-tool takes no variables, so no sets.",
+      "document": {
+        "hooks": {
+          "post-tool": {
+            "sets": [
+              "A"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/post-tool"
+      }
+    },
+    {
+      "id": "hooks-sets-on-pre-env",
+      "description": "pre-env sets what an env script does: sets has no place there.",
+      "document": {
+        "hooks": {
+          "pre-env": {
+            "sets": [
+              "A"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-env"
+      }
+    },
+    {
+      "id": "hooks-sets-reserved",
+      "description": "A reserved variable cannot be declared.",
+      "document": {
+        "hooks": {
+          "session-start": {
+            "sets": [
+              "DOCS_OVERLAY_ROOT"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/session-start"
+      }
+    },
+    {
+      "id": "hooks-sets-empty",
+      "description": "An empty sets is written by leaving it out.",
+      "document": {
+        "hooks": {
+          "cd": {
+            "sets": []
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/cd"
+      }
+    },
+    {
+      "id": "hooks-sets-bad-name",
+      "description": "A variable name.",
+      "document": {
+        "hooks": {
+          "prompt": {
+            "sets": [
+              "A-B"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/prompt"
+      }
+    },
+    {
+      "id": "hooks-event-case",
+      "description": "Event names match exactly.",
+      "document": {
+        "hooks": {
+          "Pre-Tool": "hook.py"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks"
+      }
+    },
+    {
+      "id": "about-license-nested",
+      "description": "Parentheses nested past what a parser can follow make no license expression, and stop nothing.",
+      "document": {
+        "name": "x",
+        "about": {
+          "license": "((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((MIT))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/license",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-icon-missing",
+      "description": "The icon is a file of the overlay.",
+      "document": {
+        "name": "x",
+        "about": {
+          "icon": "icon.png"
+        }
+      },
+      "files": [
+        "kb/a.md"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/about/icon",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-icon-escape",
+      "description": "The icon is a relative path under the root.",
+      "document": {
+        "name": "x",
+        "about": {
+          "icon": "../icon.png"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/icon",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-icon-gif",
+      "description": "PNG and WebP only.",
+      "document": {
+        "name": "x",
+        "about": {
+          "icon": "icon.gif"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/icon",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-icon-url",
+      "description": "An icon is never a URL.",
+      "document": {
+        "name": "x",
+        "about": {
+          "icon": "https://example.org/icon.png"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/icon",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-summary-two-lines",
+      "description": "A summary is one line.",
+      "document": {
+        "name": "x",
+        "about": {
+          "summary": "One\nTwo"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/summary",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-summary-empty",
+      "description": "A summary is not empty.",
+      "document": {
+        "name": "x",
+        "about": {
+          "summary": ""
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/summary",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-summary-bidi",
+      "description": "No bidirectional override in a line.",
+      "document": {
+        "name": "x",
+        "about": {
+          "summary": "safe ‮gnp.exe"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/summary",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-homepage-http",
+      "description": "A link is https.",
+      "document": {
+        "name": "x",
+        "about": {
+          "homepage": "http://example.org/x"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/homepage",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-repository-userinfo",
+      "description": "A link holds no user information.",
+      "document": {
+        "name": "x",
+        "about": {
+          "repository": "https://user:token@example.org/x.git"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/repository",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-repository-git",
+      "description": "A repository link is a page to open, not a Git source.",
+      "document": {
+        "name": "x",
+        "about": {
+          "repository": "git@github.com:example/overlays.git"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/repository",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-license-dangling",
+      "description": "An operator needs both sides.",
+      "document": {
+        "name": "x",
+        "about": {
+          "license": "MIT AND"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/license",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-license-unbalanced",
+      "description": "Parentheses balance.",
+      "document": {
+        "name": "x",
+        "about": {
+          "license": "(MIT OR Apache-2.0"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/license",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-license-text",
+      "description": "A license is an expression, not prose.",
+      "document": {
+        "name": "x",
+        "about": {
+          "license": "MIT, see LICENSE"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/license",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-authors-string",
+      "description": "authors is a list.",
+      "document": {
+        "name": "x",
+        "about": {
+          "authors": "Example Team"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/authors",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-tags-case",
+      "description": "A tag is lowercase letters, digits and single hyphens.",
+      "document": {
+        "name": "x",
+        "about": {
+          "tags": [
+            "Docs"
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/tags/0",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-tags-duplicate",
+      "description": "Tags are unique.",
+      "document": {
+        "name": "x",
+        "about": {
+          "tags": [
+            "docs",
+            "docs"
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/tags",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-tags-long",
+      "description": "A tag is at most 32 characters.",
+      "document": {
+        "name": "x",
+        "about": {
+          "tags": [
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about/tags/0",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-keywords",
+      "description": "keywords is not a field: tags are what a store filters and searches.",
+      "document": {
+        "name": "x",
+        "about": {
+          "keywords": [
+            "docs"
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-version",
+      "description": "No version field: the source's ref and the tree digest say which overlay it is.",
+      "document": {
+        "name": "x",
+        "about": {
+          "version": "1.2.0"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-not-a-table",
+      "description": "about is a table.",
+      "document": {
+        "about": "Release notes"
+      },
+      "expect": {
+        "valid": false,
+        "at": "/about",
+        "applies": true
+      }
+    },
+    {
+      "id": "about-and-another-problem",
+      "description": "A problem outside about still stops the manifest from applying.",
+      "document": {
+        "priority": "high",
+        "about": {
+          "summary": "One\nTwo"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/priority",
+        "applies": false
+      }
+    }
+  ]
+}
