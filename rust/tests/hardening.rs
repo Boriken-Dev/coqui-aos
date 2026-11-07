@@ -12,6 +12,10 @@ use coqui_aos::{
     TreeEntry, check_requirements, digest_entries, effective, environments, read_document,
     read_env_script_output, setup_phase, substitute, tree_digest, validate,
 };
+use coqui_aos::{
+    Class, Error, HookEvent, HookRun, OnFailure, SkillSource, fetch_planned, fire_event,
+    read_fetched_skill, read_hook_output, resolve_skills,
+};
 use serde_json::{Value, json};
 
 fn manifest(value: Value) -> serde_json::Map<String, Value> {
@@ -210,4 +214,128 @@ fn empty_directories_count_against_the_entry_limit() {
     let settings = Settings::default().tree_files(Limit::at(3));
     let error = tree_digest(&files, Path::new("/o"), &settings).expect_err("refused");
     assert_eq!(error.class.as_str(), "too-large");
+}
+
+#[test]
+fn a_run_that_claims_endless_seconds_does_not_reset_the_event_s_clock() {
+    let mut first = HookRun::new("a", Vec::new());
+    first.seconds = 1;
+    let mut second = HookRun::new("b", Vec::new());
+    second.seconds = u64::MAX;
+    let third = HookRun::new("c", Vec::new());
+    let settings = Settings::default().hook_event_timeout(Limit::at(5));
+    let fired = fire_event(
+        HookEvent::Prompt,
+        &[first, second, third],
+        None,
+        &settings,
+        false,
+    );
+    assert_eq!(fired.ran, ["a", "b"]);
+    assert_eq!(fired.reports.len(), 1);
+    assert_eq!(fired.reports[0].about, ["c", "prompt", "event-timeout"]);
+}
+
+#[test]
+fn a_hook_run_and_what_it_fired_show_no_output_in_debug() {
+    let mut run = HookRun::new("a", br#"{"context": "TOKEN-VALUE"}"#.to_vec());
+    run.sets = vec!["A".to_owned()];
+    let fired = fire_event(
+        HookEvent::Prompt,
+        &[run.clone()],
+        None,
+        &Settings::default(),
+        false,
+    );
+    let shown = format!("{run:?} {fired:?}");
+    assert!(!shown.contains("TOKEN-VALUE"), "{shown}");
+    let output = read_hook_output(
+        HookEvent::SessionStart,
+        br#"{"env": {"A": "SECRET-VALUE"}}"#,
+        &["A".to_owned()],
+        &Settings::default(),
+    )
+    .expect("an output");
+    assert!(!format!("{output:?}").contains("SECRET-VALUE"));
+}
+
+#[test]
+fn a_fetched_skill_past_the_tree_limits_is_refused_before_it_is_hashed() {
+    let files = vec![
+        ("SKILL.md".to_owned(), b"---\nname: x\n---\n".to_vec()),
+        ("big".to_owned(), vec![0; 100]),
+    ];
+    let tight = Settings::default().file_bytes(Limit::at(50));
+    let error = read_fetched_skill("x", &files, None, &tight).expect_err("refused");
+    assert_eq!(error.class.as_str(), "too-large");
+    let few = Settings::default().tree_files(Limit::at(1));
+    assert_eq!(
+        read_fetched_skill("x", &files, None, &few)
+            .expect_err("refused")
+            .class
+            .as_str(),
+        "too-large"
+    );
+    assert!(read_fetched_skill("x", &files, None, &Settings::default()).is_ok());
+}
+
+#[test]
+fn a_skill_source_s_own_error_reaches_the_caller_as_it_is() {
+    struct Refusing;
+    impl SkillSource for Refusing {
+        fn fetch(&self, _: &Source) -> Result<Vec<(String, Vec<u8>)>, Error> {
+            Err(Error::new(Class::NotFound, "gone"))
+        }
+    }
+    let overlays = BTreeMap::from([(
+        "a".to_owned(),
+        manifest(json!({"skills": [{"name": "x", "source": "https://example.org/x.git"}]})),
+    )]);
+    let plan = resolve_skills(
+        &overlays,
+        &["a".to_owned()],
+        &BTreeMap::new(),
+        &[],
+        &[],
+        true,
+        &Settings::default(),
+    )
+    .expect("a plan");
+    let got = fetch_planned(&plan, &Refusing, &Settings::default());
+    assert_eq!(
+        got[0].outcome.as_ref().expect_err("refused").class,
+        Class::NotFound
+    );
+}
+
+#[test]
+fn the_words_of_a_closed_set_read_back() {
+    use coqui_aos::{
+        CatalogForm, Decision, EntryRefusal, HookFailure, HookScope, IconFormat, PlannedOrigin,
+    };
+    for word in ["report", "refuse"] {
+        assert_eq!(OnFailure::named(word).expect("a word").as_str(), word);
+    }
+    for word in ["overlay", "user", "project"] {
+        assert_eq!(HookScope::named(word).expect("a word").as_str(), word);
+    }
+    for word in ["block", "deny", "ask", "refuse"] {
+        assert_eq!(Decision::named(word).expect("a word").as_str(), word);
+    }
+    for word in ["not-run", "timeout", "event-timeout", "grant"] {
+        assert_eq!(HookFailure::named(word).expect("a word").as_str(), word);
+    }
+    for word in ["minimal", "full"] {
+        assert_eq!(CatalogForm::named(word).expect("a word").as_str(), word);
+    }
+    assert_eq!(
+        EntryRefusal::named("leaves-repository"),
+        Some(EntryRefusal::LeavesRepository)
+    );
+    assert_eq!(IconFormat::named("webp"), Some(IconFormat::Webp));
+    assert_eq!(
+        PlannedOrigin::named("ambiguous"),
+        Some(PlannedOrigin::Ambiguous)
+    );
+    assert_eq!(OnFailure::named("deny"), None);
 }

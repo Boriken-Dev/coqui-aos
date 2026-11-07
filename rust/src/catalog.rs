@@ -37,23 +37,7 @@ pub enum EntryRefusal {
     SourceCredentials,
 }
 
-impl EntryRefusal {
-    /// The class the specification's vectors name.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::InvalidName => "invalid-name",
-            Self::DuplicateName => "duplicate-name",
-            Self::InvalidEntry => "invalid-entry",
-            Self::InvalidSource => "invalid-source",
-            Self::InvalidPin => "invalid-pin",
-            Self::RefNotAllowed => "ref-not-allowed",
-            Self::LeavesRepository => "leaves-repository",
-            Self::LocalSource => "local-source",
-            Self::SourceCredentials => "source-credentials",
-        }
-    }
-}
+impl EntryRefusal {}
 
 /// An entry a store lists, its source made absolute.
 #[derive(Clone, Debug, PartialEq)]
@@ -458,7 +442,10 @@ fn section(
 /// their sources made absolute, the entries it refuses and the fields it ignores.
 ///
 /// `name` is the catalog's file name, which selects the format; `base` is the source string the
-/// catalog file itself came from, against which relative sources resolve.
+/// catalog file itself came from, against which relative sources resolve. Without a `base` nothing
+/// is made absolute and no source is refused as local or for a credential: pass one for any
+/// catalog that was not read from the user's own disk. A description is the catalog's own text:
+/// a store must not render it as markup.
 ///
 /// # Errors
 ///
@@ -656,16 +643,7 @@ pub enum IconFormat {
     Webp,
 }
 
-impl IconFormat {
-    /// `png` or `webp`.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Png => "png",
-            Self::Webp => "webp",
-        }
-    }
-}
+impl IconFormat {}
 
 /// An icon's format and size, from its header.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -761,4 +739,81 @@ pub fn read_icon(data: &[u8], name: &str, settings: &Settings) -> Result<Icon, E
         width,
         height,
     })
+}
+
+impl CatalogForm {
+    /// The word the specification and its vectors write.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Minimal => "minimal",
+            Self::Full => "full",
+        }
+    }
+
+    /// What a word stands for.
+    #[must_use]
+    pub fn named(word: &str) -> Option<Self> {
+        match word {
+            "minimal" => Some(Self::Minimal),
+            "full" => Some(Self::Full),
+            _ => None,
+        }
+    }
+}
+
+impl EntryRefusal {
+    /// The class the specification's vectors name.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::InvalidName => "invalid-name",
+            Self::DuplicateName => "duplicate-name",
+            Self::InvalidEntry => "invalid-entry",
+            Self::InvalidSource => "invalid-source",
+            Self::InvalidPin => "invalid-pin",
+            Self::RefNotAllowed => "ref-not-allowed",
+            Self::LeavesRepository => "leaves-repository",
+            Self::LocalSource => "local-source",
+            Self::SourceCredentials => "source-credentials",
+        }
+    }
+
+    /// What a word stands for.
+    #[must_use]
+    pub fn named(word: &str) -> Option<Self> {
+        match word {
+            "invalid-name" => Some(Self::InvalidName),
+            "duplicate-name" => Some(Self::DuplicateName),
+            "invalid-entry" => Some(Self::InvalidEntry),
+            "invalid-source" => Some(Self::InvalidSource),
+            "invalid-pin" => Some(Self::InvalidPin),
+            "ref-not-allowed" => Some(Self::RefNotAllowed),
+            "leaves-repository" => Some(Self::LeavesRepository),
+            "local-source" => Some(Self::LocalSource),
+            "source-credentials" => Some(Self::SourceCredentials),
+            _ => None,
+        }
+    }
+}
+
+impl IconFormat {
+    /// `png` or `webp`.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Png => "png",
+            Self::Webp => "webp",
+        }
+    }
+
+    /// What a word stands for.
+    #[must_use]
+    pub fn named(word: &str) -> Option<Self> {
+        match word {
+            "png" => Some(Self::Png),
+            "webp" => Some(Self::Webp),
+            _ => None,
+        }
+    }
 }

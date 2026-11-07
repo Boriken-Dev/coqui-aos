@@ -77,7 +77,12 @@ fn plan_case(case: &Value) -> Result<(), String> {
     known.allowed = facts["allowed"].as_str().map(str::to_owned);
     known.tree = facts["tree"].as_object().map(|tree| {
         tree.iter()
-            .map(|(path, text)| (path.clone(), text.as_str().expect("text").to_owned()))
+            .map(|(path, text)| {
+                (
+                    path.clone(),
+                    text.as_str().expect("text").as_bytes().to_vec(),
+                )
+            })
             .collect()
     });
     let events = |key: &str| -> Option<Vec<HookEvent>> {

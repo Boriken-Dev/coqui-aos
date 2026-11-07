@@ -2,8 +2,6 @@
 //! hook is told, and what of its output applies. Running a hook is the caller's job: the core
 //! reads the hooks, decides, and combines the results of runs the caller made.
 
-use alloc::collections::BTreeMap;
-
 use serde_json::{Map, Value};
 
 use crate::codecs;
@@ -141,17 +139,6 @@ pub enum Decision {
 }
 
 impl Decision {
-    /// The decision's name in hook output.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Block => "block",
-            Self::Deny => "deny",
-            Self::Ask => "ask",
-            Self::Refuse => "refuse",
-        }
-    }
-
     const fn rank(decision: Option<Self>) -> u8 {
         match decision {
             None => 0,
@@ -185,7 +172,8 @@ pub struct Hook {
     pub runs: bool,
     /// The reasons or tool kinds it runs for; none for every one.
     pub select: Option<Vec<String>>,
-    /// The variables its `env` output may set.
+    /// The variables its `env` output may set. A `pre-env` hook's output is an env script's, whose
+    /// names are bound by what an env script may set, not by this list.
     pub sets: Vec<String>,
     /// Seconds before it is stopped.
     pub timeout: u64,
@@ -324,9 +312,9 @@ pub struct HookFacts {
     pub scope: HookScope,
     /// The overlay's tree digest, when known.
     pub digest: Option<String>,
-    /// For a project, every file of the directory that holds its configuration, by path and text:
-    /// its tree digest is the digest.
-    pub tree: Option<BTreeMap<String, String>>,
+    /// For a project, every file of the directory that holds its configuration, by path and bytes:
+    /// its tree digest replaces `digest`.
+    pub tree: Option<Vec<(String, Vec<u8>)>>,
     /// The one digest at which the user allowed these hooks.
     pub allowed: Option<String>,
     /// The events the consumer can fire on this harness; none is every one.
@@ -395,13 +383,14 @@ pub fn hook_plan(
         // loaded by it.
         let entries: Vec<(Vec<&[u8]>, TreeEntry)> = tree
             .iter()
-            .map(|(path, text)| {
+            .map(|(path, bytes)| {
                 (
                     path.split('/').map(str::as_bytes).collect(),
-                    TreeEntry::File(text.as_bytes().to_vec()),
+                    TreeEntry::File(bytes.clone()),
                 )
             })
             .collect();
+        crate::digest::check_entries(&entries, settings)?;
         digest = Some(
             digest_entries(entries.iter().map(|(path, entry)| (path.clone(), entry)))?
                 .digest
@@ -527,25 +516,10 @@ pub enum HookFailure {
     EventTimeout,
 }
 
-impl HookFailure {
-    /// The cause as reports name it.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::NotRun => "not-run",
-            Self::PayloadTooLarge => "payload-too-large",
-            Self::Timeout => "timeout",
-            Self::TooLarge => "too-large",
-            Self::Exit => "exit",
-            Self::Grant => "grant",
-            Self::Output => "output",
-            Self::EventTimeout => "event-timeout",
-        }
-    }
-}
+impl HookFailure {}
 
 /// What a successful run asks for.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct HookOutput {
     /// What it asks the event to do.
@@ -665,7 +639,7 @@ pub fn read_hook_output(
 }
 
 /// One run of a hook, as the consumer saw it.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 #[non_exhaustive]
 pub struct HookRun {
     /// Who the hook belongs to: an overlay's identity, or a scope.
@@ -740,10 +714,10 @@ pub struct HookReport {
 }
 
 /// What the hooks of one event amount to.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct FiredEvent {
-    /// The sources of the hooks that ran.
+    /// The sources of the hooks that were started, those that failed to start excepted.
     pub ran: Vec<String>,
     /// The tightest decision any asked for.
     pub decision: Option<Decision>,
@@ -801,7 +775,7 @@ pub fn fire_event(
             Err(HookFailure::EventTimeout)
         } else {
             fired.ran.push(source.clone());
-            spent += run.seconds;
+            spent = spent.saturating_add(run.seconds);
             hook_result(event, run, settings)
         };
         let out = match attempt {
@@ -892,4 +866,160 @@ pub fn fire_event(
     sensitive.sort();
     fired.non_defaults = sensitive;
     fired
+}
+
+impl OnFailure {
+    /// The word the specification and its vectors write.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Report => "report",
+            Self::Refuse => "refuse",
+        }
+    }
+
+    /// What a word stands for.
+    #[must_use]
+    pub fn named(word: &str) -> Option<Self> {
+        match word {
+            "report" => Some(Self::Report),
+            "refuse" => Some(Self::Refuse),
+            _ => None,
+        }
+    }
+}
+
+impl HookScope {
+    /// The word the specification and its vectors write.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Overlay => "overlay",
+            Self::User => "user",
+            Self::Project => "project",
+        }
+    }
+
+    /// What a word stands for.
+    #[must_use]
+    pub fn named(word: &str) -> Option<Self> {
+        match word {
+            "overlay" => Some(Self::Overlay),
+            "user" => Some(Self::User),
+            "project" => Some(Self::Project),
+            _ => None,
+        }
+    }
+}
+
+impl Decision {
+    /// The decision's name in hook output.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Block => "block",
+            Self::Deny => "deny",
+            Self::Ask => "ask",
+            Self::Refuse => "refuse",
+        }
+    }
+
+    /// What a word stands for.
+    #[must_use]
+    pub fn named(word: &str) -> Option<Self> {
+        match word {
+            "block" => Some(Self::Block),
+            "deny" => Some(Self::Deny),
+            "ask" => Some(Self::Ask),
+            "refuse" => Some(Self::Refuse),
+            _ => None,
+        }
+    }
+}
+
+impl HookFailure {
+    /// The cause as reports name it.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NotRun => "not-run",
+            Self::PayloadTooLarge => "payload-too-large",
+            Self::Timeout => "timeout",
+            Self::TooLarge => "too-large",
+            Self::Exit => "exit",
+            Self::Grant => "grant",
+            Self::Output => "output",
+            Self::EventTimeout => "event-timeout",
+        }
+    }
+
+    /// What a word stands for.
+    #[must_use]
+    pub fn named(word: &str) -> Option<Self> {
+        match word {
+            "not-run" => Some(Self::NotRun),
+            "payload-too-large" => Some(Self::PayloadTooLarge),
+            "timeout" => Some(Self::Timeout),
+            "too-large" => Some(Self::TooLarge),
+            "exit" => Some(Self::Exit),
+            "grant" => Some(Self::Grant),
+            "output" => Some(Self::Output),
+            "event-timeout" => Some(Self::EventTimeout),
+            _ => None,
+        }
+    }
+}
+
+impl core::fmt::Debug for HookOutput {
+    /// Shows which outputs there are, never their text or values.
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("HookOutput")
+            .field("decision", &self.decision)
+            .field("reason", &self.reason.as_ref().map(String::len))
+            .field("context", &self.context.as_ref().map(String::len))
+            .field(
+                "env",
+                &self
+                    .env
+                    .as_ref()
+                    .map(|env| env.iter().map(|(name, _)| name).collect::<Vec<_>>()),
+            )
+            .finish()
+    }
+}
+
+impl core::fmt::Debug for HookRun {
+    /// Shows the hook and the size of its output, never the output.
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("HookRun")
+            .field("source", &self.source)
+            .field("exit", &self.exit)
+            .field("timed_out", &self.timed_out)
+            .field("stdout_bytes", &self.stdout.len())
+            .finish_non_exhaustive()
+    }
+}
+
+impl core::fmt::Debug for FiredEvent {
+    /// Shows who ran and decided and the names of variables set, never text or values.
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("FiredEvent")
+            .field("ran", &self.ran)
+            .field("decision", &self.decision)
+            .field("by", &self.by)
+            .field(
+                "context_from",
+                &self
+                    .context
+                    .iter()
+                    .map(|(source, _)| source)
+                    .collect::<Vec<_>>(),
+            )
+            .field(
+                "env",
+                &self.env.iter().map(|(name, _)| name).collect::<Vec<_>>(),
+            )
+            .field("reports", &self.reports)
+            .finish_non_exhaustive()
+    }
 }

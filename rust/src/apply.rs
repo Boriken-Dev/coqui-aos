@@ -1164,7 +1164,8 @@ pub struct ComposedEnvironment {
 
 /// The environment of every active overlay, in composition order, from `base` and each overlay's
 /// root: what an agent Session gets. `pre_env` holds the runs the caller made of each overlay's
-/// `pre-env` hook, by identity: their output is applied after the root variables and before any
+/// `pre-env` hook, by identity (only for hooks the user allowed, each run carrying the hook's
+/// `on_failure`): their output is applied after the root variables and before any
 /// overlay's declarations, so an overlay earlier in the order reads what a later one's hook set.
 ///
 /// `env` is the first [`Error`] of any overlay, or `hook-refused` naming the overlay whose guard failed.
@@ -1186,17 +1187,19 @@ pub fn composed_environment(
         hook_reports: Vec::new(),
         hook_non_defaults: Vec::new(),
     };
-    let settings = active
-        .first()
-        .map(|(_, facts)| facts.settings)
-        .unwrap_or_default();
     for (_, facts) in active {
         let Some(run) = pre_env.get(&facts.identity) else {
             continue;
         };
         let mut run = run.clone();
         run.source.clone_from(&facts.identity);
-        let fired = fire_event(HookEvent::PreEnv, &[run], None, &settings, env.windows);
+        let fired = fire_event(
+            HookEvent::PreEnv,
+            &[run],
+            None,
+            &facts.settings,
+            env.windows,
+        );
         composed.hook_reports.extend(fired.reports);
         composed.hook_non_defaults.extend(fired.non_defaults);
         if fired.decision == Some(Decision::Refuse) {

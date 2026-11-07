@@ -397,3 +397,40 @@ impl Walk<'_> {
         Ok(())
     }
 }
+
+/// Refuses entries past the tree limits of `settings` before any is hashed: for trees a caller
+/// hands over rather than the core walks.
+///
+/// # Errors
+///
+/// `too-large` naming the limit passed.
+pub(crate) fn check_entries(
+    entries: &[(Vec<&[u8]>, TreeEntry)],
+    settings: &Settings,
+) -> Result<(), Error> {
+    if !settings.tree_files.allows(entries.len()) {
+        return Err(refused(
+            Class::TooLarge,
+            format!("more than {} files and directories", settings.tree_files),
+        ));
+    }
+    let mut total = 0u64;
+    for (_, entry) in entries {
+        if let TreeEntry::File(bytes) = entry {
+            if !settings.file_bytes.allows(bytes.len()) {
+                return Err(refused(
+                    Class::TooLarge,
+                    format!("a file larger than {} bytes", settings.file_bytes),
+                ));
+            }
+            total = total.saturating_add(bytes.len() as u64);
+        }
+    }
+    if !settings.tree_bytes.allows(total) {
+        return Err(refused(
+            Class::TooLarge,
+            format!("more than {} bytes", settings.tree_bytes),
+        ));
+    }
+    Ok(())
+}

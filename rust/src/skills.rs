@@ -4,7 +4,6 @@
 //! on its own and calls [`read_fetched_skill`].
 
 use alloc::collections::{BTreeMap, BTreeSet};
-use std::io;
 
 use crate::catalog::Catalog;
 use crate::compose::{composition_order, resolve};
@@ -86,19 +85,7 @@ pub enum PlannedOrigin {
     Ambiguous,
 }
 
-impl PlannedOrigin {
-    /// The word the vectors use.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Bundled => "bundled",
-            Self::Source => "source",
-            Self::Catalog => "catalog",
-            Self::Missing => "missing",
-            Self::Ambiguous => "ambiguous",
-        }
-    }
-}
+impl PlannedOrigin {}
 
 /// One skill of an active overlay, with where it comes from.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -381,6 +368,7 @@ pub fn read_fetched_skill(
             )
         })
         .collect();
+    crate::digest::check_entries(&entries, settings)?;
     let digest = digest_entries(entries.iter().map(|(path, entry)| (path.clone(), entry)))?.digest;
     if let Some(pin) = pin
         && Digest::parse(pin).ok() != Some(digest)
@@ -429,7 +417,7 @@ pub trait SkillSource {
     /// # Errors
     ///
     /// Whatever stopped the fetch.
-    fn fetch(&self, source: &Source) -> io::Result<Vec<(String, Vec<u8>)>>;
+    fn fetch(&self, source: &Source) -> Result<Vec<(String, Vec<u8>)>, Error>;
 }
 
 /// A skill of a plan, fetched and checked.
@@ -460,8 +448,35 @@ pub fn fetch_planned(
                 Ok(files) => {
                     read_fetched_skill(&fetch.name, &files, fetch.pin.as_deref(), settings)
                 }
-                Err(_) => Err(Error::new(Class::Io, fetch.name.clone())),
+                Err(error) => Err(error),
             },
         })
         .collect()
+}
+
+impl PlannedOrigin {
+    /// The word the vectors use.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Bundled => "bundled",
+            Self::Source => "source",
+            Self::Catalog => "catalog",
+            Self::Missing => "missing",
+            Self::Ambiguous => "ambiguous",
+        }
+    }
+
+    /// What a word stands for.
+    #[must_use]
+    pub fn named(word: &str) -> Option<Self> {
+        match word {
+            "bundled" => Some(Self::Bundled),
+            "source" => Some(Self::Source),
+            "catalog" => Some(Self::Catalog),
+            "missing" => Some(Self::Missing),
+            "ambiguous" => Some(Self::Ambiguous),
+            _ => None,
+        }
+    }
 }

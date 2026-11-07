@@ -4,11 +4,10 @@
 mod support;
 
 use std::collections::BTreeMap;
-use std::io;
 
 use coqui_aos::{
-    Catalog, Document, OverlayTree, Settings, SkillSource, Source, fetch_planned, read_catalog,
-    read_fetched_skill, resolve_skills,
+    Catalog, Class, Document, Error, OverlayTree, Settings, SkillSource, Source, fetch_planned,
+    read_catalog, read_fetched_skill, resolve_skills,
 };
 use serde_json::{Value, json};
 use support::{object, run, strings};
@@ -172,11 +171,11 @@ fn skills_from_elsewhere() {
 struct Memory(BTreeMap<String, Vec<(String, Vec<u8>)>>);
 
 impl SkillSource for Memory {
-    fn fetch(&self, source: &Source) -> io::Result<Vec<(String, Vec<u8>)>> {
+    fn fetch(&self, source: &Source) -> Result<Vec<(String, Vec<u8>)>, Error> {
         self.0
             .get(&source.shown())
             .cloned()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no such source"))
+            .ok_or_else(|| Error::new(Class::Io, "no such source"))
     }
 }
 

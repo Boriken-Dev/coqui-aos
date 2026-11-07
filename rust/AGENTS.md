@@ -10,7 +10,7 @@ MSRV Rust 1.89. Version `0.0.0-alpha.0`, not published; the API may change in an
 
 Imports: everything is at the root. No `unsafe` code (`#![forbid(unsafe_code)]`). No process-wide state; the library prints nothing, reads no environment variable and starts no thread. Edition: AOS v0, `0.1.0-draft`.
 
-Reading a manifest is static: no function here runs a script, reads a file or consults the environment, except `tree_digest`, which reads through the `FileSystem` it is given.
+Reading a manifest is static: no function here runs a script, reads a file, opens a connection or consults the environment, except `tree_digest` and `read_tree`, which read through the `FileSystem` they are given.
 
 ## Errors
 
@@ -23,7 +23,7 @@ pub fn Error::on_line(self, line: usize) -> Error
 
 `Clone`, `Debug`, `Eq`, `Display` (`class: subject at line N column M`), `std::error::Error`. **`class` is the contract**: `Class`, a `#[non_exhaustive]` enum of the classes the specification's conformance vectors name (`ParseError`, `DuplicateKey`, `TooDeep`, `Symlink`, `UndefinedVariable`, ...) and this crate's `Io`, `DuplicateMember`, `InvalidRequirements` and `InvalidDigest`; `Class::as_str` is the word the vectors write and `Class::named` reads it back. `Issue::code` is `IssueCode`, the same for a manifest's problems. `subject` names what it is about (a variable, a path, a pointer) for a person, never text from a document; do not match on it. `line` and `column` are one-based, `column` counts Unicode scalar values; a line counts from the first line of the file, a format line included.
 
-Functions that cannot refuse return no `Result`; the others return `Result<_, Error>`, except `compose` (`Cycle`) and `dependencies_of` (`PartialLock`), which return the structure the vectors expect, and both implement `Display` and `std::error::Error`. The closed sets of words are enums, each `#[non_exhaustive]` with `as_str` and `named`: `Runtime`, `LeftState`, `ManifestFile`, `Format`, `FailStep`, `NonDefaultId`, `Decision`, `HookEvent`, `PlannedOrigin`, `IconFormat`, `EntryRefusal`, and `Step` (which implements `Display`).
+Functions that cannot refuse return no `Result`; the others return `Result<_, Error>`, except `compose` (`Cycle`) and `dependencies_of` (`PartialLock`), which return the structure the vectors expect, and both implement `Display` and `std::error::Error`. The closed sets of words are enums, each `#[non_exhaustive]` with `as_str` and `named`: `Runtime`, `LeftState`, `ManifestFile`, `Format`, `FailStep`, `NonDefaultId`, `Decision`, `HookEvent`, `HookFailure`, `OnFailure`, `HookScope`, `PlannedOrigin`, `CatalogForm`, `IconFormat` and `EntryRefusal`; `Step` is an enum with data and implements `Display`. Reports and non-default settings in the plan and event types are `(id, subject)` pairs of text.
 
 ## Settings (`Settings`, `Limit`)
 
@@ -167,11 +167,11 @@ pub fn read_icon(data: &[u8], name: &str, settings: &Settings) -> Result<Icon, E
 pub fn resolve_skills(overlays, requested, trees: &BTreeMap<String, OverlayTree>, catalogs: &[(&str, &Catalog)], order: &[&str], fetches: bool, settings: &Settings) -> Result<SkillPlan, Error>
 pub struct SkillPlan { pub skills: Vec<PlannedSkill>, pub missing, ambiguous, unpinned, non_defaults, not_fetched, name_mismatch, shadowing, delivered, collisions, pub to_fetch: Vec<Fetch> }
 pub fn read_fetched_skill(name: &str, files: &[(String, Vec<u8>)], pin: Option<&str>, settings: &Settings) -> Result<FetchedSkill, Error>
-pub trait SkillSource { fn fetch(&self, source: &Source) -> io::Result<Vec<(String, Vec<u8>)>>; }
+pub trait SkillSource { fn fetch(&self, source: &Source) -> Result<Vec<(String, Vec<u8>)>, Error>; }
 pub fn fetch_planned(plan: &SkillPlan, fetcher: &dyn SkillSource, settings: &Settings) -> Vec<FetchedPlanned>
 ```
 
-The core decides what to fetch (`SkillPlan::to_fetch`: the delivered skills from elsewhere, none for a consumer that does not fetch) and checks what came back, pin first, so nothing unverified is parsed; it holds no network. A `SkillSource` is the caller's; `fetch_planned` calls it once per skill and reports a failure of it as `Io` for that skill alone. `read_fetched_skill` needs the front matter of `SKILL.md` in YAML and its `name` to be the skill's, and reports every key beyond `name`, `description`, `license`, `compatibility` and `metadata`.
+The core decides what to fetch (`SkillPlan::to_fetch`: the delivered skills from elsewhere, none for a consumer that does not fetch) and checks what came back, pin first, so nothing unverified is parsed; it holds no network. `catalog` entries' `description` is a stranger's text: do not render it as markup. A `SkillSource` is the caller's; `fetch_planned` calls it once per skill and reports its `Error` for that skill alone. `read_fetched_skill` needs the front matter of `SKILL.md` in YAML and its `name` to be the skill's, and reports every key beyond `name`, `description`, `license`, `compatibility` and `metadata`.
 
 ## Hooks
 
@@ -185,11 +185,11 @@ pub fn hook_result(event: HookEvent, run: &HookRun, settings: &Settings) -> Resu
 pub fn fire_event(event: HookEvent, runs: &[HookRun], applies: Option<&[&str]>, settings: &Settings, windows: bool) -> FiredEvent
 ```
 
-Running a hook is the caller's: it builds a `HookRun` (`HookRun::new(source, stdout)` and its public fields: exit status, seconds, timeout, payload size, `sets`, `on_failure`) from what the process did, and the core checks it in a fixed order (started, payload, time, size, exit, output), combines the runs of one event to the tightest decision, and reports what could not be applied. A hook is off until the user allows it at the overlay's digest (`HookFacts::allowed`); `HookPlan::activates` is false for a guard that is off, so it never fails open. `composed_environment` takes the runs of each overlay's `pre-env` hook and returns a `ComposedEnvironment { env: Result<Environment, Error>, hook_reports, hook_non_defaults }`; a guard that failed is `HookRefused`. The hooks' bounds are `Settings::hook_*`.
+Running a hook is the caller's: it builds a `HookRun` (`HookRun::new(source, stdout)` and its public fields: exit status, seconds, `timed_out`, payload size, `sets`, `on_failure`) from what the process did, and the core checks it in a fixed order (started, payload, time, size, exit, output), combines the runs of one event to the tightest decision, and reports what could not be applied. A hook is off until the user allows it at the overlay's digest (`HookFacts::allowed`; `HookFacts::tree` is a project's files by path and bytes, and its digest replaces `digest`); call `validate` first: a `run` that is no file of the overlay is a validation problem, not something `hooks_of` filters. `Debug` of a run, an output or an event shows no output text or value; `HookPlan::activates` is false for a guard that is off, so it never fails open. `composed_environment` takes the runs of each overlay's `pre-env` hook and returns a `ComposedEnvironment { env: Result<Environment, Error>, hook_reports, hook_non_defaults }`; a guard that failed is `HookRefused`. The hooks' bounds are `Settings::hook_*`.
 
 ## Gotchas
 
 - Equal mapping keys are refused, and a validator names the **later** of two keys equal under case (`env-name-case-duplicate`), which needs the document's order: `serde_json`'s `preserve_order` is on.
 - A `Document` read from YAML, TOML and JSON is the same value; only the format line and `OVERLAY.md`'s front matter choose the parser.
-- `tree_digest` is the only place a reader opens a file. `StdFs` is the one `FileSystem` shipped; a binding supplies its own.
+- `tree_digest` and `read_tree` are the only places the core asks for a file. `StdFs` is the one `FileSystem` shipped; a binding supplies its own.
 - The tests read the specification's vectors from `../vectors`, which are not in the packaged crate.
