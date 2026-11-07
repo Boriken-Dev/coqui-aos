@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 use coqui_aos::{
     Change, Document, Environment, Error, OverlayTree, Source, TreeEntry, applies, compose,
     composed_environment, digest_entries, effective, environments, normalize_name, preparation,
-    read_document, read_dotenv, read_env_script_output, root_variable, skill_flags,
-    valid_overlay_name, validate,
+    read_catalog_document, read_document, read_dotenv, read_env_script_output, root_variable,
+    skill_flags, valid_overlay_name, validate,
 };
 use serde_json::{Value, json};
 use support::{bytes_of, compare, facts_of, none, object, run, settings_of, strings};
@@ -56,15 +56,17 @@ fn reading() {
                             .collect(),
                     )
                 }),
-                "catalog" => return Ok(()),
+                "catalog" => read_catalog_document(
+                    &data,
+                    case["name"].as_str().expect("a file name"),
+                    &settings,
+                )
+                .map(Value::Object),
                 other => panic!("format {other}"),
             };
             compare(got, &case["expect"])
         },
-        |case| {
-            (case["format"] == "catalog")
-                .then_some("the Store class: catalogs are not read by this crate yet")
-        },
+        none,
     );
 }
 

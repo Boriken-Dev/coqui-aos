@@ -9,6 +9,7 @@
 extern crate alloc;
 
 mod apply;
+mod catalog;
 mod codecs;
 mod compose;
 mod defaults;
@@ -27,6 +28,11 @@ mod validate;
 pub use apply::{
     Change, Effective, Environment, Facts, Needs, NonDefaultSetting, Phase, Preparation, ScriptRun,
     SetupRecord, SetupRun, composed_environment, effective, preparation, read_dotenv, setup_phase,
+};
+pub use catalog::{
+    Catalog, CatalogEntry, CatalogForm, CatalogSection, EntryRefusal, Icon, IconFormat,
+    ListedEntry, Listing, catalog_format, list_catalogs, read_catalog, read_catalog_document,
+    read_icon,
 };
 pub use compose::{
     Composition, Cycle, Environments, LeftEnvironment, PackageConflict, PackageEnvironment,

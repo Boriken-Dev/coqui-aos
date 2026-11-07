@@ -129,6 +129,22 @@ pub struct Settings {
     #[schema(title = "Largest context body", format = "bytes")]
     #[map(default = Settings::default().context_bytes)]
     pub context_bytes: Limit,
+    /// Bytes of a catalog file.
+    #[schema(title = "Largest catalog", format = "bytes")]
+    #[map(default = Settings::default().catalog_bytes)]
+    pub catalog_bytes: Limit,
+    /// Bytes of an icon file.
+    #[schema(title = "Largest icon", format = "bytes")]
+    #[map(default = Settings::default().icon_bytes)]
+    pub icon_bytes: Limit,
+    /// Width of an icon in pixels.
+    #[schema(title = "Widest icon")]
+    #[map(default = Settings::default().icon_width)]
+    pub icon_width: Limit,
+    /// Height of an icon in pixels.
+    #[schema(title = "Tallest icon")]
+    #[map(default = Settings::default().icon_height)]
+    pub icon_height: Limit,
     /// Bytes of one substituted value.
     #[schema(title = "Largest substituted value", format = "bytes")]
     #[map(default = Settings::default().substitution_bytes)]
@@ -153,6 +169,10 @@ impl Default for Settings {
             tree_bytes: Limit::at(64 * MIB),
             file_bytes: Limit::at(16 * MIB),
             context_bytes: Limit::at(MIB),
+            catalog_bytes: Limit::at(4 * MIB),
+            icon_bytes: Limit::at(512 * 1024),
+            icon_width: Limit::at(1024),
+            icon_height: Limit::at(1024),
             substitution_bytes: Limit::at(MIB),
             substitution_depth: Limit::at(32),
             substitution_steps: Limit::at(10_000_000),
@@ -240,6 +260,34 @@ impl Settings {
     #[must_use]
     pub fn substitution_steps(mut self, limit: Limit) -> Self {
         self.substitution_steps = limit;
+        self
+    }
+
+    /// Sets `catalog_bytes`.
+    #[must_use]
+    pub fn catalog_bytes(mut self, limit: Limit) -> Self {
+        self.catalog_bytes = limit;
+        self
+    }
+
+    /// Sets `icon_bytes`.
+    #[must_use]
+    pub fn icon_bytes(mut self, limit: Limit) -> Self {
+        self.icon_bytes = limit;
+        self
+    }
+
+    /// Sets `icon_width`.
+    #[must_use]
+    pub fn icon_width(mut self, limit: Limit) -> Self {
+        self.icon_width = limit;
+        self
+    }
+
+    /// Sets `icon_height`.
+    #[must_use]
+    pub fn icon_height(mut self, limit: Limit) -> Self {
+        self.icon_height = limit;
         self
     }
 

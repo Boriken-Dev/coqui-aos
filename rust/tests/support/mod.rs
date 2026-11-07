@@ -68,6 +68,7 @@ pub fn settings_of(case: &Value) -> coqui_aos::Settings {
     let limits = &case["limits"];
     if let Some(bytes) = limits["max_bytes"].as_u64() {
         settings.manifest_bytes = coqui_aos::Limit::at(bytes);
+        settings.catalog_bytes = coqui_aos::Limit::at(bytes);
     }
     if let Some(depth) = limits["max_depth"].as_u64() {
         settings.manifest_depth = coqui_aos::Limit::at(depth);

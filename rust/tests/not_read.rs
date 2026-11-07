@@ -10,14 +10,6 @@ fn skipped(file: &str, reason: &'static str) {
 }
 
 #[test]
-fn catalogs_and_icons_are_the_store_class() {
-    skipped(
-        "catalog.json",
-        "the Store class: catalogs and icons are not read by this crate yet",
-    );
-}
-
-#[test]
 fn skills_from_elsewhere_are_not_resolved_yet() {
     skipped(
         "skills.json",

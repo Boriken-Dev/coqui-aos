@@ -123,7 +123,7 @@ fn is_environment_name(text: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'.' | b'-'))
 }
 
-fn is_digest(text: &str) -> bool {
+pub(crate) fn is_digest(text: &str) -> bool {
     text.strip_prefix("sha256:")
         .is_some_and(|hex| hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
 }
@@ -1105,8 +1105,27 @@ pub fn skill_flags(doc: &Document, tree: &OverlayTree) -> Vec<String> {
         .collect()
 }
 
+/// Whether one informational field of `about` is valid; an unknown field is not.
+pub(crate) fn about_field_valid(field: &str, value: &Data) -> bool {
+    let mut check = Check::default();
+    let mut map = Document::new();
+    map.insert(field.to_owned(), value.clone());
+    check.about(&Data::Object(map), "/about");
+    check.issues.is_empty()
+}
+
+/// Whether one field of a catalog's own (`name`, `description`, `homepage`) is valid.
+pub(crate) fn catalog_field_valid(field: &str, value: &Data) -> bool {
+    match (field, value) {
+        ("name", Data::String(text)) => is_line(text),
+        ("description", Data::String(_)) => true,
+        ("homepage", Data::String(text)) => is_web_url(text),
+        _ => false,
+    }
+}
+
 /// A Git ref a skill table names: no `-` first, and none of `/ : \ @ #`, controls or spaces.
-fn is_git_ref(text: &str) -> bool {
+pub(crate) fn is_git_ref(text: &str) -> bool {
     let mut chars = text.chars();
     let bad = |c: char| matches!(c, '/' | ':' | '\\' | '@' | '#') || c <= ' ' || c == '\u{7f}';
     chars
