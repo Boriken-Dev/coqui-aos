@@ -11,6 +11,7 @@ use crate::compose::{composition_order, resolve};
 use crate::defaults::{OverlayTree, SkillOrigin, skill_entries};
 use crate::digest::{Digest, TreeEntry, digest_entries};
 use crate::error::{Class, Error};
+use crate::kinds::Format;
 use crate::front_matter::{Case, read_front_matter, split_front_matter};
 use crate::limits::Settings;
 use crate::names::normalize_name;
@@ -397,7 +398,7 @@ pub fn read_fetched_skill(
     }
     let split = split_front_matter(skill, settings);
     if found.case != Case::Mapping
-        || found.format != Some("yaml")
+        || found.format != Some(Format::Yaml)
         || split
             .metadata
             .is_some_and(|metadata| metadata.starts_with(b"#!"))

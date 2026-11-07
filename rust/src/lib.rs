@@ -18,6 +18,7 @@ mod error;
 mod front_matter;
 mod fs;
 mod hooks;
+mod kinds;
 mod limits;
 mod names;
 mod overlay;
@@ -60,6 +61,7 @@ pub use hooks::{
     HookReport, HookRun, HookScope, OnFailure, fire_event, hook_matches, hook_payload, hook_plan,
     hook_result, hooks_of, read_hook_output,
 };
+pub use kinds::{FailStep, Format, LeftState, ManifestFile, NonDefaultId, Runtime, Step};
 pub use limits::{Limit, NonDefault, Settings};
 pub use names::{
     EXCLUDED_COMPONENTS, current_os, is_reserved_variable, is_sensitive_variable, is_variable_name,

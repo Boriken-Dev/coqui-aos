@@ -13,6 +13,7 @@ use crate::defaults::{
 };
 use crate::error::{Class, Error};
 use crate::hooks::{Decision, HookEvent, HookReport, HookRun, fire_event};
+use crate::kinds::{FailStep, NonDefaultId, Runtime, Step};
 use crate::limits::Settings;
 use crate::names::{
     is_path_variable, is_reserved_variable, is_sensitive_variable, normalize_name, root_variable,
@@ -27,15 +28,15 @@ use crate::validate::validate;
 #[non_exhaustive]
 pub struct NonDefaultSetting {
     /// `unpinned`, `setup-network`, `env-script`, `secret-read`, and the others AOS lists.
-    pub id: String,
+    pub id: NonDefaultId,
     /// The variable, path, file or reference it is about; empty for `unpinned`.
     pub subject: String,
 }
 
 impl NonDefaultSetting {
-    fn new(id: &str, subject: &str) -> Self {
+    fn new(id: NonDefaultId, subject: &str) -> Self {
         Self {
-            id: id.to_owned(),
+            id,
             subject: subject.to_owned(),
         }
     }
@@ -380,17 +381,17 @@ fn apply_mapping(
             secret = true;
             if entry.get("provider").and_then(Data::as_str) == Some("env") {
                 let key = entry.get("key").and_then(Data::as_str).unwrap_or_default();
-                non_defaults.push(NonDefaultSetting::new("env-passthrough", key));
+                non_defaults.push(NonDefaultSetting::new(NonDefaultId::EnvPassthrough, key));
             } else {
                 non_defaults.push(NonDefaultSetting::new(
-                    "secret-read",
+                    NonDefaultId::SecretRead,
                     &reference_name(&entry),
                 ));
             }
             value
         };
         if is_sensitive_variable(name) {
-            non_defaults.push(NonDefaultSetting::new("env-sensitive", name));
+            non_defaults.push(NonDefaultSetting::new(NonDefaultId::EnvSensitive, name));
         }
         env.set(name, value, secret);
     }
@@ -433,7 +434,7 @@ fn apply_paths(
     for key in order {
         let (variable, entries) = &grouped[&key];
         if is_sensitive_variable(variable) && !is_path_variable(variable) {
-            non_defaults.push(NonDefaultSetting::new("env-sensitive", variable));
+            non_defaults.push(NonDefaultSetting::new(NonDefaultId::EnvSensitive, variable));
         }
         let (mut prepend, mut append, mut seen) = (Vec::new(), Vec::new(), BTreeSet::new());
         for entry in entries {
@@ -552,8 +553,8 @@ fn apply_overlay_inner(
     let dependencies = dependencies_of(manifest, tree, os)
         .map_err(|lock| Error::new(Class::PartialLock, &lock.0))?;
     for dependency in &dependencies {
-        if let Some(packages) = facts.packages.get(&dependency.runtime) {
-            let variable = if dependency.runtime == "python" {
+        if let Some(packages) = facts.packages.get(dependency.runtime.as_str()) {
+            let variable = if dependency.runtime == Runtime::Python {
                 "PYTHONPATH"
             } else {
                 "NODE_PATH"
@@ -606,7 +607,10 @@ fn apply_overlay_inner(
                     env.substitute(&line.text, &line.name)?
                 };
                 if is_sensitive_variable(&line.name) {
-                    non_defaults.push(NonDefaultSetting::new("env-sensitive", &line.name));
+                    non_defaults.push(NonDefaultSetting::new(
+                        NonDefaultId::EnvSensitive,
+                        &line.name,
+                    ));
                 }
                 env.set(&line.name, value, false);
             }
@@ -643,7 +647,7 @@ fn apply_overlay_inner(
                 choice
                     .present
                     .iter()
-                    .map(|path| NonDefaultSetting::new("script-not-run", path)),
+                    .map(|path| NonDefaultSetting::new(NonDefaultId::ScriptNotRun, path)),
             );
         }
         for script in choice.chosen.iter().chain(&choice.others) {
@@ -656,9 +660,9 @@ fn apply_overlay_inner(
                 args: strings_of(script, "args"),
                 timeout: script.get("timeout").and_then(Data::as_u64).unwrap_or(60),
             };
-            non_defaults.push(NonDefaultSetting::new("env-script", &run.path));
+            non_defaults.push(NonDefaultSetting::new(NonDefaultId::EnvScript, &run.path));
             if run.timeout == 0 {
-                non_defaults.push(NonDefaultSetting::new("no-timeout", &run.path));
+                non_defaults.push(NonDefaultSetting::new(NonDefaultId::NoTimeout, &run.path));
             }
             scripts.push(run);
         }
@@ -734,7 +738,7 @@ pub fn effective(manifest: &Document, facts: &Facts) -> Result<Effective, Error>
     let os = facts.os.as_str();
     let mut non_defaults = Vec::new();
     if !facts.pinned {
-        non_defaults.push(NonDefaultSetting::new("unpinned", ""));
+        non_defaults.push(NonDefaultSetting::new(NonDefaultId::Unpinned, ""));
     }
     let runtime = manifest.get("runtime").cloned().unwrap_or(Data::Null);
     let supported = runtime.get("os").is_none() || entry_on(&runtime, os);
@@ -765,7 +769,7 @@ pub fn effective(manifest: &Document, facts: &Facts) -> Result<Effective, Error>
                 choice
                     .present
                     .iter()
-                    .map(|path| NonDefaultSetting::new("script-not-run", path)),
+                    .map(|path| NonDefaultSetting::new(NonDefaultId::ScriptNotRun, path)),
             );
         }
     }
@@ -781,12 +785,18 @@ pub fn effective(manifest: &Document, facts: &Facts) -> Result<Effective, Error>
     });
     if let Some(setup) = &setup {
         if setup.network {
-            non_defaults.push(NonDefaultSetting::new("setup-network", &setup.path));
+            non_defaults.push(NonDefaultSetting::new(
+                NonDefaultId::SetupNetwork,
+                &setup.path,
+            ));
         } else if facts.enforces_network == Some(false) {
-            non_defaults.push(NonDefaultSetting::new("network-not-enforced", &setup.path));
+            non_defaults.push(NonDefaultSetting::new(
+                NonDefaultId::NetworkNotEnforced,
+                &setup.path,
+            ));
         }
         if setup.timeout == 0 {
-            non_defaults.push(NonDefaultSetting::new("no-timeout", &setup.path));
+            non_defaults.push(NonDefaultSetting::new(NonDefaultId::NoTimeout, &setup.path));
         }
     }
     let variant = |name: &str| {
@@ -806,10 +816,13 @@ pub fn effective(manifest: &Document, facts: &Facts) -> Result<Effective, Error>
         .map_err(|lock| Error::new(Class::PartialLock, &lock.0))?;
     for dependency in &dependencies {
         // Installing fetches packages: it needs the network, locked or not.
-        non_defaults.push(NonDefaultSetting::new("deps-network", &dependency.file));
+        non_defaults.push(NonDefaultSetting::new(
+            NonDefaultId::DepsNetwork,
+            &dependency.file,
+        ));
         if dependency.lock.is_none() {
             non_defaults.push(NonDefaultSetting::new(
-                "unlocked-dependencies",
+                NonDefaultId::UnlockedDependencies,
                 &dependency.file,
             ));
         }
@@ -866,8 +879,8 @@ pub fn effective(manifest: &Document, facts: &Facts) -> Result<Effective, Error>
         }
     }
     for dependency in &dependencies {
-        interpreters.insert(dependency.runtime.clone());
-        if dependency.runtime == "node" {
+        interpreters.insert(dependency.runtime.as_str().to_owned());
+        if dependency.runtime == Runtime::Node {
             commands.insert("npm".to_owned());
         }
     }
@@ -888,12 +901,12 @@ pub fn effective(manifest: &Document, facts: &Facts) -> Result<Effective, Error>
                     ungranted.insert(reference_name(reference));
                 } else if reference.get("provider").and_then(Data::as_str) == Some("env") {
                     non_defaults.push(NonDefaultSetting::new(
-                        "env-passthrough",
+                        NonDefaultId::EnvPassthrough,
                         &text_of(value, "key"),
                     ));
                 } else {
                     non_defaults.push(NonDefaultSetting::new(
-                        "secret-read",
+                        NonDefaultId::SecretRead,
                         &reference_name(reference),
                     ));
                 }
@@ -915,7 +928,7 @@ pub fn effective(manifest: &Document, facts: &Facts) -> Result<Effective, Error>
             .chain(headers)
         {
             if host_grants.contains(&name) {
-                non_defaults.push(NonDefaultSetting::new("env-passthrough", &name));
+                non_defaults.push(NonDefaultSetting::new(NonDefaultId::EnvPassthrough, &name));
             } else {
                 ungranted.insert(format!("env:{name}"));
             }
@@ -933,7 +946,7 @@ pub fn effective(manifest: &Document, facts: &Facts) -> Result<Effective, Error>
                 .to_ascii_lowercase();
             if host != "localhost" && host != "[::1]" && !host.starts_with("127.") {
                 non_defaults.push(NonDefaultSetting::new(
-                    "insecure-transport",
+                    NonDefaultId::InsecureTransport,
                     &text_of(server, "name"),
                 ));
             }
@@ -1056,8 +1069,8 @@ pub struct Preparation {
     pub phase: Option<Phase>,
     /// Setup's arguments: the phase, then the variant's own.
     pub arguments: Option<Vec<String>>,
-    /// `empty-state`, `deps:<runtime>`, `setup`, `record` and `delete`, in order.
-    pub steps: Vec<String>,
+    /// The steps, in order.
+    pub steps: Vec<Step>,
     /// The record after the steps.
     pub record: Option<SetupRecord>,
     /// Whether the digest may be activated.
@@ -1065,14 +1078,14 @@ pub struct Preparation {
 }
 
 /// The preparation of `digest` for `change`, given the `record` kept for the overlay and the
-/// step that `fails` (`deps` or `setup`), if one does.
+/// step that `fails`, if one does.
 pub fn preparation(
     change: Change,
     record: Option<&SetupRecord>,
     digest: Option<&str>,
     setup: Option<&SetupRun>,
     dependencies: &[Dependency],
-    fails: Option<&str>,
+    fails: Option<FailStep>,
 ) -> Preparation {
     let recorded = record.map(|record| record.digest.as_str());
     let phase = if setup.is_some() || !dependencies.is_empty() {
@@ -1082,29 +1095,30 @@ pub fn preparation(
     };
     let mut steps = Vec::new();
     if phase == Some(Phase::Install) {
-        steps.push("empty-state".to_owned());
+        steps.push(Step::EmptyState);
     }
     if matches!(phase, Some(Phase::Install | Phase::Sync)) {
         steps.extend(
             dependencies
                 .iter()
-                .map(|dependency| format!("deps:{}", dependency.runtime)),
+                .map(|dependency| Step::Deps(dependency.runtime)),
         );
     }
     if phase.is_some() && setup.is_some() {
-        steps.push("setup".to_owned());
+        steps.push(Step::Setup);
     }
     let mut failed = false;
     if let Some(fails) = fails
-        && let Some(index) = steps
-            .iter()
-            .position(|step| step.split(':').next() == Some(fails))
+        && let Some(index) = steps.iter().position(|step| match fails {
+            FailStep::Deps => matches!(step, Step::Deps(_)),
+            FailStep::Setup => *step == Step::Setup,
+        })
     {
         steps.truncate(index + 1);
         failed = true;
     }
     let (after, activates) = if change == Change::Remove {
-        steps.push("delete".to_owned());
+        steps.push(Step::Delete);
         (None, false)
     } else if phase.is_none() {
         (record.cloned(), true)
@@ -1112,7 +1126,7 @@ pub fn preparation(
         // The record still names the last digest prepared; only that one stays usable.
         (record.cloned(), recorded.is_some() && recorded == digest)
     } else {
-        steps.push("record".to_owned());
+        steps.push(Step::Record);
         (
             Some(SetupRecord {
                 digest: digest.unwrap_or_default().to_owned(),

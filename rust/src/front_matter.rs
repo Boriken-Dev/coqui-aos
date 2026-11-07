@@ -3,6 +3,7 @@
 //! metadata read as restricted YAML unless a format line names another format.
 
 use crate::error::{Class, Error};
+use crate::kinds::Format;
 use crate::limits::Settings;
 use crate::read::{Document, choose_format, parse_payload};
 
@@ -220,7 +221,7 @@ pub struct FrontMatter {
     /// What a gate refuses with, when it refuses; its `line` counts from the file's first line.
     pub error: Option<Error>,
     /// The format the metadata was read as, `toml`, `json` or `yaml`, when it got that far.
-    pub format: Option<&'static str>,
+    pub format: Option<Format>,
     /// Where the body starts, when the split found one.
     pub body_offset: Option<usize>,
     /// The line the body starts on.
@@ -323,7 +324,7 @@ pub fn read_front_matter(data: &[u8], settings: &Settings) -> FrontMatter {
                         Case::Mapping
                     };
                     let mut result = found(case, Some(document), None);
-                    result.format = Some(format);
+                    result.format = Format::named(format);
                     result
                 }
                 Err(error) => {
@@ -333,7 +334,7 @@ pub fn read_front_matter(data: &[u8], settings: &Settings) -> FrontMatter {
                     };
                     let line = error.line.map_or(first_line, |line| first_line + line - 1);
                     let mut result = found(case, None, Some(error.on_line(line)));
-                    result.format = Some(format);
+                    result.format = Format::named(format);
                     result
                 }
             }

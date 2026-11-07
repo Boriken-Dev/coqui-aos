@@ -7,6 +7,7 @@ use serde_json::Value as Data;
 
 use super::error::{Class, Error};
 use super::front_matter::split_front_matter;
+use super::kinds::Runtime;
 use super::limits::{Limit, Settings};
 use super::names::{normalize_name, os_matches, valid_relative_path, valid_tool_name};
 use super::read::Document;
@@ -540,7 +541,7 @@ pub(crate) fn environment_name(variant: Option<&Data>) -> String {
 #[non_exhaustive]
 pub struct Dependency {
     /// `python` or `node`.
-    pub runtime: String,
+    pub runtime: Runtime,
     /// The file, a relative path.
     pub file: String,
     /// The lock that pins it, when there is one: the file itself for a hashed requirements
@@ -688,7 +689,7 @@ pub fn dependencies_of(
             continue;
         };
         found.push(Dependency {
-            runtime: name.to_owned(),
+            runtime: Runtime::named(name).unwrap_or(Runtime::Python),
             file,
             lock,
             environment: environment_name(variant),

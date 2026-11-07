@@ -451,7 +451,7 @@ fn effective_vectors() {
                         "node": result.node,
                         "dependencies": dependencies,
                         "needs": support::needs(&result.needs),
-                        "non_defaults": result.non_defaults.iter().map(|w| json!([w.id, w.subject])).collect::<Vec<_>>(),
+                        "non_defaults": result.non_defaults.iter().map(|w| json!([w.id.as_str(), w.subject])).collect::<Vec<_>>(),
                     });
                     if let Some(change) = raw.get("change") {
                         let change = match change.as_str().expect("change") {
@@ -477,11 +477,11 @@ fn effective_vectors() {
                             raw["digest"].as_str(),
                             result.setup.as_ref(),
                             &result.dependencies,
-                            raw["fails"].as_str(),
+                            raw["fails"].as_str().and_then(coqui_aos::FailStep::named),
                         );
                         got["setup_phase"] = json!(prepared.phase.map(|phase| phase.name()));
                         got["setup_arguments"] = json!(prepared.arguments);
-                        got["steps"] = json!(prepared.steps);
+                        got["steps"] = json!(prepared.steps.iter().map(ToString::to_string).collect::<Vec<_>>());
                         got["record"] = json!(prepared.record.as_ref().map(support::setup_record));
                         got["activates"] = json!(prepared.activates);
                     }

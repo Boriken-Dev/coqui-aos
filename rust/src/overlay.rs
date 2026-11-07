@@ -6,6 +6,7 @@ use alloc::collections::BTreeMap;
 use crate::defaults::{OverlayTree, context_ignored, context_of, harness_context_of};
 use crate::error::{Class, Error};
 use crate::front_matter::read_front_matter;
+use crate::kinds::ManifestFile;
 use crate::limits::Settings;
 use crate::read::{Document, read_document};
 use crate::validate::validate;
@@ -15,7 +16,7 @@ use crate::validate::validate;
 #[non_exhaustive]
 pub struct OverlayRead {
     /// The file the manifest came from, `OVERLAY.md` or `overlay.cfg`; none when there is none.
-    pub manifest_file: Option<&'static str>,
+    pub manifest_file: Option<ManifestFile>,
     /// The manifest, empty when there is none.
     pub manifest: Document,
     /// The context entries, in order.
@@ -45,9 +46,9 @@ pub fn read_overlay(tree: &OverlayTree, settings: &Settings) -> Result<OverlayRe
         ));
     }
     let manifest_file = if has("OVERLAY.md") {
-        Some("OVERLAY.md")
+        Some(ManifestFile::OverlayMd)
     } else if has("overlay.cfg") {
-        Some("overlay.cfg")
+        Some(ManifestFile::OverlayCfg)
     } else {
         None
     };
@@ -56,7 +57,7 @@ pub fn read_overlay(tree: &OverlayTree, settings: &Settings) -> Result<OverlayRe
     let mut body: &[u8] = b"";
     let mut body_line = 1;
     match manifest_file {
-        Some("overlay.cfg") => {
+        Some(ManifestFile::OverlayCfg) => {
             manifest = read_document(text_of("overlay.cfg"), settings)?;
         }
         Some(_) => {

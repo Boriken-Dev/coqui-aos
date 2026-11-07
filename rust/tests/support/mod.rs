@@ -210,24 +210,24 @@ pub fn needs(needs: &Needs) -> Value {
 }
 
 pub fn dependency(dependency: &Dependency) -> Value {
-    json!({"runtime": dependency.runtime, "file": dependency.file, "lock": dependency.lock,
+    json!({"runtime": dependency.runtime.as_str(), "file": dependency.file, "lock": dependency.lock,
            "environment": dependency.environment})
 }
 
 pub fn package_environment(environment: &PackageEnvironment) -> Value {
-    json!({"runtime": environment.runtime, "environment": environment.environment,
+    json!({"runtime": environment.runtime.as_str(), "environment": environment.environment,
            "overlays": environment.overlays, "files": environment.files,
            "locked": environment.locked})
 }
 
 pub fn package_conflict(conflict: &PackageConflict) -> Value {
-    json!({"runtime": conflict.runtime, "environment": conflict.environment,
+    json!({"runtime": conflict.runtime.as_str(), "environment": conflict.environment,
            "package": conflict.package, "overlays": conflict.overlays})
 }
 
 pub fn left_environment(left: &LeftEnvironment) -> Value {
-    json!({"overlay": left.overlay, "runtime": left.runtime, "environment": left.environment,
-           "then": left.then})
+    json!({"overlay": left.overlay, "runtime": left.runtime.as_str(), "environment": left.environment,
+           "then": left.then.as_str()})
 }
 
 pub fn setup_record(record: &SetupRecord) -> Value {

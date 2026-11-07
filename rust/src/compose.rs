@@ -10,6 +10,7 @@ use super::defaults::{
     OverlayTree, SkillOrigin, context_of, declared, dependencies_of, rules_of, skill_entries,
 };
 use super::error::{Class, Error};
+use super::kinds::{LeftState, Runtime};
 use super::names::{normalize_name, root_variable};
 use super::read::Document;
 use super::skills::{Delivery, Held};
@@ -191,7 +192,7 @@ pub fn compose(
 #[non_exhaustive]
 pub struct PackageEnvironment {
     /// `python` or `node`.
-    pub runtime: String,
+    pub runtime: Runtime,
     /// `shared`, `isolated` or a name.
     pub environment: String,
     /// Its members, in composition order.
@@ -207,7 +208,7 @@ pub struct PackageEnvironment {
 #[non_exhaustive]
 pub struct PackageConflict {
     /// `python` or `node`.
-    pub runtime: String,
+    pub runtime: Runtime,
     /// The environment.
     pub environment: String,
     /// The package, its name normalized.
@@ -223,11 +224,11 @@ pub struct LeftEnvironment {
     /// The removed overlay.
     pub overlay: String,
     /// `python` or `node`.
-    pub runtime: String,
+    pub runtime: Runtime,
     /// The environment it was in.
     pub environment: String,
     /// `rebuilt` while another member remains, else `deleted`.
-    pub then: String,
+    pub then: LeftState,
 }
 
 /// The environments of the active overlays, the conflicts that block overlays, and what each
@@ -246,11 +247,11 @@ pub struct Environments {
 }
 
 /// Package name to the exact version or range a dependency file asks for.
-fn pins(runtime: &str, text: Option<&str>) -> BTreeMap<String, String> {
+fn pins(runtime: Runtime, text: Option<&str>) -> BTreeMap<String, String> {
     let Some(text) = text else {
         return BTreeMap::new();
     };
-    if runtime == "node" {
+    if runtime == Runtime::Node {
         let declared = serde_json::from_str::<Data>(text)
             .ok()
             .and_then(|value| value.get("dependencies").and_then(Data::as_object).cloned())
@@ -325,7 +326,7 @@ fn pinned_requirement(line: &str) -> Option<(String, String)> {
     Some((normalized, version))
 }
 
-type GroupKey = (String, String, String);
+type GroupKey = (Runtime, String, String);
 
 /// The environments `active` install into on `os`: a shared or named one holds every overlay
 /// that chose it, in composition order. Two members asking for one package at different
@@ -343,13 +344,13 @@ pub fn environments(
 ) -> Result<Environments, Error> {
     let empty_tree = OverlayTree::default();
     let tree = |identity: &str| trees.get(identity).unwrap_or(&empty_tree);
-    let key = |runtime: &str, environment: &str, identity: &str| -> GroupKey {
+    let key = |runtime: Runtime, environment: &str, identity: &str| -> GroupKey {
         let owner = if environment == "isolated" {
             identity
         } else {
             ""
         };
-        (runtime.to_owned(), environment.to_owned(), owner.to_owned())
+        (runtime, environment.to_owned(), owner.to_owned())
     };
     let mut groups: Vec<(GroupKey, Vec<(String, super::defaults::Dependency)>)> = Vec::new();
     for identity in active {
@@ -359,7 +360,7 @@ pub fn environments(
         for dependency in dependencies_of(manifest, tree(identity), os)
             .map_err(|lock| Error::new(Class::PartialLock, lock.0))?
         {
-            let group = key(&dependency.runtime, &dependency.environment, identity);
+            let group = key(dependency.runtime, &dependency.environment, identity);
             match groups.iter_mut().find(|(existing, _)| *existing == group) {
                 Some((_, members)) => members.push((identity.clone(), dependency)),
                 None => groups.push((group, vec![(identity.clone(), dependency)])),
@@ -371,7 +372,7 @@ pub fn environments(
     for ((runtime, name, _), members) in &groups {
         let mut asked: BTreeMap<String, Vec<(String, Vec<String>)>> = BTreeMap::new();
         for (identity, dependency) in members {
-            for (package, version) in pins(runtime, tree(identity).text(&dependency.file)) {
+            for (package, version) in pins(*runtime, tree(identity).text(&dependency.file)) {
                 let versions = asked.entry(package).or_default();
                 match versions
                     .iter_mut()
@@ -392,7 +393,7 @@ pub fn environments(
                     .collect();
                 blocked.extend(involved.iter().cloned());
                 out.conflicts.push(PackageConflict {
-                    runtime: runtime.clone(),
+                    runtime: *runtime,
                     environment: name.clone(),
                     package,
                     overlays: involved,
@@ -410,14 +411,14 @@ pub fn environments(
             continue;
         }
         remaining.insert(group.clone());
-        let locked = if group.0 == "node" {
+        let locked = if group.0 == Runtime::Node {
             // npm installs one lock file; several overlays' locks cannot be combined.
             kept.len() == 1 && kept[0].1.lock.is_some()
         } else {
             kept.iter().all(|(_, dependency)| dependency.lock.is_some())
         };
         out.environments.push(PackageEnvironment {
-            runtime: group.0.clone(),
+            runtime: group.0,
             environment: group.1.clone(),
             overlays: kept.iter().map(|(identity, _)| identity.clone()).collect(),
             files: kept
@@ -434,15 +435,14 @@ pub fn environments(
         for dependency in dependencies_of(manifest, tree(identity), os)
             .map_err(|lock| Error::new(Class::PartialLock, lock.0))?
         {
-            let group = key(&dependency.runtime, &dependency.environment, identity);
+            let group = key(dependency.runtime, &dependency.environment, identity);
             out.left.push(LeftEnvironment {
                 overlay: identity.clone(),
                 then: if remaining.contains(&group) {
-                    "rebuilt"
+                    LeftState::Rebuilt
                 } else {
-                    "deleted"
-                }
-                .to_owned(),
+                    LeftState::Deleted
+                },
                 runtime: dependency.runtime,
                 environment: dependency.environment,
             });

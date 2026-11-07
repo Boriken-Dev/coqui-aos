@@ -97,7 +97,7 @@ fn document_case(case: &Value) -> Result<(), String> {
         "body_size",
     )?;
     if let Some(format) = expect.get("format").and_then(Value::as_str)
-        && read.format != Some(format)
+        && read.format.map(coqui_aos::Format::as_str) != Some(format)
     {
         return Err(format!("format {:?}, expected {format}", read.format));
     }
@@ -152,7 +152,7 @@ fn files_case(case: &Value) -> Result<(), String> {
     }
     let got = |key: &str| -> Value {
         match key {
-            "manifest_file" => read.manifest_file.map_or(Value::Null, Value::from),
+            "manifest_file" => read.manifest_file.map_or(Value::Null, |file| Value::from(file.as_str())),
             "manifest" => Value::Object(read.manifest.clone()),
             "context" => Value::from(read.context.clone()),
             "context_ignored" => Value::from(read.context_ignored.clone()),
