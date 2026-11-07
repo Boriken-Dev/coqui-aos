@@ -15,8 +15,11 @@ them alike. The specification is at <https://github.com/Boriken-Dev/agent-overla
   validation, names, sources, tree digests, composition and the environment an overlay builds. The
   core reads nothing itself: it reads through a `FileSystem` the caller supplies, so it builds for
   `wasm32-unknown-unknown`.
-- **Python, TypeScript and Dart** (`python/`, `ts/`, `dart/`): not yet present. Each will be pure,
-  with the same filesystem shape, and pass the same vectors.
+- **TypeScript** (`ts/`): pure TypeScript for Node 22 or later and, wherever the caller supplies the
+  files, browsers; runs from source by type stripping or from a plain `tsc` build. See
+  [`ts/README.md`](ts/README.md).
+- **Python and Dart** (`python/`, `dart/`): each pure, with the same filesystem shape, passing the
+  same vectors; not all present yet.
 - **Shared vectors** (`vectors/`): the specification's conformance vectors, copied byte for byte,
   with `vectors/AOS-SOURCE.json` naming the specification commit and each file's digest.
 
