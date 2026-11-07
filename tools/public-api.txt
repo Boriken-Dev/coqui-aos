@@ -13,6 +13,9 @@ pub coqui_aos::Case::Unterminated
 #[non_exhaustive] pub enum coqui_aos::CatalogForm
 pub coqui_aos::CatalogForm::Full
 pub coqui_aos::CatalogForm::Minimal
+impl coqui_aos::CatalogForm
+pub const fn coqui_aos::CatalogForm::as_str(self) -> &'static str
+pub fn coqui_aos::CatalogForm::named(&str) -> core::option::Option<Self>
 #[non_exhaustive] pub enum coqui_aos::Change
 pub coqui_aos::Change::Activate
 pub coqui_aos::Change::Add
@@ -90,6 +93,7 @@ pub coqui_aos::Decision::Deny
 pub coqui_aos::Decision::Refuse
 impl coqui_aos::Decision
 pub const fn coqui_aos::Decision::as_str(self) -> &'static str
+pub fn coqui_aos::Decision::named(&str) -> core::option::Option<Self>
 #[non_exhaustive] pub enum coqui_aos::EntryRefusal
 pub coqui_aos::EntryRefusal::DuplicateName
 pub coqui_aos::EntryRefusal::InvalidEntry
@@ -102,6 +106,7 @@ pub coqui_aos::EntryRefusal::RefNotAllowed
 pub coqui_aos::EntryRefusal::SourceCredentials
 impl coqui_aos::EntryRefusal
 pub const fn coqui_aos::EntryRefusal::as_str(self) -> &'static str
+pub fn coqui_aos::EntryRefusal::named(&str) -> core::option::Option<Self>
 #[non_exhaustive] pub enum coqui_aos::FailStep
 pub coqui_aos::FailStep::Deps
 pub coqui_aos::FailStep::Setup
@@ -150,15 +155,20 @@ pub coqui_aos::HookFailure::Timeout
 pub coqui_aos::HookFailure::TooLarge
 impl coqui_aos::HookFailure
 pub const fn coqui_aos::HookFailure::as_str(self) -> &'static str
+pub fn coqui_aos::HookFailure::named(&str) -> core::option::Option<Self>
 #[non_exhaustive] pub enum coqui_aos::HookScope
 pub coqui_aos::HookScope::Overlay
 pub coqui_aos::HookScope::Project
 pub coqui_aos::HookScope::User
+impl coqui_aos::HookScope
+pub const fn coqui_aos::HookScope::as_str(self) -> &'static str
+pub fn coqui_aos::HookScope::named(&str) -> core::option::Option<Self>
 #[non_exhaustive] pub enum coqui_aos::IconFormat
 pub coqui_aos::IconFormat::Png
 pub coqui_aos::IconFormat::Webp
 impl coqui_aos::IconFormat
 pub const fn coqui_aos::IconFormat::as_str(self) -> &'static str
+pub fn coqui_aos::IconFormat::named(&str) -> core::option::Option<Self>
 #[non_exhaustive] pub enum coqui_aos::IssueCode
 pub coqui_aos::IssueCode::EnvNameCaseDuplicate
 pub coqui_aos::IssueCode::EnvPathConflict
@@ -232,6 +242,9 @@ pub fn coqui_aos::NonDefaultId::fmt(&self, &mut core::fmt::Formatter<'_>) -> cor
 #[non_exhaustive] pub enum coqui_aos::OnFailure
 pub coqui_aos::OnFailure::Refuse
 pub coqui_aos::OnFailure::Report
+impl coqui_aos::OnFailure
+pub const fn coqui_aos::OnFailure::as_str(self) -> &'static str
+pub fn coqui_aos::OnFailure::named(&str) -> core::option::Option<Self>
 #[non_exhaustive] pub enum coqui_aos::Phase
 pub coqui_aos::Phase::Install
 pub coqui_aos::Phase::Remove
@@ -246,6 +259,7 @@ pub coqui_aos::PlannedOrigin::Missing
 pub coqui_aos::PlannedOrigin::Source
 impl coqui_aos::PlannedOrigin
 pub const fn coqui_aos::PlannedOrigin::as_str(self) -> &'static str
+pub fn coqui_aos::PlannedOrigin::named(&str) -> core::option::Option<Self>
 #[non_exhaustive] pub enum coqui_aos::Runtime
 pub coqui_aos::Runtime::Node
 pub coqui_aos::Runtime::Python
@@ -417,6 +431,8 @@ pub coqui_aos::FiredEvent::non_defaults: alloc::vec::Vec<(alloc::string::String,
 pub coqui_aos::FiredEvent::ran: alloc::vec::Vec<alloc::string::String>
 pub coqui_aos::FiredEvent::reason: core::option::Option<alloc::string::String>
 pub coqui_aos::FiredEvent::reports: alloc::vec::Vec<coqui_aos::HookReport>
+impl core::fmt::Debug for coqui_aos::FiredEvent
+pub fn coqui_aos::FiredEvent::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct coqui_aos::FrontMatter
 pub coqui_aos::FrontMatter::body_line: core::option::Option<usize>
 pub coqui_aos::FrontMatter::body_offset: core::option::Option<usize>
@@ -444,7 +460,7 @@ pub coqui_aos::HookFacts::os: alloc::string::String
 pub coqui_aos::HookFacts::partial: alloc::vec::Vec<coqui_aos::HookEvent>
 pub coqui_aos::HookFacts::scope: coqui_aos::HookScope
 pub coqui_aos::HookFacts::timeout: core::option::Option<u64>
-pub coqui_aos::HookFacts::tree: core::option::Option<alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::string::String>>
+pub coqui_aos::HookFacts::tree: core::option::Option<alloc::vec::Vec<(alloc::string::String, alloc::vec::Vec<u8>)>>
 impl coqui_aos::HookFacts
 pub fn coqui_aos::HookFacts::new(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 #[non_exhaustive] pub struct coqui_aos::HookOutput
@@ -452,6 +468,8 @@ pub coqui_aos::HookOutput::context: core::option::Option<alloc::string::String>
 pub coqui_aos::HookOutput::decision: core::option::Option<coqui_aos::Decision>
 pub coqui_aos::HookOutput::env: core::option::Option<alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>>
 pub coqui_aos::HookOutput::reason: core::option::Option<alloc::string::String>
+impl core::fmt::Debug for coqui_aos::HookOutput
+pub fn coqui_aos::HookOutput::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct coqui_aos::HookPlan
 pub coqui_aos::HookPlan::activates: bool
 pub coqui_aos::HookPlan::hooks: alloc::vec::Vec<coqui_aos::Hook>
@@ -474,6 +492,8 @@ pub coqui_aos::HookRun::stdout: alloc::vec::Vec<u8>
 pub coqui_aos::HookRun::timed_out: bool
 impl coqui_aos::HookRun
 pub fn coqui_aos::HookRun::new(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
+impl core::fmt::Debug for coqui_aos::HookRun
+pub fn coqui_aos::HookRun::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct coqui_aos::Icon
 pub coqui_aos::Icon::format: coqui_aos::IconFormat
 pub coqui_aos::Icon::height: u32
@@ -702,7 +722,7 @@ pub fn &F::list(&self, &std::path::Path) -> core::io::error::Result<alloc::vec::
 pub fn &F::metadata(&self, &std::path::Path) -> core::io::error::Result<coqui_aos::Metadata>
 pub fn &F::read(&self, &std::path::Path, u64) -> core::io::error::Result<alloc::vec::Vec<u8>>
 pub trait coqui_aos::SkillSource
-pub fn coqui_aos::SkillSource::fetch(&self, &coqui_aos::Source) -> core::io::error::Result<alloc::vec::Vec<(alloc::string::String, alloc::vec::Vec<u8>)>>
+pub fn coqui_aos::SkillSource::fetch(&self, &coqui_aos::Source) -> core::result::Result<alloc::vec::Vec<(alloc::string::String, alloc::vec::Vec<u8>)>, coqui_aos::Error>
 pub fn coqui_aos::applies(&[coqui_aos::Issue]) -> bool
 pub fn coqui_aos::bundled_skills(&coqui_aos::OverlayTree) -> alloc::collections::btree::set::BTreeSet<alloc::string::String>
 pub fn coqui_aos::catalog_format(&str) -> core::option::Option<&'static str>
