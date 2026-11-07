@@ -7,8 +7,9 @@ import enum
 import hashlib
 import re
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from pathlib import PurePath
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from ._errors import Class, Error
 from ._fs import FileKind, FileSystem
@@ -88,7 +89,10 @@ class TreeDigest:
     """The digest of a tree and the digest of each member, by path."""
 
     digest: Digest
-    files: Dict[str, Digest] = field(default_factory=dict)
+    files: "Mapping[str, Digest]" = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "files", MappingProxyType(dict(self.files)))
 
     def lines(self) -> "List[bytes]":
         """The lines that were hashed, in order."""
@@ -169,7 +173,7 @@ def _name_bytes(name: str) -> bytes:
 
 
 def _io(error: BaseException, subject: str = "") -> Error:
-    return Error(Class.IO, (subject + ": " if subject else "") + str(error))
+    return Error(Class.IO, subject or "the filesystem")
 
 
 def _walk(

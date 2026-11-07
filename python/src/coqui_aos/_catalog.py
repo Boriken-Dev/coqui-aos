@@ -33,7 +33,7 @@ __all__ = [
 ]
 
 _DIGEST = re.compile(r"sha256:[0-9a-fA-F]{64}")
-_REF = re.compile(r"[^-/:\\@#\x00-\x20\x7f][^/:\\@#\x00-\x20\x7f]*")
+_REF = re.compile("[^-/:\\\\@#\x00-\x20\x7f-\x9f  ‎‏‪-‮⁦-⁩]" "[^/:\\\\@#\x00-\x20\x7f-\x9f  ‎‏‪-‮⁦-⁩]*")
 _DRIVE = re.compile(r"[A-Za-z]:")
 _SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]+:")
 _ENTRY_KEYS = frozenset(("source", "ref", "pin", "description", "about"))
@@ -307,10 +307,14 @@ def _resolve_entry_source(entry: Source, origin: "Optional[Source]") -> Source:
             raise _Refused(EntryRefusal.LEAVES_REPOSITORY)
         if path != "." and not valid_relative_path(path):
             raise _Refused(EntryRefusal.INVALID_SOURCE)
-        return dataclasses.replace(origin, path=None if path == "." else path)
-    return dataclasses.replace(
-        entry, kind=SourceKind.URL, location=_url_join(origin.location, location), ref=None
-    )
+        inherited = dataclasses.replace(origin, path=None if path == "." else path)
+    else:
+        inherited = dataclasses.replace(
+            entry, kind=SourceKind.URL, location=_url_join(origin.location, location), ref=None
+        )
+    if inherited.holds_credentials():
+        raise _Refused(EntryRefusal.SOURCE_CREDENTIALS)
+    return inherited
 
 
 class _Refused(Exception):

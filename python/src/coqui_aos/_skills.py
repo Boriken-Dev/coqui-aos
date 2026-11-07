@@ -166,7 +166,7 @@ def resolve_skills(
     try:
         resolution = resolve(overlays, requested)
     except Cycle as cycle:
-        raise Error(Class.CYCLE, " -> ".join(cycle.chain)) from None
+        raise Error(Class.CYCLE, cycle.subject) from None
     active = composition_order(overlays, resolution.install_order)
     list_catalogs(catalogs)
     rank = [normalize_name(label) for label in order]
@@ -252,10 +252,14 @@ def resolve_skills(
 class FetchedSkill:
     """A fetched skill that passed its checks: its tree digest, and the front matter keys beyond
     the inert ones (``name``, ``description``, ``license``, ``compatibility``, ``metadata``),
-    sorted, which a consumer reports before delivery."""
+    sorted, which a consumer reports before delivery. ``files`` are the paths the digest covers:
+    a caller writes those and nothing else, since the tree may also carry entries under an excluded
+    name (``node_modules``, ``__pycache__``, ``*.pyc``, ``.git``), which the digest leaves out and
+    Python, Node.js and Git load code from."""
 
     digest: Digest
     reported: List[str]
+    files: "Tuple[str, ...]" = ()
 
 
 def _entries(
@@ -295,7 +299,8 @@ def read_fetched_skill(
     """
     settings = settings or Settings()
     pairs = list(files.items() if isinstance(files, Mapping) else files)
-    digest = digest_entries(_entries(pairs, settings)).digest
+    digest_tree = digest_entries(_entries(pairs, settings))
+    digest = digest_tree.digest
     if pin is not None:
         try:
             pinned = Digest.parse(pin)
@@ -321,7 +326,11 @@ def read_fetched_skill(
     data = found.data or {}
     if data.get("name") != name:
         raise Error(Class.SKILL_NAME_MISMATCH, name)
-    return FetchedSkill(digest, sorted(key for key in data if key not in _INERT_KEYS))
+    return FetchedSkill(
+        digest,
+        sorted(key for key in data if key not in _INERT_KEYS),
+        tuple(sorted(digest_tree.files, key=lambda p: p.encode("utf-8"))),
+    )
 
 
 @runtime_checkable

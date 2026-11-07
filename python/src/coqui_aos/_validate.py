@@ -228,7 +228,14 @@ def _is_header_name(text: str) -> bool:
 
 def _is_git_ref(text: str) -> bool:
     def bad(c: str) -> bool:
-        return c in "/:\\@#" or c <= " " or c == "\x7f"
+        return (
+            c in "/:\\@#"
+            or c <= " "
+            or "\x7f" <= c <= "\x9f"
+            or c in "  ‎‏"
+            or "‪" <= c <= "‮"
+            or "⁦" <= c <= "⁩"
+        )
 
     return bool(text) and text[0] != "-" and not any(bad(c) for c in text)
 

@@ -540,7 +540,7 @@ def _read_json_object(text: str, depth: "Optional[int]") -> "Dict[str, Any]":
         out: "Dict[str, Any]" = {}
         for key, value in items:
             if key in out:
-                raise Error(Class.DUPLICATE_KEY, key)
+                raise Error(Class.DUPLICATE_KEY, "a key set twice")
             out[key] = value
         return out
 
@@ -576,6 +576,8 @@ def read_hook_output(
     """
     settings = settings or Settings()
     outputs = event.outputs
+    if not settings.allows("hook_output_bytes", len(data)):
+        raise HookError(HookFailure.TOO_LARGE)
     if event is HookEvent.PRE_ENV:
         from ._dotenv import read_env_script_output
 

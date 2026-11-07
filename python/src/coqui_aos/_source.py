@@ -230,13 +230,49 @@ def _ascii_lower(text: str) -> str:
     return "".join(chr(ord(c) + 32) if "A" <= c <= "Z" else c for c in text)
 
 
+def _number(part: str) -> "Optional[int]":
+    """One part of a shorthand IPv4 host: decimal, ``0x`` hexadecimal or a leading-zero octal."""
+    if part[:2] in ("0x", "0X"):
+        digits, base = part[2:] or "0", 16
+    elif len(part) > 1 and part[0] == "0":
+        digits, base = part[1:], 8
+    else:
+        digits, base = part, 10
+    allowed = {8: "01234567", 10: "0123456789", 16: "0123456789abcdefABCDEF"}[base]
+    if len(digits) > 12 or not all(c in allowed for c in digits):
+        return None
+    return int(digits, base)
+
+
+def _shorthand_ipv4(host: str) -> "Optional[ipaddress.IPv4Address]":
+    """The address a client such as ``curl`` or ``git`` reaches for ``127.1``, ``2130706433``,
+    ``0x7f.0.0.1`` or ``0177.0.0.1``, the way the WHATWG URL standard parses a host: one to four
+    parts, each decimal, hexadecimal or octal, the last filling the bytes the others leave."""
+    parts = host.split(".")
+    if parts and parts[-1] == "" and len(parts) > 1:
+        parts.pop()
+    if not 1 <= len(parts) <= 4 or "" in parts:
+        return None
+    numbers = [_number(part) for part in parts]
+    if any(number is None for number in numbers):
+        return None
+    *head, last = numbers
+    if any(number > 255 for number in head) or last >= 256 ** (5 - len(parts)):
+        return None
+    value = last
+    for position, number in enumerate(head):
+        value += number * 256 ** (3 - position)
+    return ipaddress.IPv4Address(value)
+
+
 def _address(host: str) -> "Optional[ipaddress._BaseAddress]":
     if "%" in host:
         return None
     try:
         return ipaddress.ip_address(host)
     except ValueError:
-        return None
+        pass
+    return _shorthand_ipv4(host)
 
 
 def host_is_local(host: "Optional[str]") -> bool:
@@ -270,6 +306,7 @@ def host_is_private(host: "Optional[str]") -> bool:
         return (
             a == 0
             or a == 10
+            or (a == 100 and 64 <= b < 128)
             or (a == 172 and 16 <= b < 32)
             or (a == 192 and b == 168)
             or (a == 169 and b == 254)

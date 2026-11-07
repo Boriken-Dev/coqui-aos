@@ -128,8 +128,44 @@ def test_a_pattern_bomb_is_too_complex_and_quick():
     assert time.monotonic() - started < 10
 
 
-def test_unclosed_placeholders_are_charged_for_their_rescans():
+def test_unclosed_placeholders_are_text_and_cost_one_pass():
     settings = Settings().replace(substitution_steps=5_000)
-    with pytest.raises(Error) as raised:
-        substitute_with("${" * 5000, V, settings)
-    assert raised.value.class_ is Class.TOO_COMPLEX
+    assert substitute_with("${" * 5000, V, settings) == "${" * 5000
+
+
+def test_nested_openers_are_linear():
+    import time
+
+    text = "${" * 6000 + "}" * 6000
+    started = time.perf_counter()
+    assert substitute(text, lambda name: None) == text
+    assert time.perf_counter() - started < 1.0
+
+
+def test_unmatched_openers_are_linear():
+    import time
+
+    started = time.perf_counter()
+    assert substitute("${a" * 20000, lambda name: "x") == "${a" * 20000
+    assert time.perf_counter() - started < 1.0
+
+
+def test_a_huge_number_in_a_slice_is_saturated_not_converted():
+    assert substitute("${A:" + "9" * 5000 + "}", lambda name: "abc") == ""
+    assert substitute("${A:(-" + "9" * 5000 + ")}", lambda name: "abc") == ""
+    assert substitute("${A:0:" + "9" * 5000 + "}", lambda name: "abc") == "abc"
+
+
+def test_a_bracket_of_many_members_costs_no_more_than_a_small_one():
+    import time
+
+    started = time.perf_counter()
+    got = substitute("${V##*[" + "b" * 40000 + "]}", lambda name: "a" * 3000)
+    assert got == "a" * 3000
+    assert time.perf_counter() - started < 1.0
+
+
+def test_bracket_ranges_still_match():
+    assert substitute("${V#[a-cx-z]*}", lambda name: "bxyz") == "xyz"
+    assert substitute("${V#[!a-c]}", lambda name: "dbc") == "bc"
+    assert substitute("${V#[a-cb-e]}", lambda name: "dxx") == "xx"

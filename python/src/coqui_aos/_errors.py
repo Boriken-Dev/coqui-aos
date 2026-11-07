@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import enum
+import unicodedata
 from typing import Optional
 
 __all__ = ["Class", "Error"]
+
+#: The longest subject an error keeps, in characters.
+SUBJECT_LIMIT = 256
 
 
 class Class(str, enum.Enum):
@@ -107,6 +111,23 @@ class Class(str, enum.Enum):
         return self.value
 
 
+def _safe(subject: str) -> str:
+    """``subject`` with each control, format, line-separator, surrogate and private-use character
+    escaped and the whole cut to ``SUBJECT_LIMIT`` characters, so a name from a stranger's document
+    can neither drive a terminal nor fill a log."""
+    out = []
+    for char in subject[: SUBJECT_LIMIT + 1]:
+        if unicodedata.category(char) in ("Cc", "Cf", "Zl", "Zp", "Cs", "Co", "Cn"):
+            code = ord(char)
+            out.append(
+                "\\x%02x" % code if code < 0x100 else "\\u%04x" % code if code < 0x10000 else "\\U%08x" % code
+            )
+        else:
+            out.append(char)
+    text = "".join(out)
+    return text if len(text) <= SUBJECT_LIMIT else text[:SUBJECT_LIMIT] + "..."
+
+
 class Error(Exception):
     """A document, tree or request AOS refuses.
 
@@ -123,6 +144,7 @@ class Error(Exception):
         line: "Optional[int]" = None,
         column: "Optional[int]" = None,
     ) -> None:
+        subject = _safe(subject)
         super().__init__(class_, subject, line, column)
         self.class_ = class_
         self.subject = subject

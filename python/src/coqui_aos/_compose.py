@@ -28,16 +28,13 @@ __all__ = [
 _NO_TREE = OverlayTree()
 
 
-class Cycle(Exception):
+class Cycle(Error):
     """``requires`` leads back to an overlay already being resolved. ``chain`` runs from the
     first repeat through the overlay that closes it, which is that same name again."""
 
     def __init__(self, chain: "Sequence[str]") -> None:
-        super().__init__(" -> ".join(chain))
+        super().__init__(Class.CYCLE, " -> ".join(chain[:32]))
         self.chain: "List[str]" = list(chain)
-
-    def __str__(self) -> str:
-        return "cycle: " + " -> ".join(self.chain)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -200,7 +197,7 @@ def composed_environment(
     ``HOOK_REFUSED`` naming the overlay. What a declaration reports is appended to
     ``non_defaults``.
     """
-    env = base
+    env = base.copy()
     for _manifest, facts in active:
         env.set(root_variable(facts.identity), facts.root)
         if facts.state is not None:

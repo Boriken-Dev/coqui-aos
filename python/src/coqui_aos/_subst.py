@@ -6,7 +6,8 @@ Nothing runs and no file is read; ``$NAME``, ``$(...)`` and backticks are charac
 from __future__ import annotations
 
 import re
-from typing import Callable, List, Optional, Tuple
+from bisect import bisect_right
+from typing import Callable, Dict, List, Optional, Tuple
 
 from ._errors import Class, Error
 from ._settings import Settings
@@ -19,6 +20,7 @@ Lookup = Callable[[str], Optional[str]]
 
 _NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _BRACES = re.compile(r"\$\{|\}")
+_NAME_START = frozenset("#abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")
 _SPACE = " \t\n\r\x0b\x0c"
 _OPERATORS = (":-", ":=", ":+", "-", "=", "+")
 _CASE_OPERATORS = ("^", "^^", ",", ",,")
@@ -82,6 +84,7 @@ def _substitute_inner(text: str, run: _Run) -> str:
     size = 0
     index = 0
     length = len(text)
+    closes: "Optional[Dict[int, int]]" = None
     while index < length:
         dollar = text.find("$", index)
         if dollar < 0:
@@ -97,12 +100,13 @@ def _substitute_inner(text: str, run: _Run) -> str:
             index += 2
             continue
         if after == "{":
-            close = _closing_brace(text, index + 2)
-            if close is None:
-                # Every "${" with no end rescans to the end of the text, so the scan is charged;
-                # one with an end is bounded by the depth limit.
-                run.step(length - index)
-            else:
+            if closes is None:
+                closes = _pair_braces(text)
+            close = closes.get(index)
+            # A body that cannot start an expression is not sliced out, so text made of nothing but
+            # "${" costs one step per character; a body that can is charged for the slice.
+            if close is not None and text[index + 2 : index + 3] in _NAME_START:
+                run.step(close - index)
                 found = _expression(text[index + 2 : close], run)
                 if found is not None:
                     out.append(found)
@@ -117,18 +121,17 @@ def _substitute_inner(text: str, run: _Run) -> str:
     return "".join(out)
 
 
-def _closing_brace(text: str, start: int) -> "Optional[int]":
-    """The ``}`` that ends an expression starting at ``start``: the first that does not close a
-    ``${`` opened inside it."""
-    depth = 0
-    for found in _BRACES.finditer(text, start):
+def _pair_braces(text: str) -> "Dict[int, int]":
+    """The index of each ``${`` that has an end, to the ``}`` that ends it: the first that does not
+    close a ``${`` opened inside it. One pass, whatever the nesting."""
+    pairs: "Dict[int, int]" = {}
+    open_at: "List[int]" = []
+    for found in _BRACES.finditer(text):
         if found.group() == "${":
-            depth += 1
-        elif depth == 0:
-            return found.start()
-        else:
-            depth -= 1
-    return None
+            open_at.append(found.start())
+        elif open_at:
+            pairs[open_at.pop()] = found.start()
+    return pairs
 
 
 def _required(name: str, run: _Run) -> str:
@@ -186,7 +189,7 @@ def _expression(body: str, run: _Run) -> "Optional[str]":
 
 def _number(digits: str, negative: bool) -> int:
     """A whole number of any size, saturated: past the length of any value it acts the same."""
-    value = min(int(digits), 1 << 62)
+    value = (1 << 62) if len(digits) > 19 else min(int(digits), 1 << 62)
     return -value if negative else value
 
 
@@ -325,7 +328,7 @@ def _compile(pattern: str) -> _Pattern:
                 else:
                     members.append((items[at], items[at]))
                     at += 1
-            out.append(("[", negate, members))
+            out.append(("[", negate, _ranges(members)))
             index = close + 1
             continue
         else:
@@ -340,7 +343,22 @@ def _matches(token: _Token, char: str) -> bool:
         return True
     if kind == "c":
         return token[1] == char
-    return any(low <= char <= high for low, high in token[2]) != token[1]
+    lows, highs = token[2]
+    at = bisect_right(lows, char) - 1
+    return (at >= 0 and char <= highs[at]) != token[1]
+
+
+def _ranges(members: "List[Tuple[str, str]]") -> "Tuple[List[str], List[str]]":
+    """A bracket's members as sorted, disjoint ranges: their starts and their ends."""
+    lows: "List[str]" = []
+    highs: "List[str]" = []
+    for low, high in sorted(members):
+        if highs and low <= highs[-1]:
+            highs[-1] = max(highs[-1], high)
+        else:
+            lows.append(low)
+            highs.append(high)
+    return lows, highs
 
 
 def _whole(pattern: _Pattern, text: str, start: int, end: int, run: _Run) -> bool:

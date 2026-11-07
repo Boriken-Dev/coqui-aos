@@ -121,7 +121,8 @@ def read_text(kind: Format, payload: bytes, settings: "Optional[Settings]" = Non
     except (ValueError, OverflowError) as error:
         # What a parser cannot convert: an integer too long to read, an escape past Unicode.
         raise Error(
-            Class.INTEGER_RANGE if "digits" in str(error) else Class.PARSE_ERROR, str(error)
+            Class.INTEGER_RANGE if "digits" in str(error) else Class.PARSE_ERROR,
+            "a value the parser cannot read",
         ) from None
     if not isinstance(value, dict):
         raise Error(Class.NOT_A_MAPPING)
@@ -136,7 +137,7 @@ def _read_toml(text: str) -> Any:
         at = _TOML_POSITION.search(str(error))
         raise Error(
             Class.PARSE_ERROR,
-            str(error),
+            "TOML that does not parse",
             int(at.group(1)) if at else None,
             int(at.group(2)) if at else None,
         ) from None
@@ -147,7 +148,7 @@ def _read_json(text: str) -> Any:
         out: "dict[str, Any]" = {}
         for key, value in items:
             if key in out:
-                raise Error(Class.DUPLICATE_KEY, key)
+                raise Error(Class.DUPLICATE_KEY, "a key set twice")
             out[key] = value
         return out
 
@@ -160,7 +161,7 @@ def _read_json(text: str) -> Any:
     try:
         return json.loads(text, object_pairs_hook=pairs, parse_constant=constant, parse_int=integer)
     except json.JSONDecodeError as error:
-        raise Error(Class.PARSE_ERROR, str(error), error.lineno, error.colno) from None
+        raise Error(Class.PARSE_ERROR, "JSON that does not parse", error.lineno, error.colno) from None
 
 
 _YAML_INT = re.compile(r"^[-+]?[0-9]+$")
@@ -232,7 +233,7 @@ def _read_yaml(text: str, max_depth: "Optional[int]") -> Any:
             if value == "<<":
                 raise refuse(Class.YAML_MERGE_KEY, event)
             if value in top:
-                raise refuse(Class.DUPLICATE_KEY, event, value)
+                raise refuse(Class.DUPLICATE_KEY, event, "a key set twice")
             keys[-1] = value
         else:
             top[keys[-1]] = value
@@ -272,7 +273,7 @@ def _read_yaml(text: str, max_depth: "Optional[int]") -> Any:
         mark = getattr(error, "problem_mark", None)
         raise Error(
             Class.PARSE_ERROR,
-            str(error).splitlines()[0] if str(error) else "",
+            "YAML that does not parse",
             mark.line + 1 if mark else None,
             mark.column + 1 if mark else None,
         ) from None

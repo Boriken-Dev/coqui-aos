@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from ._errors import Class, Error
 from ._names import ascii_upper, is_reserved_variable, is_variable_name
@@ -105,7 +105,7 @@ def _pairs(items: "List[Tuple[str, Any]]") -> "Dict[str, Any]":
     out: "Dict[str, Any]" = {}
     for key, value in items:
         if key in out:
-            raise Error(Class.DUPLICATE_KEY, key)
+            raise Error(Class.DUPLICATE_KEY, "a key set twice")
         out[key] = value
     return out
 
@@ -120,7 +120,7 @@ def _json(text: str, settings: Settings) -> Any:
     try:
         return json.loads(text, object_pairs_hook=_pairs, parse_constant=_constant)
     except json.JSONDecodeError as error:
-        raise Error(Class.PARSE_ERROR, str(error), error.lineno, error.colno) from None
+        raise Error(Class.PARSE_ERROR, "JSON that does not parse", error.lineno, error.colno) from None
     except RecursionError:
         raise Error(Class.TOO_DEEP) from None
     except ValueError:
@@ -160,9 +160,13 @@ def read_env_script_output(data: bytes, settings: "Optional[Settings]" = None) -
     for value in objects:
         if not isinstance(value, dict):
             raise Error(Class.ENV_SCRIPT_OUTPUT, "not an object")
+        folded: "Set[str]" = set()
         for name, item in value.items():
             if not is_variable_name(name) or is_reserved_variable(name):
                 raise Error(Class.ENV_SCRIPT_OUTPUT, "a name that may not be set")
+            if ascii_upper(name) in folded:
+                raise Error(Class.ENV_SCRIPT_OUTPUT, "two names equal under case")
+            folded.add(ascii_upper(name))
             if item is not None and not (isinstance(item, str) and "\0" not in item):
                 raise Error(Class.ENV_SCRIPT_OUTPUT, "a value that is not text")
             try:
@@ -170,6 +174,5 @@ def read_env_script_output(data: bytes, settings: "Optional[Settings]" = None) -
                     item.encode("utf-8")
             except UnicodeEncodeError:
                 raise Error(Class.INVALID_UNICODE, "a value") from None
-            out.pop(name, None)
             out[name] = item
     return out

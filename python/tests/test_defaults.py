@@ -157,6 +157,10 @@ def test_a_requirements_file_only_partly_hashed_is_a_partial_lock():
 @pytest.mark.parametrize("package", ["x", "é", "pack", "", "package.json"])
 def test_a_node_package_name_shorter_than_package_json_is_not_a_crash(package):
     manifest = {"runtime": {"node": [{"package": package}]}}
+    if package == "":
+        with pytest.raises(Error):
+            effective(manifest, Facts(os="linux"))
+        return
     effective(manifest, Facts(os="linux"))
 
 

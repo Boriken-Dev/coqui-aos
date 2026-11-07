@@ -28,6 +28,7 @@ from ._env import (
     _text,
     _unsigned,
     apply_overlay,
+    require_valid,
     is_reference,
     reference_name,
 )
@@ -194,6 +195,7 @@ def effective(manifest: Document, facts: Facts) -> Effective:
     Raises ``Error`` when the overlay's environment cannot be applied (see ``apply_overlay``), and
     ``partial-lock`` for a requirements file only some of whose requirements are hashed.
     """
+    require_valid(manifest)
     os = facts.os
     non_defaults: "List[NonDefaultSetting]" = []
     if not facts.pinned:
