@@ -2661,6 +2661,138 @@
       }
     },
     {
+      "id": "skills-source-short-loopback",
+      "description": "A loopback written with fewer than four parts: the last part fills the bytes the others leave, so 127.1 is 127.0.0.1.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "http://127.1/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-decimal-loopback",
+      "description": "A loopback written as one number.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://2130706433/skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-hex-loopback",
+      "description": "A loopback with a hexadecimal part.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://0x7f.0.0.1/skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-octal-loopback",
+      "description": "A loopback with an octal part, which a leading zero makes.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://0177.0.0.1/skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-short-link-local",
+      "description": "A link-local address written with three parts.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "http://169.254.1/latest/meta-data/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-short-scp-loopback",
+      "description": "A loopback in an SSH account's host.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "git@127.1:skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source",
+        "class": "local-source"
+      }
+    },
+    {
+      "id": "skills-source-name-with-address-prefix",
+      "description": "A host name that begins like an address is a name, not this machine.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://127.0.0.1.example.org/skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-source-number-past-range",
+      "description": "A number that does not fit its bytes is not an address, so this host is a name.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://127.1.2.256/skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
       "id": "skills-source-unspecified",
       "description": "The unspecified address.",
       "document": {

@@ -1,5 +1,5 @@
 {
-  "description": "The skills field and where its names resolve. A 'resolve-' case gives 'overlays', 'requested', optional 'files' and 'catalogs' (each read as in catalog.json, with its 'label'), an optional 'order' of labels and 'fetches' (absent, true); 'expect' gives each skill in composition order and by name with its 'origin' ('bundled', 'source', 'catalog', 'missing', 'ambiguous'), the 'source' as shown, 'pin', 'catalog' or 'catalogs'; the 'missing', 'ambiguous', 'unpinned' and 'not_fetched' reports, the 'non_defaults' ([id, name, overlay]: 'insecure-transport', 'private-source'), each bundled skill whose SKILL.md names another ('name_mismatch'), each skill from elsewhere kept from a name another overlay's skill holds ('shadowing'); what is 'delivered', by name, and the 'collisions'. 'files' may map paths to text, for the SKILL.md of bundled skills. A 'fetched-' case gives a skill's 'name', the 'fetched' files and an optional 'pin'; 'expect' gives its tree 'digest' and the front matter keys 'reported', or an 'error'.",
+  "description": "The skills field and where its names resolve. A 'resolve-' case gives 'overlays', 'requested', optional 'files' and 'catalogs' (each read as in catalog.json, with its 'label'), an optional 'order' of labels and 'fetches' (absent, true); 'expect' gives each skill in composition order and by name with its 'origin' ('bundled', 'source', 'catalog', 'missing', 'ambiguous'), the 'source' as shown, 'pin', 'catalog' or 'catalogs'; the 'missing', 'ambiguous', 'unpinned' and 'not_fetched' reports, the 'non_defaults' ([id, name, overlay]: 'insecure-transport', 'private-source'), each bundled skill whose SKILL.md names another ('name_mismatch'), each skill from elsewhere kept from a name another overlay's skill holds ('shadowing'); what is 'delivered', by name, and the 'collisions'. 'files' may map paths to text, for the SKILL.md of bundled skills. A 'fetched-' case gives a skill's 'name', the 'fetched' files and an optional 'pin'; 'expect' gives its tree 'digest', the front matter keys 'reported' and the 'files' the digest covers, in byte order of their paths, or an 'error'.",
   "spec": "spec/v0/skills.md",
   "cases": [
     {
@@ -1209,6 +1209,132 @@
       }
     },
     {
+      "id": "resolve-private-source-shorthand",
+      "description": "A private address is read as a URL parser reads a host: 10.1 is 10.0.0.1. The shared address space 100.64.0.0/10 is private, and the addresses either side of it are not.",
+      "overlays": {
+        "a": {
+          "skills": [
+            {
+              "name": "a",
+              "source": "https://10.1/skills.git",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            },
+            {
+              "name": "b",
+              "source": "https://100.64.0.1/skills.git",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            },
+            {
+              "name": "c",
+              "source": "https://100.127.255.255/skills.git",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            },
+            {
+              "name": "d",
+              "source": "https://100.63.255.255/skills.git",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            },
+            {
+              "name": "e",
+              "source": "https://100.128.0.1/skills.git",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            },
+            {
+              "name": "f",
+              "source": "https://0xc0.0xa8.1/skills.git",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            }
+          ]
+        }
+      },
+      "requested": [
+        "a"
+      ],
+      "expect": {
+        "skills": [
+          {
+            "name": "a",
+            "origin": "source",
+            "source": "https://10.1/skills.git",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab",
+            "overlay": "a"
+          },
+          {
+            "name": "b",
+            "origin": "source",
+            "source": "https://100.64.0.1/skills.git",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab",
+            "overlay": "a"
+          },
+          {
+            "name": "c",
+            "origin": "source",
+            "source": "https://100.127.255.255/skills.git",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab",
+            "overlay": "a"
+          },
+          {
+            "name": "d",
+            "origin": "source",
+            "source": "https://100.63.255.255/skills.git",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab",
+            "overlay": "a"
+          },
+          {
+            "name": "e",
+            "origin": "source",
+            "source": "https://100.128.0.1/skills.git",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab",
+            "overlay": "a"
+          },
+          {
+            "name": "f",
+            "origin": "source",
+            "source": "https://0xc0.0xa8.1/skills.git",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab",
+            "overlay": "a"
+          }
+        ],
+        "missing": [],
+        "ambiguous": [],
+        "unpinned": [],
+        "non_defaults": [
+          [
+            "private-source",
+            "a",
+            "a"
+          ],
+          [
+            "private-source",
+            "b",
+            "a"
+          ],
+          [
+            "private-source",
+            "c",
+            "a"
+          ],
+          [
+            "private-source",
+            "f",
+            "a"
+          ]
+        ],
+        "not_fetched": [],
+        "name_mismatch": [],
+        "shadowing": [],
+        "delivered": {
+          "a": "a",
+          "b": "a",
+          "c": "a",
+          "d": "a",
+          "e": "a",
+          "f": "a"
+        },
+        "collisions": []
+      }
+    },
+    {
       "id": "resolve-unpinned-table",
       "description": "A table without a pin is reported unpinned, by name and overlay.",
       "overlays": {
@@ -1774,7 +1900,10 @@
       },
       "expect": {
         "digest": "sha256:0f093ef15ccf05864a951758bd88d9050cdee3ebdaf3a9cb2b85ef00781b5248",
-        "reported": []
+        "reported": [],
+        "files": [
+          "SKILL.md"
+        ]
       }
     },
     {
@@ -1789,6 +1918,9 @@
         "reported": [
           "allowed-tools",
           "hooks"
+        ],
+        "files": [
+          "SKILL.md"
         ]
       }
     },
@@ -1835,7 +1967,10 @@
       "pin": "sha256:0f093ef15ccf05864a951758bd88d9050cdee3ebdaf3a9cb2b85ef00781b5248",
       "expect": {
         "digest": "sha256:0f093ef15ccf05864a951758bd88d9050cdee3ebdaf3a9cb2b85ef00781b5248",
-        "reported": []
+        "reported": [],
+        "files": [
+          "SKILL.md"
+        ]
       }
     },
     {
@@ -1848,7 +1983,10 @@
       "pin": "sha256:0F093EF15CCF05864A951758BD88D9050CDEE3EBDAF3A9CB2B85EF00781B5248",
       "expect": {
         "digest": "sha256:0f093ef15ccf05864a951758bd88d9050cdee3ebdaf3a9cb2b85ef00781b5248",
-        "reported": []
+        "reported": [],
+        "files": [
+          "SKILL.md"
+        ]
       }
     },
     {
@@ -1974,7 +2112,55 @@
       },
       "expect": {
         "digest": "sha256:0b638d9b278d1088a5a9f975f06a7cc2f92902d6545643635dbf57082bb93dea",
-        "reported": []
+        "reported": [],
+        "files": [
+          "OVERLAY.md",
+          "SKILL.md",
+          "overlay.cfg"
+        ]
+      }
+    },
+    {
+      "id": "fetched-files-in-digest-order",
+      "description": "The files the digest covers are listed in byte order of their paths, which is not the order of their components: a hyphen and a dot sort before a slash.",
+      "name": "review",
+      "fetched": {
+        "SKILL.md": "---\nname: review\ndescription: Reviews code.\n---\nInstructions.\n",
+        "a/z.md": "z",
+        "a.md": "a",
+        "a-b.md": "b"
+      },
+      "expect": {
+        "digest": "sha256:45566f1e921d58e9fe6a8e926b8c59416bc38f7993726a7465b60bc6f9a8aa73",
+        "reported": [],
+        "files": [
+          "SKILL.md",
+          "a-b.md",
+          "a.md",
+          "a/z.md"
+        ]
+      }
+    },
+    {
+      "id": "fetched-excluded-entries-not-listed",
+      "description": "A skill carrying entries under an excluded name is not refused: the digest leaves them out, so the pin matches the rest, and they are not among the files a consumer writes.",
+      "name": "review",
+      "fetched": {
+        "SKILL.md": "---\nname: review\ndescription: Reviews code.\n---\nInstructions.\n",
+        "scripts/run.py": "print(1)\n",
+        "node_modules/x/index.js": "x",
+        "__pycache__/run.cpython-312.pyc": "y",
+        "scripts/helper.pyc": "z",
+        ".git/config": "[core]\n"
+      },
+      "pin": "sha256:2fa96207893da4c51ed93e3e35b7fccd9d5b6b2e75fb2a22b50dab67bf5d2335",
+      "expect": {
+        "digest": "sha256:2fa96207893da4c51ed93e3e35b7fccd9d5b6b2e75fb2a22b50dab67bf5d2335",
+        "reported": [],
+        "files": [
+          "SKILL.md",
+          "scripts/run.py"
+        ]
       }
     },
     {

@@ -8,7 +8,7 @@ rules and the classes they serve are in
 | --- | --- |
 | `reading.json` | Format line, TOML default, JSON and YAML data model, static reading, limits, `dotenv` and its substitution, env-script output, and catalogs read by file name |
 | `front_matter.json` | `OVERLAY.md` and front matter: the split, the closing fence, a byte-order mark and `\r`, the body's bytes, positions, bounds, the format line, restricted YAML including billion-laughs and deep-nesting shapes, a context file's text, and an overlay's two manifests and its context |
-| `skills.json` | Skills from elsewhere: where a name resolves, missing and ambiguous names, pins, what a consumer that does not fetch says, collisions, and the checks on a fetched skill |
+| `skills.json` | Skills from elsewhere: where a name resolves, missing and ambiguous names, pins, what a consumer that does not fetch says, collisions, and the checks on a fetched skill, with the files its digest covers |
 | `validation.json` | Every field, valid and invalid, and files a field names; whether a manifest with problems under `about` still applies; which skill names a validator flags |
 | `names.json` | Overlay identities, normalization, root variables |
 | `source.json` | `[git+]<location>[@<ref>][#<path>]` |
