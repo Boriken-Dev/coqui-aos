@@ -257,7 +257,7 @@ fn walk_tree(
 ) -> Result<(TreeDigest, BTreeMap<String, Vec<u8>>), Error> {
     let metadata = files
         .metadata(root)
-        .map_err(|error| refused(Class::Io, error.to_string()))?;
+        .map_err(|_| refused(Class::Io, "the filesystem"))?;
     if metadata.kind != FileKind::Directory {
         return Err(refused(
             Class::Io,
@@ -305,7 +305,7 @@ impl Walk<'_> {
         let mut names = self
             .files
             .list(path)
-            .map_err(|error| refused(Class::Io, error.to_string()))?;
+            .map_err(|_| refused(Class::Io, "the filesystem"))?;
         names.sort_by_key(|name| name_bytes(name));
         for name in names {
             let bytes = name_bytes(&name);
@@ -333,7 +333,7 @@ impl Walk<'_> {
         let metadata = self
             .files
             .metadata(path)
-            .map_err(|error| refused(Class::Io, error.to_string()))?;
+            .map_err(|_| refused(Class::Io, "the filesystem"))?;
         let directory = metadata.kind == FileKind::Directory;
         let borrowed: Vec<&[u8]> = components.iter().map(Vec::as_slice).collect();
         if excluded(&borrowed, directory) {
@@ -376,7 +376,7 @@ impl Walk<'_> {
         let bytes = self
             .files
             .read(path, most)
-            .map_err(|error| refused(Class::Io, format!("{member}: {error}")))?;
+            .map_err(|_| refused(Class::Io, member.as_str()))?;
         if !self.settings.file_bytes.allows(bytes.len()) {
             return Err(refused(
                 Class::TooLarge,

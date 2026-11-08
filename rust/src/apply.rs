@@ -16,8 +16,8 @@ use crate::hooks::{Decision, HookEvent, HookReport, HookRun, fire_event};
 use crate::kinds::{FailStep, NonDefaultId, Runtime, Step};
 use crate::limits::Settings;
 use crate::names::{
-    is_path_variable, is_reserved_variable, is_sensitive_variable, normalize_name, root_variable,
-    state_variable, valid_relative_path,
+    is_path_variable, is_reserved_variable, is_sensitive_variable, is_variable_name,
+    normalize_name, root_variable, state_variable, valid_relative_path,
 };
 use crate::read::{Document, parse_dotenv, read_document};
 use crate::subst::substitute_with;
@@ -49,6 +49,8 @@ impl NonDefaultSetting {
 pub struct Environment {
     windows: bool,
     values: Vec<(String, String)>,
+    // Each name's place in `values`, by the name as it compares: folded on Windows.
+    index: BTreeMap<String, usize>,
     secret: BTreeSet<String>,
     extra: Vec<(String, String)>,
     settings: Settings,
@@ -83,17 +85,16 @@ impl Environment {
         self
     }
 
+    fn folded(&self, name: &str) -> String {
+        if self.windows {
+            name.to_ascii_uppercase()
+        } else {
+            name.to_owned()
+        }
+    }
+
     fn key(&self, name: &str) -> Option<usize> {
-        self.values
-            .iter()
-            .position(|(key, _)| key == name)
-            .or_else(|| {
-                self.windows.then(|| {
-                    self.values
-                        .iter()
-                        .position(|(key, _)| key.eq_ignore_ascii_case(name))
-                })?
-            })
+        self.index.get(&self.folded(name)).copied()
     }
 
     /// The value of `name`.
@@ -127,6 +128,8 @@ impl Environment {
                 self.values[index].0.clone()
             }
             None => {
+                let folded = self.folded(name);
+                self.index.insert(folded, self.values.len());
                 self.values.push((name.to_owned(), value));
                 name.to_owned()
             }
@@ -142,6 +145,13 @@ impl Environment {
     pub fn unset(&mut self, name: &str) {
         if let Some(index) = self.key(name) {
             let (key, _) = self.values.remove(index);
+            let folded = self.folded(&key);
+            self.index.remove(&folded);
+            for at in self.index.values_mut() {
+                if *at > index {
+                    *at -= 1;
+                }
+            }
             self.secret.remove(&key);
         }
     }
@@ -518,6 +528,59 @@ fn text_of(entry: &Data, key: &str) -> String {
         .to_owned()
 }
 
+/// Refuses a manifest that would make the consumer touch what a manifest may not name: a variable
+/// whose name is not a name, or a path that leaves the overlay. Every other fault is the
+/// validator's, and nothing is read, set or run before this.
+fn require_applicable(manifest: &Document) -> Result<(), Error> {
+    fn path_of(entry: &Data) -> Option<&Data> {
+        if entry.is_object() {
+            entry.get("path")
+        } else {
+            Some(entry)
+        }
+    }
+    let check = |path: Option<&Data>| -> Result<(), Error> {
+        match path.and_then(Data::as_str) {
+            Some(path) if !valid_relative_path(path) => {
+                Err(Error::new(Class::InvalidReference, path))
+            }
+            _ => Ok(()),
+        }
+    };
+    if let Some(env) = manifest.get("env").and_then(Data::as_object) {
+        for name in env.keys() {
+            if !is_variable_name(name) {
+                return Err(Error::new(Class::InvalidReference, name.as_str()));
+            }
+        }
+    }
+    for field in ["paths", "env_files", "env_scripts", "setup"] {
+        for entry in manifest
+            .get(field)
+            .and_then(Data::as_array)
+            .into_iter()
+            .flatten()
+        {
+            check(path_of(entry))?;
+        }
+    }
+    if let Some(scripts) = manifest.get("scripts").and_then(Data::as_object) {
+        for target in scripts.values() {
+            check(path_of(target))?;
+        }
+    }
+    if let Some(runtime) = manifest.get("runtime").and_then(Data::as_object) {
+        for variants in runtime.values().filter_map(Data::as_array) {
+            for variant in variants {
+                for key in ["lock", "requirements", "package"] {
+                    check(variant.get(key))?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Steps 2.1 to 2.4 of the order of application for one overlay; returns the env scripts
 /// that run.
 fn apply_overlay(
@@ -526,6 +589,7 @@ fn apply_overlay(
     facts: &Facts,
     non_defaults: &mut Vec<NonDefaultSetting>,
 ) -> Result<Vec<ScriptRun>, Error> {
+    require_applicable(manifest)?;
     env.extra = vec![
         ("AOS_OVERLAY_ROOT".to_owned(), facts.root.clone()),
         (

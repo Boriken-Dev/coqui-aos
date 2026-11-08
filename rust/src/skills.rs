@@ -333,6 +333,11 @@ pub struct FetchedSkill {
     pub digest: Digest,
     /// The front matter keys a consumer reports: every one besides the Agent Skills inert keys.
     pub reported: Vec<String>,
+    /// The paths the digest covers, in the byte order of the digest's lines. A caller writes these
+    /// and nothing else: the fetched tree may also carry entries under an excluded name
+    /// (`node_modules`, `__pycache__`, `*.pyc`, `.git`), which the digest leaves out and Python,
+    /// Node.js and Git load code from.
+    pub files: Vec<String>,
 }
 
 /// The Agent Skills front matter keys that grant nothing; any other is reported.
@@ -369,7 +374,8 @@ pub fn read_fetched_skill(
         })
         .collect();
     crate::digest::check_entries(&entries, settings)?;
-    let digest = digest_entries(entries.iter().map(|(path, entry)| (path.clone(), entry)))?.digest;
+    let tree = digest_entries(entries.iter().map(|(path, entry)| (path.clone(), entry)))?;
+    let digest = tree.digest;
     if let Some(pin) = pin
         && Digest::parse(pin).ok() != Some(digest)
     {
@@ -406,7 +412,11 @@ pub fn read_fetched_skill(
         .cloned()
         .collect();
     reported.sort();
-    Ok(FetchedSkill { digest, reported })
+    Ok(FetchedSkill {
+        digest,
+        reported,
+        files: tree.files.into_keys().collect(),
+    })
 }
 
 /// What a caller supplies to fetch skills: the core decides what to fetch and checks what came

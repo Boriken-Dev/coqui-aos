@@ -35,6 +35,8 @@ granit-parser = { version = "2", default-features = false, features = ["std"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = { version = "0.10", default-features = false }
 toml = { version = "1", default-features = false, features = ["std", "parse", "serde", "preserve_order"] }
+# A refusal's subject escapes the characters of the general categories the specification names.
+unicode-general-category = "1"
 
 [dev-dependencies]
 # Reading the vectors' base64.

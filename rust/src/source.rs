@@ -328,6 +328,59 @@ pub(crate) fn source_host(location: &str) -> Option<String> {
     )
 }
 
+/// One part of a host written as a URL parser reads it: decimal, `0x` hexadecimal, or octal with a
+/// leading zero.
+fn ipv4_part(part: &str) -> Option<u64> {
+    let (digits, base) =
+        if let Some(hex) = part.strip_prefix("0x").or_else(|| part.strip_prefix("0X")) {
+            (if hex.is_empty() { "0" } else { hex }, 16)
+        } else if part.len() > 1 && part.starts_with('0') {
+            (&part[1..], 8)
+        } else {
+            (part, 10)
+        };
+    if digits.len() > 12 {
+        return None;
+    }
+    u64::from_str_radix(digits, base)
+        .ok()
+        .filter(|_| digits.chars().all(|c| c.is_digit(base)))
+}
+
+/// The IPv4 address a URL parser reads `host` as: one to four parts, each decimal, hexadecimal or
+/// octal, the last filling the bytes the others leave (`127.1`, `2130706433`, `0x7f.0.0.1`,
+/// `0177.0.0.1`), one trailing dot allowed.
+fn url_ipv4(host: &str) -> Option<core::net::Ipv4Addr> {
+    let mut parts: Vec<&str> = host.split('.').collect();
+    if parts.len() > 1 && parts.last() == Some(&"") {
+        parts.pop();
+    }
+    if !(1..=4).contains(&parts.len()) || parts.contains(&"") {
+        return None;
+    }
+    let numbers: Vec<u64> = parts
+        .iter()
+        .map(|part| ipv4_part(part))
+        .collect::<Option<_>>()?;
+    let (last, head) = numbers.split_last()?;
+    if head.iter().any(|number| *number > 255) || *last >= 256u64.pow(5 - parts.len() as u32) {
+        return None;
+    }
+    let mut value = *last;
+    for (position, number) in head.iter().enumerate() {
+        value += number * 256u64.pow(3 - position as u32);
+    }
+    u32::try_from(value).ok().map(core::net::Ipv4Addr::from)
+}
+
+/// The address a host names: an IP literal, or an IPv4 address as a URL parser reads it.
+fn address_of(host: &str) -> Option<core::net::IpAddr> {
+    use core::net::IpAddr;
+    host.parse::<IpAddr>()
+        .ok()
+        .or_else(|| url_ipv4(host).map(IpAddr::V4))
+}
+
 /// Whether a host is this machine: loopback, link-local, unspecified or `localhost`, judged on
 /// the text alone.
 fn host_is_local(host: Option<&str>) -> bool {
@@ -338,11 +391,11 @@ fn host_is_local(host: Option<&str>) -> bool {
     if host == "localhost" || host.ends_with(".localhost") {
         return true;
     }
-    match host.parse::<IpAddr>() {
-        Ok(IpAddr::V4(address)) => {
+    match address_of(host) {
+        Some(IpAddr::V4(address)) => {
             address.is_loopback() || address.is_link_local() || address.is_unspecified()
         }
-        Ok(IpAddr::V6(address)) => {
+        Some(IpAddr::V6(address)) => {
             if let Some(mapped) = address.to_ipv4_mapped() {
                 return mapped.is_loopback() || mapped.is_link_local() || mapped.is_unspecified();
             }
@@ -352,7 +405,7 @@ fn host_is_local(host: Option<&str>) -> bool {
                 || link_local
                 || address == Ipv6Addr::LOCALHOST
         }
-        Err(_) => false,
+        None => false,
     }
 }
 
@@ -370,6 +423,7 @@ pub(crate) fn host_is_private(host: Option<&str>) -> bool {
         let [a, b, c, _] = address.octets();
         a == 0
             || a == 10
+            || (a == 100 && (64..128).contains(&b))
             || (a == 172 && (16..32).contains(&b))
             || (a == 192 && b == 168)
             || (a == 169 && b == 254)
@@ -380,9 +434,9 @@ pub(crate) fn host_is_private(host: Option<&str>) -> bool {
             || (a == 203 && b == 0 && c == 113)
             || a >= 240
     };
-    match host.parse::<IpAddr>() {
-        Ok(IpAddr::V4(address)) => v4(address),
-        Ok(IpAddr::V6(address)) => {
+    match address_of(host) {
+        Some(IpAddr::V4(address)) => v4(address),
+        Some(IpAddr::V6(address)) => {
             if let Some(mapped) = address.to_ipv4_mapped() {
                 return v4(mapped);
             }
@@ -392,6 +446,6 @@ pub(crate) fn host_is_private(host: Option<&str>) -> bool {
                 || (s[0] == 0x0100 && s[1] == 0 && s[2] == 0 && s[3] == 0)
                 || s[0] == 0x2002
         }
-        Err(_) => false,
+        None => false,
     }
 }

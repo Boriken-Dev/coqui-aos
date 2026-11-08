@@ -141,7 +141,7 @@ fn fetched_case(case: &Value) -> Result<(), String> {
         &support::settings_of(case),
     ) {
         Ok(read) => {
-            let got = json!({"digest": read.digest.to_string(), "reported": read.reported});
+            let got = json!({"digest": read.digest.to_string(), "reported": read.reported, "files": read.files});
             (got == *expect).then_some(()).ok_or(format!("{got}"))
         }
         Err(error) => (support::expected_errors(expect)

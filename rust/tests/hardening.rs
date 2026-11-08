@@ -8,9 +8,10 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use coqui_aos::{
-    Change, Digest, Facts, FileKind, FileSystem, Limit, Metadata, PartialLock, Settings, Source,
-    TreeEntry, check_requirements, digest_entries, effective, environments, read_document,
-    read_env_script_output, setup_phase, substitute, tree_digest, validate,
+    Change, Digest, Environment, Facts, FileKind, FileSystem, IssueCode, Limit, Metadata,
+    PartialLock, Settings, Source, TreeEntry, check_requirements, digest_entries, effective,
+    environments, read_document, read_dotenv, read_env_script_output, setup_phase, substitute,
+    substitute_with, tree_digest, validate,
 };
 use coqui_aos::{
     Class, Error, HookEvent, HookRun, OnFailure, SkillSource, fetch_planned, fire_event,
@@ -67,11 +68,13 @@ fn an_env_script_s_output_is_held_to_the_depth_setting() {
 }
 
 #[test]
-fn an_unclosed_expression_repeated_is_refused_quickly() {
+fn an_unclosed_expression_repeated_is_text_in_one_pass_and_a_nested_one_is_charged() {
     let text = "${".repeat(200_000);
     let started = Instant::now();
-    let error = substitute(&text, &|_| Ok(None)).expect_err("refused");
-    assert_eq!(error.class.as_str(), "too-complex");
+    assert_eq!(substitute(&text, &|_| Ok(None)).expect("text"), text);
+    let nested = format!("{}{}", "${a".repeat(20_000), "}".repeat(20_000));
+    let error = substitute(&nested, &|_| Ok(None)).expect_err("refused");
+    assert!(["too-complex", "too-deep"].contains(&error.class.as_str()));
     assert!(started.elapsed() < Duration::from_secs(10));
 }
 
@@ -338,4 +341,233 @@ fn the_words_of_a_closed_set_read_back() {
         Some(PlannedOrigin::Ambiguous)
     );
     assert_eq!(OnFailure::named("deny"), None);
+}
+
+fn quick<T>(seconds: u64, work: impl FnOnce() -> T) -> T {
+    let started = Instant::now();
+    let out = work();
+    assert!(
+        started.elapsed() < Duration::from_secs(seconds),
+        "took {:?}",
+        started.elapsed()
+    );
+    out
+}
+
+#[test]
+fn text_made_of_openers_and_closers_that_start_no_expression_is_one_pass() {
+    let text = format!("{}{}", "${@".repeat(30_000), "}".repeat(30_000));
+    let got = quick(3, || substitute(&text, &|_| Ok(None)));
+    assert_eq!(got.expect("text"), text);
+}
+
+#[test]
+fn an_expression_is_charged_for_its_size() {
+    let text = "${A}".repeat(2000);
+    let lookup = |_: &str| Ok(Some("x".to_owned()));
+    let tight = Settings::default().substitution_steps(Limit::at(1000));
+    let error = substitute_with(&text, &lookup, &tight).expect_err("refused");
+    assert_eq!(error.class, Class::TooComplex);
+    let got = substitute_with(&text, &lookup, &Settings::default()).expect("text");
+    assert_eq!(got, "x".repeat(2000));
+}
+
+#[test]
+fn a_pattern_of_unmatched_brackets_is_compiled_in_one_pass() {
+    let text = format!("${{A/{}/}}", "[".repeat(30_000));
+    let got = quick(3, || substitute(&text, &|_| Ok(Some("x".to_owned()))));
+    assert_eq!(got.expect("text"), "x");
+}
+
+#[test]
+fn a_bracket_of_many_members_costs_no_more_than_a_small_one() {
+    let members: String = (0..6_000u32)
+        .map(|at| char::from_u32(0x100 + at).expect("a character"))
+        .collect();
+    let text = format!("${{A//[{members}]/}}");
+    let value = "z".repeat(600);
+    let got = quick(3, || substitute(&text, &|_| Ok(Some(value.clone()))));
+    assert_eq!(got.expect("text"), value);
+    let lookup = |_: &str| Ok(Some("axbyc".to_owned()));
+    assert_eq!(
+        substitute("${A//[a-cx]/-}", &lookup).expect("text"),
+        "---y-"
+    );
+    assert_eq!(
+        substitute("${A//[!a-c]/-}", &lookup).expect("text"),
+        "a-b-c"
+    );
+}
+
+#[test]
+fn a_subject_escapes_control_format_and_separator_characters_and_is_capped() {
+    let error = Error::new(
+        Class::InvalidReference,
+        "a\u{1b}[2Jb\u{202e}c\n\u{e0001}\u{2028}",
+    );
+    assert_eq!(error.subject, "a\\x1b[2Jb\\u202ec\\x0a\\U000e0001\\u2028");
+    assert_eq!(
+        Error::new(Class::Io, "plain/ok \u{e9}.txt").subject,
+        "plain/ok \u{e9}.txt"
+    );
+    assert_eq!(
+        Error::new(Class::Io, "x".repeat(5000)).subject,
+        format!("{}...", "x".repeat(256))
+    );
+    assert_eq!(Error::new(Class::Io, "x".repeat(256)).subject.len(), 256);
+    assert_eq!(
+        Error::new(Class::Io, "\u{7}".repeat(100)).subject,
+        format!("{}...", "\\x07".repeat(64))
+    );
+    assert!(format!("{error}").contains("\\x1b"));
+}
+
+#[test]
+fn a_refused_tree_entry_shows_no_control_character_and_no_os_message() {
+    struct Broken;
+    impl FileSystem for Broken {
+        fn metadata(&self, _: &Path) -> io::Result<Metadata> {
+            Err(io::Error::other("C:\\Users\\secret\\file: the OS speaks"))
+        }
+        fn read(&self, _: &Path, _: u64) -> io::Result<Vec<u8>> {
+            Err(io::Error::other("the OS speaks"))
+        }
+        fn list(&self, _: &Path) -> io::Result<Vec<OsString>> {
+            Err(io::Error::other("the OS speaks"))
+        }
+    }
+    let error = tree_digest(&Broken, Path::new("/o"), &Settings::default()).expect_err("refused");
+    assert_eq!(error.class, Class::Io);
+    assert!(
+        !error.subject.contains("speaks") && !error.subject.contains("secret"),
+        "{error}"
+    );
+    let files = Memory {
+        kinds: BTreeMap::from([(PathBuf::from("/o/a\u{1b}[2Jb"), FileKind::Symlink)]),
+        names: vec![OsString::from("a\u{1b}[2Jb")],
+    };
+    let error = tree_digest(&files, Path::new("/o"), &Settings::default()).expect_err("refused");
+    assert_eq!(error.class, Class::Symlink);
+    assert!(!error.subject.contains('\u{1b}'), "{:?}", error.subject);
+}
+
+#[test]
+fn a_fetched_skill_lists_the_files_its_pin_covers_and_not_the_excluded_entries_it_carries() {
+    let skill = b"---\nname: x\ndescription: d\n---\n".to_vec();
+    let covered = vec![
+        ("SKILL.md".to_owned(), skill),
+        ("a/z.md".to_owned(), b"z".to_vec()),
+        ("a.md".to_owned(), b"a".to_vec()),
+    ];
+    let pin = read_fetched_skill("x", &covered, None, &Settings::default())
+        .expect("a skill")
+        .digest
+        .to_string();
+    let mut carried = covered.clone();
+    carried.push(("node_modules/p/index.js".to_owned(), b"1".to_vec()));
+    carried.push(("__pycache__/m.cpython-312.pyc".to_owned(), b"2".to_vec()));
+    carried.push(("m.pyc".to_owned(), b"3".to_vec()));
+    carried.push((".git/config".to_owned(), b"4".to_vec()));
+    let read =
+        read_fetched_skill("x", &carried, Some(&pin), &Settings::default()).expect("a skill");
+    assert_eq!(read.files, ["SKILL.md", "a.md", "a/z.md"]);
+}
+
+#[test]
+fn a_source_host_written_as_a_url_parser_reads_it_is_this_machine() {
+    let local = |source: &str| {
+        let doc = manifest(json!({"skills": [{"name": "x", "source": source}]}));
+        validate(&doc, None)
+            .iter()
+            .any(|issue| issue.code == IssueCode::LocalSource)
+    };
+    for host in [
+        "127.1",
+        "2130706433",
+        "0x7f.0.0.1",
+        "0177.0.0.1",
+        "127.0.1",
+        "169.254.1",
+        "0",
+        "127.0.0.1.",
+    ] {
+        assert!(local(&format!("https://{host}/s.git")), "{host}");
+    }
+    assert!(local("git@127.1:s.git"));
+    for host in ["127.0.0.1.example.org", "127.1.2.256", "1.2.3.4", "8.8.8"] {
+        assert!(!local(&format!("https://{host}/s.git")), "{host}");
+    }
+}
+
+#[test]
+fn applying_refuses_a_name_that_is_no_name_and_a_path_that_leaves_the_overlay() {
+    let refused =
+        |value: Value| effective(&manifest(value), &Facts::new("linux")).expect_err("refused");
+    let error = refused(json!({"env": {"A=B": "x"}}));
+    assert_eq!(
+        (error.class, error.subject.as_str()),
+        (Class::InvalidReference, "A=B")
+    );
+    assert_eq!(refused(json!({"env": {"A\nB": "x"}})).subject, "A\\x0aB");
+    for document in [
+        json!({"paths": [{"variable": "PATH", "path": "../bin"}]}),
+        json!({"env_files": ["../x"]}),
+        json!({"env_scripts": [{"interpreter": "sh", "path": "/etc/x"}]}),
+        json!({"setup": [{"interpreter": "sh", "path": "../s.sh"}]}),
+        json!({"scripts": {"x": "../s.sh"}}),
+        json!({"runtime": {"python": [{"lock": "../r.txt"}]}}),
+    ] {
+        let error = refused(document.clone());
+        assert_eq!(error.class, Class::InvalidReference, "{document}");
+        assert!(error.subject.contains('/'), "{document}");
+    }
+    let odd = manifest(json!({"unknown_field": 1, "description": 5, "env": {"A": "x"}}));
+    assert!(effective(&odd, &Facts::new("linux")).is_ok());
+}
+
+#[test]
+fn many_dotenv_lines_and_many_script_variables_are_read_in_linear_time() {
+    let lines: String = (0..30_000).map(|at| format!("V{at}=x\n")).collect();
+    let read = quick(3, || {
+        read_dotenv(lines.as_bytes(), &mut Environment::default())
+    });
+    assert_eq!(read.expect("lines").len(), 30_000);
+    let object: String = (0..30_000)
+        .map(|at| format!("\"V{at}\": \"x\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let out = quick(3, || {
+        read_env_script_output(format!("{{{object}}}").as_bytes(), &Settings::default())
+    });
+    assert_eq!(out.expect("output").len(), 30_000);
+    let again = b"{\"A\": \"1\", \"B\": \"2\"}\n{\"A\": \"3\"}";
+    let out = read_env_script_output(again, &Settings::default()).expect("output");
+    assert_eq!(
+        out,
+        [
+            ("A".to_owned(), Some("3".to_owned())),
+            ("B".to_owned(), Some("2".to_owned()))
+        ]
+    );
+}
+
+#[test]
+fn an_environment_of_many_variables_sets_and_reads_in_linear_time() {
+    let mut env = Environment::new(Vec::<(String, String)>::new(), true);
+    quick(3, || {
+        for at in 0..30_000 {
+            env.set(&format!("V{at}"), "x".to_owned(), at % 2 == 0);
+        }
+        for at in 0..30_000 {
+            assert_eq!(env.get(&format!("v{at}")), Some("x"));
+        }
+    });
+    env.set("v7", "y".to_owned(), false);
+    env.unset("V3");
+    assert_eq!(env.get("V7"), Some("y"));
+    assert_eq!(env.get("V3"), None);
+    assert_eq!(env.get("V4"), Some("x"));
+    assert_eq!(env.values().len(), 29_999);
+    assert_eq!(env.values()[7], ("V8".to_owned(), "x".to_owned()));
+    assert_eq!(env.values()[6], ("V7".to_owned(), "y".to_owned()));
 }

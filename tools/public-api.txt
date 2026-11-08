@@ -421,6 +421,7 @@ pub coqui_aos::FetchedPlanned::outcome: core::result::Result<coqui_aos::FetchedS
 pub coqui_aos::FetchedPlanned::overlay: alloc::string::String
 #[non_exhaustive] pub struct coqui_aos::FetchedSkill
 pub coqui_aos::FetchedSkill::digest: coqui_aos::Digest
+pub coqui_aos::FetchedSkill::files: alloc::vec::Vec<alloc::string::String>
 pub coqui_aos::FetchedSkill::reported: alloc::vec::Vec<alloc::string::String>
 #[non_exhaustive] pub struct coqui_aos::FiredEvent
 pub coqui_aos::FiredEvent::by: core::option::Option<alloc::string::String>

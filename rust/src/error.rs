@@ -267,6 +267,49 @@ impl core::fmt::Display for Class {
     }
 }
 
+/// The longest subject an [`Error`] keeps, in characters, the escapes counted.
+const SUBJECT_LIMIT: usize = 256;
+
+/// `subject` with each control, format, line- and paragraph-separator, surrogate, private-use and
+/// unassigned character written as `\xNN`, `\uNNNN` or `\UNNNNNNNN` in lowercase hexadecimal, and
+/// the whole cut to 256 characters, then `...`: a name from a stranger's document can neither
+/// drive a terminal nor fill a log.
+#[must_use]
+pub(crate) fn safe_subject(subject: &str) -> String {
+    use core::fmt::Write as _;
+    use unicode_general_category::{GeneralCategory as Category, get_general_category};
+
+    let mut out = String::new();
+    for c in subject.chars().take(SUBJECT_LIMIT + 1) {
+        let code = u32::from(c);
+        let hidden = matches!(
+            get_general_category(c),
+            Category::Control
+                | Category::Format
+                | Category::LineSeparator
+                | Category::ParagraphSeparator
+                | Category::Surrogate
+                | Category::PrivateUse
+                | Category::Unassigned
+        );
+        if !hidden {
+            out.push(c);
+        } else if code < 0x100 {
+            let _ = write!(out, "\\x{code:02x}");
+        } else if code < 0x1_0000 {
+            let _ = write!(out, "\\u{code:04x}");
+        } else {
+            let _ = write!(out, "\\U{code:08x}");
+        }
+    }
+    if out.chars().count() <= SUBJECT_LIMIT {
+        return out;
+    }
+    let mut cut: String = out.chars().take(SUBJECT_LIMIT).collect();
+    cut.push_str("...");
+    cut
+}
+
 /// A refusal, by the class the specification's conformance vectors name it (`parse-error`,
 /// `undefined-variable`, `symlink`, ...), and what it is about: a variable, a path, a format or
 /// an overlay, never a value from a document.
@@ -285,12 +328,14 @@ pub struct Error {
 }
 
 impl Error {
-    /// A refusal of `class` about `subject`.
+    /// A refusal of `class` about `subject`, kept with each control, format, separator, surrogate,
+    /// private-use and unassigned character written as `\xNN`, `\uNNNN` or `\UNNNNNNNN`, and cut to
+    /// 256 characters, then `...`.
     #[must_use]
     pub fn new(class: Class, subject: impl Into<String>) -> Self {
         Self {
             class,
-            subject: subject.into(),
+            subject: safe_subject(&subject.into()),
             line: None,
             column: None,
         }

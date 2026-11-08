@@ -3,6 +3,8 @@
 //!
 //! Reading runs nothing, reads no other file and consults no environment.
 
+use alloc::collections::{BTreeMap, BTreeSet};
+
 use serde_json::Value;
 
 use crate::codecs;
@@ -164,6 +166,7 @@ pub fn parse_dotenv(data: &[u8]) -> Result<Vec<DotenvLine>, Error> {
     let text =
         core::str::from_utf8(data).map_err(|_| Error::new(Class::InvalidUtf8, "not UTF-8"))?;
     let mut lines: Vec<DotenvLine> = Vec::new();
+    let mut seen: BTreeSet<String> = BTreeSet::new();
     for (number, line) in text.split('\n').enumerate() {
         let line = line.strip_suffix('\r').unwrap_or(line);
         let stripped = line.trim_matches([' ', '\t']);
@@ -191,10 +194,7 @@ pub fn parse_dotenv(data: &[u8]) -> Result<Vec<DotenvLine>, Error> {
             literal = first == '\'';
             value = &value[1..value.len() - 1];
         }
-        if lines
-            .iter()
-            .any(|earlier| earlier.name.eq_ignore_ascii_case(name))
-        {
+        if !seen.insert(name.to_ascii_uppercase()) {
             let mut error = Error::new(Class::DuplicateKey, format!("{name} is set twice"));
             error.line = Some(number + 1);
             return Err(error);
@@ -245,6 +245,8 @@ pub fn read_env_script_output(data: &[u8], settings: &Settings) -> Result<Script
         Err(error) => return Err(error),
     };
     let mut out: ScriptOutput = Vec::new();
+    // Where each name sits in `out`: a name set again keeps the place it first had.
+    let mut at: BTreeMap<String, usize> = BTreeMap::new();
     for object in objects {
         let Value::Object(map) = object else {
             return Err(Error::new(Class::EnvScriptOutput, "not an object"));
@@ -266,8 +268,13 @@ pub fn read_env_script_output(data: &[u8], settings: &Settings) -> Result<Script
                     ));
                 }
             };
-            out.retain(|(earlier, _)| *earlier != name);
-            out.push((name, value));
+            match at.get(&name) {
+                Some(place) => out[*place].1 = value,
+                None => {
+                    at.insert(name.clone(), out.len());
+                    out.push((name, value));
+                }
+            }
         }
     }
     Ok(out)

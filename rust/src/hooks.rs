@@ -2,6 +2,8 @@
 //! hook is told, and what of its output applies. Running a hook is the caller's job: the core
 //! reads the hooks, decides, and combines the results of runs the caller made.
 
+use alloc::collections::{BTreeMap, BTreeSet};
+
 use serde_json::{Map, Value};
 
 use crate::codecs;
@@ -614,17 +616,16 @@ pub fn read_hook_output(
         let Some(env) = env.as_object().filter(|_| outputs.contains(&"env")) else {
             return Err(HookFailure::Output);
         };
-        let mut folded = Vec::new();
+        let mut folded = BTreeSet::new();
         let mut set = Vec::new();
         for (name, item) in env {
             if !is_variable_name(name)
                 || is_reserved_variable(name)
                 || !sets.contains(name)
-                || folded.contains(&name.to_ascii_uppercase())
+                || !folded.insert(name.to_ascii_uppercase())
             {
                 return Err(HookFailure::Output);
             }
-            folded.push(name.to_ascii_uppercase());
             match item {
                 Value::Null => set.push((name.clone(), None)),
                 Value::String(text) if !text.contains('\0') => {
@@ -757,6 +758,8 @@ pub fn fire_event(
     };
     let mut spent = 0u64;
     let mut fired = FiredEvent::default();
+    // Where each variable sits in `fired.env`, by the name as it compares.
+    let mut env_at: BTreeMap<String, usize> = BTreeMap::new();
     for run in runs {
         let source = run.source.clone();
         let failed = |cause: HookFailure| HookReport {
@@ -821,6 +824,7 @@ pub fn fire_event(
             // The prompt, compaction, call or session does not happen: nothing else applies.
             fired.context.clear();
             fired.env.clear();
+            env_at.clear();
             break;
         }
         if let Some(context) = out.context.filter(|context| !context.is_empty()) {
@@ -847,12 +851,17 @@ pub fn fire_event(
             }
             for (name, value) in env {
                 // On Windows a name set under another case keeps the spelling it has.
-                let at = fired.env.iter().position(|(held, _)| {
-                    held == &name || (windows && held.eq_ignore_ascii_case(&name))
-                });
-                match at {
-                    Some(at) => fired.env[at].1 = value,
-                    None => fired.env.push((name, value)),
+                let compared = if windows {
+                    name.to_ascii_uppercase()
+                } else {
+                    name.clone()
+                };
+                match env_at.get(&compared) {
+                    Some(at) => fired.env[*at].1 = value,
+                    None => {
+                        env_at.insert(compared, fired.env.len());
+                        fired.env.push((name, value));
+                    }
                 }
             }
         }

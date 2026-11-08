@@ -32,7 +32,11 @@ fn expressions_nested_past_the_limit_are_refused_not_followed_down_the_stack() {
     let text = "${U:-".repeat(depth) + "x" + &"}".repeat(depth);
     let env = Environment::new(Vec::new(), false);
     let error = substitute(&text, &lookup(&env)).expect_err("refused");
-    assert_eq!(error.class.as_str(), "too-deep", "{error}");
+    // Each level is charged for its size, so a text this large may spend its steps first.
+    assert!(
+        ["too-deep", "too-complex"].contains(&error.class.as_str()),
+        "{error}"
+    );
 }
 
 #[test]

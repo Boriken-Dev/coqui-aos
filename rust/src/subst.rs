@@ -80,6 +80,7 @@ fn substitute_chars(text: &[char], run: &Run<'_>) -> Result<String, Error> {
 fn substitute_inner(text: &[char], run: &Run<'_>) -> Result<String, Error> {
     let mut out = String::new();
     let mut index = 0;
+    let mut closes: Option<Vec<Option<usize>>> = None;
     while index < text.len() {
         if text[index] != '$' {
             out.push(text[index]);
@@ -93,19 +94,21 @@ fn substitute_inner(text: &[char], run: &Run<'_>) -> Result<String, Error> {
                 continue;
             }
             Some('{') => {
-                let close = closing_brace(text, index + 2);
-                if close.is_none() {
-                    // Every `${` with no end rescans to the end of the text, so the scan is charged;
-                    // one with an end is bounded by the depth limit.
-                    run.step(text.len().saturating_sub(index))?;
-                }
-                if let Some(close) = close
-                    && let Some(found) = expression(&text[index + 2..close], run)?
+                let closes = closes.get_or_insert_with(|| pair_braces(text));
+                // A body that cannot start an expression is not looked at, so text made of nothing
+                // but `${` costs one pass; a body that can is charged for its size.
+                if let Some(close) = closes[index]
+                    && text
+                        .get(index + 2)
+                        .is_some_and(|c| *c == '#' || *c == '_' || c.is_ascii_alphabetic())
                 {
-                    out.push_str(&found);
-                    run.fits(&out)?;
-                    index = close + 1;
-                    continue;
+                    run.step(close - index)?;
+                    if let Some(found) = expression(&text[index + 2..close], run)? {
+                        out.push_str(&found);
+                        run.fits(&out)?;
+                        index = close + 1;
+                        continue;
+                    }
                 }
             }
             _ => {}
@@ -117,24 +120,26 @@ fn substitute_inner(text: &[char], run: &Run<'_>) -> Result<String, Error> {
     Ok(out)
 }
 
-/// The `}` that ends an expression starting at `index`: the first that does not close a `${` opened inside it.
-fn closing_brace(text: &[char], mut index: usize) -> Option<usize> {
-    let mut depth = 0usize;
+/// The `}` that ends each `${` of `text`, by the index of the `$`: the first that does not close a
+/// `${` opened inside it. One pass, whatever the nesting.
+fn pair_braces(text: &[char]) -> Vec<Option<usize>> {
+    let mut pairs = vec![None; text.len()];
+    let mut open = Vec::new();
+    let mut index = 0;
     while index < text.len() {
         if text[index] == '$' && text.get(index + 1) == Some(&'{') {
-            depth += 1;
+            open.push(index);
             index += 2;
             continue;
         }
-        if text[index] == '}' {
-            if depth == 0 {
-                return Some(index);
-            }
-            depth -= 1;
+        if text[index] == '}'
+            && let Some(start) = open.pop()
+        {
+            pairs[start] = Some(index);
         }
         index += 1;
     }
-    None
+    pairs
 }
 
 /// The length of the name at the start of `text`, `[A-Za-z_][A-Za-z0-9_]*`, or 0.
@@ -371,19 +376,37 @@ impl Token {
             Self::Star | Self::Any => true,
             Self::Char(want) => *want == c,
             Self::Class { negate, members } => {
-                members
-                    .iter()
-                    .any(|(low, high)| (*low..=*high).contains(&c))
-                    != *negate
+                let at = members.partition_point(|(low, _)| *low <= c);
+                (at > 0 && c <= members[at - 1].1) != *negate
             }
         }
     }
+}
+
+/// A bracket's members as sorted, disjoint ranges.
+fn merged(mut members: Vec<(char, char)>) -> Vec<(char, char)> {
+    members.sort_unstable();
+    let mut out: Vec<(char, char)> = Vec::with_capacity(members.len());
+    for (low, high) in members {
+        match out.last_mut() {
+            Some(last) if low <= last.1 => last.1 = last.1.max(high),
+            _ => out.push((low, high)),
+        }
+    }
+    out
 }
 
 fn compile(pattern: &[char]) -> Result<Vec<Token>, Error> {
     let invalid = || Error::new(Class::InvalidPattern, "a bracket expression");
     let mut out = Vec::new();
     let mut index = 0;
+    // Where each `]` is, so the one a `[` closes at is a search, not a scan to the end.
+    let closers: Vec<usize> = pattern
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| **c == ']')
+        .map(|(at, _)| at)
+        .collect();
     while index < pattern.len() {
         let c = pattern[index];
         if c == '\\' && index + 1 < pattern.len() {
@@ -391,12 +414,9 @@ fn compile(pattern: &[char]) -> Result<Vec<Token>, Error> {
             index += 2;
             continue;
         }
-        let close = pattern
-            .iter()
-            .enumerate()
-            .skip(index + 2)
-            .find(|(_, c)| **c == ']')
-            .map(|(at, _)| at);
+        let close = (c == '[')
+            .then(|| closers.partition_point(|at| *at < index + 2))
+            .and_then(|first| closers.get(first).copied());
         match c {
             '*' => out.push(Token::Star),
             '?' => out.push(Token::Any),
@@ -423,7 +443,10 @@ fn compile(pattern: &[char]) -> Result<Vec<Token>, Error> {
                         at += 1;
                     }
                 }
-                out.push(Token::Class { negate, members });
+                out.push(Token::Class {
+                    negate,
+                    members: merged(members),
+                });
                 index = close + 1;
                 continue;
             }
