@@ -63,7 +63,7 @@ def fetched(case: "Dict[str, Any]") -> "Dict[str, Any]":
         read = read_fetched_skill(case["name"], files, case.get("pin"), settings_of(case))
     except Error as error:
         return {"error": error.class_.value}
-    return {"digest": str(read.digest), "reported": read.reported}
+    return {"digest": str(read.digest), "reported": read.reported, "files": list(read.files)}
 
 
 @pytest.mark.parametrize("case", SKILLS, ids=ids(SKILLS))

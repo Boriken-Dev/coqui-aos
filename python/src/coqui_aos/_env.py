@@ -419,30 +419,30 @@ def require_valid(manifest: Document) -> None:
     """Refuse a manifest that would make the consumer touch what a manifest may not name: an
     environment variable whose name is not a name (``A=B``, a line break), or a path that leaves the
     overlay (``../x``, an absolute path, a device name). Everything else a manifest gets wrong is
-    reported where it is applied or by ``validate``. Raises ``schema`` with the pointer."""
+    reported where it is applied or by ``validate``. Raises ``invalid-reference`` with the name or
+    path."""
     env = manifest.get("env")
     if isinstance(env, dict):
         for name in env:
             if not is_variable_name(name):
-                raise Error(Class.SCHEMA, "/env")
+                raise Error(Class.INVALID_REFERENCE, name)
+
+    def check(path: object) -> None:
+        if isinstance(path, str) and not valid_relative_path(path):
+            raise Error(Class.INVALID_REFERENCE, path)
+
     for field in ("paths", "env_files", "env_scripts", "setup"):
         entries = manifest.get(field)
         for entry in entries if isinstance(entries, list) else ():
-            path = entry.get("path") if isinstance(entry, dict) else entry
-            if isinstance(path, str) and not valid_relative_path(path):
-                raise Error(Class.SCHEMA, "/" + field)
+            check(entry.get("path") if isinstance(entry, dict) else entry)
     scripts = manifest.get("scripts")
     for target in scripts.values() if isinstance(scripts, dict) else ():
-        path = target.get("path") if isinstance(target, dict) else target
-        if isinstance(path, str) and not valid_relative_path(path):
-            raise Error(Class.SCHEMA, "/scripts")
+        check(target.get("path") if isinstance(target, dict) else target)
     runtime = manifest.get("runtime")
     for variants in runtime.values() if isinstance(runtime, dict) else ():
         for variant in variants if isinstance(variants, list) else ():
             for key in ("lock", "requirements", "package"):
-                path = variant.get(key) if isinstance(variant, dict) else None
-                if isinstance(path, str) and not valid_relative_path(path):
-                    raise Error(Class.SCHEMA, "/runtime")
+                check(variant.get(key) if isinstance(variant, dict) else None)
 
 
 def _apply_overlay(

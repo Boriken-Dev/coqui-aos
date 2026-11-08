@@ -13,7 +13,7 @@ class Error(Exception): class_: Class; subject: str; line: int | None; column: i
 class Class(str, Enum)       # every class the vectors name; Class.named(word) -> Class | None
 ```
 
-`class_` is the contract (`Class.DUPLICATE_KEY == "duplicate-key"`); `subject` names what it is about (a variable, a path, a pointer) for a person, never text from a document, so do not match on it. `line` and `column` are one-based, `column` counts code points. A subject is escaped (control, format and line-separator characters as `\x..`/`\u....`) and cut at 256 characters, and holds no text from a document or a parser's or the operating system's message. Nothing but `Error` leaves a reader on hostile input; `PartialLock` and `Cycle` (with `.chain`, the whole loop) are `Error` subclasses, and `HookError` carries a `HookFailure`.
+`class_` is the contract (`Class.DUPLICATE_KEY == "duplicate-key"`); `subject` names what it is about (a variable, a path, a pointer) for a person, never text from a document, so do not match on it. `line` and `column` are one-based, `column` counts code points. A subject is escaped (control, format, separator, surrogate, private-use and unassigned characters as `\xNN`, `\uNNNN` or `\UNNNNNNNN`) and cut to 256 characters, then `...`, and holds no text from a document or a parser's or the operating system's message. Nothing but `Error` leaves a reader on hostile input; `PartialLock` and `Cycle` (with `.chain`, the whole loop) are `Error` subclasses, and `HookError` carries a `HookFailure`.
 
 Closed sets are `str` enums (`Runtime`, `Format`, `ManifestFile`, `Case`, `SplitCase`, `Change`, `Phase`, `LeftState`, `FailStep`, `NonDefaultId`, `HookEvent`, `HookFailure`, `Decision`, `OnFailure`, `HookScope`, `PlannedOrigin`, `CatalogForm`, `IconFormat`, `EntryRefusal`, `SourceKind`, `EntryKind`, `FileKind`): a member equals its word. `to_data(value)` turns any result (dataclass, named tuple, enum) into plain JSON data, the shape the vectors write.
 
@@ -79,7 +79,7 @@ dependencies_of(manifest, tree, os) -> list[Dependency]   # PartialLock;  check_
 setup_phase(change, recorded, digest) -> Phase | None;  preparation(...) -> Preparation;  environments(overlays, active, trees, os, removed) -> Environments
 ```
 
-`effective` and `apply_overlay` also refuse (`schema`, naming the field) an environment variable name that is no name and a path that leaves the overlay, whatever `validate` was asked. An `Environment` never lets a placeholder read a variable that holds a resolved secret. Substitution refuses `too-large`, `too-deep` and `too-complex` past `substitution_*` and never quotes a placeholder's variable or pattern. `effective` and `apply_overlay` raise `Error`; the reports (`unpinned`, `env-sensitive`, ...) are ids and subjects, never values.
+`effective` and `apply_overlay` also refuse (`invalid-reference`, naming the variable or path) an environment variable name that is no name and a path that leaves the overlay, whatever `validate` was asked. An `Environment` never lets a placeholder read a variable that holds a resolved secret. Substitution refuses `too-large`, `too-deep` and `too-complex` past `substitution_*` and never quotes a placeholder's variable or pattern. `effective` and `apply_overlay` raise `Error`; the reports (`unpinned`, `env-sensitive`, ...) are ids and subjects, never values.
 
 ## Catalogs, icons, skills from elsewhere
 
