@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The three implementations agree on behaviours their reviews settled, and the vectors now hold all
+  three to them (specification commit `268fbe4`): a fetched skill lists the files its pin covers
+  (`files`) and an entry under an excluded name is no refusal; a refusal's subject has its control,
+  format and separator characters escaped and is cut to 256 characters, and holds no parser or
+  operating system text; a source's IPv4 host is read as a URL parser reads it (`127.1`,
+  `2130706433`, `0x7f.0.0.1`, `10.1`) and `100.64.0.0/10` is private; applying refuses a variable
+  name that is no name and a path that leaves the overlay as `invalid-reference`, naming it
+  (Python raised `schema` with a pointer, and TypeScript quoted no name). Rust also bounds
+  substitution by `substitution_steps` throughout and reads duplicates, brackets and environments in
+  linear time.
+
 ### Added
 
 - The `coqui-aos` Python package (`python/`, import `coqui_aos`): the same reader in pure Python 3.9
