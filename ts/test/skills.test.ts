@@ -69,7 +69,7 @@ function fetchedCase(item: Map<string, Json>): void {
     if (error instanceof AosError && expectedErrors(expect).includes(error.class)) return;
     throw error;
   }
-  const got = toJson({ digest: read.digest.toString(), reported: read.reported });
+  const got = toJson({ digest: read.digest.toString(), reported: read.reported, files: read.files });
   if (!valuesEqual(got, expect)) throw new Error(`got ${show(got)}`);
 }
 

@@ -4,7 +4,7 @@ import { AosError, type ErrorClass } from "./error.ts";
 import { type FileSystem, joinPath } from "./fs.ts";
 import { type Settings, allows, limitText } from "./limits.ts";
 import { EXCLUDED_COMPONENTS, asciiLower, validRelativePath } from "./names.ts";
-import { compareText, encodeUtf8, safeSubject } from "./text.ts";
+import { compareText, encodeUtf8 } from "./text.ts";
 import { OverlayTree } from "./tree.ts";
 
 const HEX = /^[0-9a-f]{64}$/i;
@@ -72,7 +72,7 @@ function refused(cls: ErrorClass, subject: string): AosError {
 }
 
 function shown(components: ReadonlyArray<Uint8Array>): string {
-  return safeSubject(components.map((component) => lossy.decode(component)).join("/"));
+  return components.map((component) => lossy.decode(component)).join("/");
 }
 
 function lineOf(path: string, digest: Digest): Uint8Array {

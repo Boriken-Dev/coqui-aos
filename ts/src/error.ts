@@ -1,3 +1,5 @@
+import { safeSubject } from "./text.ts";
+
 /** The classes of refusal the specification's conformance vectors name, plus this package's own. */
 export const CLASSES = [
   "ambiguous",
@@ -81,10 +83,11 @@ export class AosError extends Error {
   #column: number | undefined;
 
   constructor(cls: ErrorClass, subject = "") {
-    super(AosError.describe(cls, subject));
+    const safe = safeSubject(subject);
+    super(AosError.describe(cls, safe));
     this.name = "AosError";
     this.class = cls;
-    this.subject = subject;
+    this.subject = safe;
   }
 
   private static describe(cls: string, subject: string, line?: number, column?: number): string {

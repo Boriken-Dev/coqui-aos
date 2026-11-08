@@ -3,7 +3,6 @@ import { AosError } from "./error.ts";
 import { type Settings, DEFAULT_SETTINGS } from "./limits.ts";
 import { asciiLower, validRelativePath } from "./names.ts";
 import { substituteWith } from "./subst.ts";
-import { safeSubject } from "./text.ts";
 import { OverlayTree } from "./tree.ts";
 import type { Document } from "./value.ts";
 
@@ -55,7 +54,7 @@ export class Environment {
     const key = this.key(name);
     const found = this.entries.get(key);
     if (found === undefined) return undefined;
-    if (this.secret.has(key)) throw new AosError("secret-placeholder", safeSubject(name));
+    if (this.secret.has(key)) throw new AosError("secret-placeholder", name);
     return found[1];
   }
 
@@ -89,7 +88,7 @@ export class Environment {
     try {
       return substituteWith(text, (name) => this.lookup(name), this.settingsValue);
     } catch (error) {
-      if (error instanceof AosError) throw new AosError(error.class, safeSubject(variable));
+      if (error instanceof AosError) throw new AosError(error.class, variable);
       throw error;
     }
   }
@@ -165,7 +164,7 @@ export class Facts implements FactsFields {
     const provider = entry.get("provider");
     const key = textOf(entry, "key");
     if (provider === "file" && !validRelativePath(key)) {
-      throw new AosError("invalid-reference", safeSubject(key));
+      throw new AosError("invalid-reference", key);
     }
     if (!this.granted(entry)) return undefined;
     const name = entry.get("secret");

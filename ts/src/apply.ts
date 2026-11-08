@@ -74,7 +74,7 @@ function referenceName(entry: Document): string {
 
 /** An overlay-relative path under `root`, with the platform's separator; a path that is not a valid relative path is `invalid-reference`. */
 export function resolvePath(root: string, relative: string, windows: boolean): string {
-  if (!validRelativePath(relative)) throw new AosError("invalid-reference", "a path that is not relative to the overlay");
+  if (!validRelativePath(relative)) throw new AosError("invalid-reference", relative);
   const separator = windows ? "\\" : "/";
   return `${root.replace(/[/\\]+$/, "")}${separator}${relative.split("/").join(separator)}`;
 }
@@ -93,7 +93,7 @@ function applyMapping(
   const windows = env.windows;
   const before = env.clone();
   for (const [name, given] of mapping) {
-    if (!isVariableName(name)) throw new AosError("invalid-reference", "a name that is not a variable");
+    if (!isVariableName(name)) throw new AosError("invalid-reference", name);
     if (isReservedVariable(name)) throw new AosError("reserved-variable", name);
     let entry: Document;
     if (typeof given === "string") entry = new Map<string, Value>([["value", given]]);
@@ -184,12 +184,43 @@ export interface SetupRun extends ScriptRun {
   readonly network: boolean;
 }
 
+/**
+ * Refuses a manifest that would make the consumer touch what a manifest may not name: a variable
+ * whose name is not a name, or a path that leaves the overlay. Every other fault is for `validate`.
+ */
+function requireApplicable(manifest: Document): void {
+  const check = (path: Value | undefined): void => {
+    if (typeof path === "string" && !validRelativePath(path)) throw new AosError("invalid-reference", path);
+  };
+  const env = manifest.get("env");
+  if (env instanceof Map) {
+    for (const name of env.keys()) if (!isVariableName(name)) throw new AosError("invalid-reference", name);
+  }
+  for (const field of ["paths", "env_files", "env_scripts", "setup"]) {
+    const entries = manifest.get(field);
+    if (Array.isArray(entries)) for (const entry of entries) check(entry instanceof Map ? entry.get("path") : entry);
+  }
+  const scripts = manifest.get("scripts");
+  if (scripts instanceof Map) for (const target of scripts.values()) check(target instanceof Map ? target.get("path") : target);
+  const runtime = manifest.get("runtime");
+  if (runtime instanceof Map) {
+    for (const variants of runtime.values()) {
+      if (!Array.isArray(variants)) continue;
+      for (const variant of variants) {
+        if (!(variant instanceof Map)) continue;
+        for (const key of ["lock", "requirements", "package"]) check(variant.get(key));
+      }
+    }
+  }
+}
+
 function applyOverlay(
   env: Environment,
   manifest: Document,
   facts: Facts,
   nonDefaults: NonDefaultSetting[],
 ): ScriptRun[] {
+  requireApplicable(manifest);
   env.extra = [
     ["AOS_OVERLAY_ROOT", facts.root],
     ["AOS_OVERLAY_NAME", normalizeName(facts.identity)],

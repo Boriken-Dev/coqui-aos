@@ -116,10 +116,11 @@ test("a wide character class costs steps in proportion to its members", () => {
 });
 
 test("a subject never holds control, escape or bidirectional characters, and is capped", () => {
-  assert.equal(safeSubject("a\u001b[2Jb‮c\n"), "a\\u{1b}[2Jb\\u{202e}c\\u{a}");
+  assert.equal(safeSubject("a\u001b[2Jb\u202ec\n\u{e0001}"), "a\\x1b[2Jb\\u202ec\\x0a\\U000e0001");
   assert.equal(safeSubject("plain/ok.txt"), "plain/ok.txt");
-  assert.ok(safeSubject("x".repeat(5000)).length <= 257);
-  assert.ok(safeSubject("x".repeat(5000)).endsWith("…"));
+  assert.equal(safeSubject("x".repeat(5000)), `${"x".repeat(256)}...`);
+  assert.equal(safeSubject("x".repeat(256)), "x".repeat(256));
+  assert.equal(safeSubject("\u0007".repeat(100)), `${"\\x07".repeat(64)}...`);
   const facts = new Facts("linux");
   const error = refusal(() => facts.secret(new Map([["provider", "file"], ["key", "../\u001b[2J"]])));
   assert.equal(error.class, "invalid-reference");

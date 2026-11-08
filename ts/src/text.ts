@@ -108,29 +108,24 @@ export function hasLoneSurrogate(text: string): boolean {
 }
 
 const SUBJECT_CAP = 256;
+const UNSAFE_IN_SUBJECT = /^[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Cs}\p{Co}\p{Cn}]$/u;
 
-function unsafeInSubject(code: number): boolean {
-  return (
-    code <= 0x1f ||
-    (code >= 0x7f && code <= 0x9f) ||
-    (code >= 0x200b && code <= 0x200f) ||
-    code === 0x2028 ||
-    code === 0x2029 ||
-    (code >= 0x202a && code <= 0x202e) ||
-    (code >= 0x2066 && code <= 0x2069) ||
-    code === 0xfeff
-  );
-}
-
-/** Text for an error's subject: control, escape and bidirectional characters written as `\u{..}`, and a long text cut after 256 characters with an ellipsis. */
+/**
+ * Text for an error's subject: each control, format, separator, surrogate, private-use or
+ * unassigned character written as `\xNN`, `\uNNNN` or `\UNNNNNNNN` in lowercase hexadecimal, and
+ * the whole cut to 256 characters, counted after the escapes, with `...` after them when cut.
+ */
 export function safeSubject(text: string): string {
-  let out = "";
-  let count = 0;
+  const out: string[] = [];
+  let seen = 0;
   for (const c of text) {
-    if (count === SUBJECT_CAP) return `${out}…`;
+    if (seen++ > SUBJECT_CAP) break;
     const code = c.codePointAt(0)!;
-    out += unsafeInSubject(code) ? `\\u{${code.toString(16)}}` : c;
-    count += 1;
+    if (!UNSAFE_IN_SUBJECT.test(c)) out.push(c);
+    else if (code < 0x100) out.push(`\\x${code.toString(16).padStart(2, "0")}`);
+    else if (code < 0x10000) out.push(`\\u${code.toString(16).padStart(4, "0")}`);
+    else out.push(`\\U${code.toString(16).padStart(8, "0")}`);
   }
-  return out;
+  const chars = Array.from(out.join(""));
+  return chars.length <= SUBJECT_CAP ? chars.join("") : `${chars.slice(0, SUBJECT_CAP).join("")}...`;
 }
