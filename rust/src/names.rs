@@ -168,7 +168,7 @@ const SENSITIVE_PREFIXES: [&str; 14] = [
 ];
 
 /// Whether setting `name` changes how programs find code, trust certificates or reach the
-/// network, so an overlay setting it is the weakening `env-sensitive`.
+/// network, so an overlay setting it reports the non-default setting `env-sensitive`.
 pub fn is_sensitive_variable(name: &str) -> bool {
     let upper = name.to_ascii_uppercase();
     SENSITIVE_NAMES.contains(&upper.as_str())
@@ -179,7 +179,7 @@ pub fn is_sensitive_variable(name: &str) -> bool {
         || upper.ends_with("_BASE_URL")
 }
 
-/// The list variables path additions exist for: adding to them is no weakening.
+/// The list variables path additions exist for: adding to them is no non-default setting.
 pub(crate) fn is_path_variable(name: &str) -> bool {
     matches!(
         name.to_ascii_uppercase().as_str(),
