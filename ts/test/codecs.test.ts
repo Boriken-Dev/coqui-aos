@@ -21,6 +21,15 @@ function refusal(run: () => unknown): AosError {
 
 const read = (text: string, given: Settings = settings): Document => readDocument(bytes(text), given);
 
+test("a JSON document that is an empty object is an empty document", () => {
+  for (const text of ["#!json\n{}", "#!json\n {} \n", "#!json\n{\"x\": {}, \"y\": []}"]) {
+    const document = read(text);
+    assert.ok(isDocument(document), text);
+  }
+  assert.equal(read("#!json\n{}").size, 0);
+  assert.equal(refusal(() => read("#!json\n{} {}")).class, "parse-error");
+});
+
 test("an integer is a bigint and a float a number, in every format", () => {
   for (const text of ["x = 30\ny = 30.0\n", '#!json\n{"x": 30, "y": 30.0}', "#!yaml\nx: 30\ny: 30.0\n"]) {
     const document = read(text);

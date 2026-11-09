@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   substitution by `substitution_steps` throughout and reads duplicates, brackets and environments in
   linear time.
 
+### Fixed
+
+- TypeScript reads a JSON document that is one empty object or list (`#!json` then `{}`); it refused
+  it as ending early.
+
 ### Added
 
 - The `coqui_aos` Dart package (`dart/`): the same reader in pure Dart 3.9 and later for the VM and

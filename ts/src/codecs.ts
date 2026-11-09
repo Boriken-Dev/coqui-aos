@@ -250,6 +250,7 @@ class JsonReader {
             this.at += 1;
             builder.close();
             expectValue = false;
+            if (builder.stack.length === 0) return this.end(builder);
           }
           continue;
         }
@@ -281,12 +282,14 @@ class JsonReader {
           builder.close();
         } else this.fail("parse-error", "an unexpected character");
       }
-      if (builder.stack.length === 0 && builder.root !== undefined) {
-        this.space();
-        if (this.at !== this.text.length) this.fail("parse-error", "text after the document");
-        return builder.root;
-      }
+      if (builder.stack.length === 0 && builder.root !== undefined) return this.end(builder);
     }
+  }
+
+  private end(builder: Builder): Value {
+    this.space();
+    if (this.at !== this.text.length) this.fail("parse-error", "text after the document");
+    return builder.root!;
   }
 
   private word(word: string, builder: Builder, value: boolean | null): void {
