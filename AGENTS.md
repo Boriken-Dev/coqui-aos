@@ -8,6 +8,7 @@ conformance vectors, shared by every implementation, are what keep them alike.
 | --- | --- |
 | [`rust/AGENTS.md`](rust/AGENTS.md) | the `coqui-aos` crate's public API |
 | [`python/src/coqui_aos/AGENTS.md`](python/src/coqui_aos/AGENTS.md) | the `coqui_aos` package's public API |
+| [`dart/AGENTS.md`](dart/AGENTS.md) | the `coqui_aos` Dart package's public API |
 
 ## Layout
 
@@ -17,7 +18,8 @@ conformance vectors, shared by every implementation, are what keep them alike.
 | `tools/` | `public-api.txt`, the committed public API of the Rust crate |
 | `vectors/` | the specification's conformance vectors, copied byte for byte; `AOS-SOURCE.json` names the commit and each file's digest |
 | `python/` | the `coqui-aos` Python package (import `coqui_aos`): pure Python, 3.9 and later, its tests and its README |
-| `ts/`, `dart/` | the other implementations, each pure and each passing the same vectors; not present yet |
+| `ts/` | the TypeScript implementation, pure, passing the same vectors |
+| `dart/` | the `coqui_aos` Dart package: pure Dart for the VM and the web, its tests and its README |
 
 ## Commands
 
@@ -39,6 +41,15 @@ dotagents pyvenv 3.14 && dotagents pyvenv 3.9      # venvs in ../.pyvenv/, once
 ../.pyvenv/<version>/Scripts/python.exe -m pip install -e ".[dev]"   # bin/python on POSIX
 ../.pyvenv/<version>/Scripts/python.exe -m pytest        # the vectors and the hostile-input tests
 ../.pyvenv/<version>/Scripts/python.exe -m black --check src tests
+```
+
+```sh
+cd dart
+dart pub get
+dart format --output=none --set-exit-if-changed .
+dart analyze --fatal-infos
+dart test                                                  # the vectors and the tests beside them, on the VM
+dart run tool/stage_vectors.dart && dart test -p chrome    # the web, from vectors staged under test/vectors/
 ```
 
 ## Rules
