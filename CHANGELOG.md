@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The `coqui_aos` Dart package (`dart/`): the same reader in pure Dart 3.9 and later for the VM and
+  the web, with `yaml` (parser events, so a tag, anchor or alias is refused before it is expanded)
+  and `crypto` as its only dependencies; TOML and JSON are read by the package. lowerCamelCase
+  functions, closed sets as plain strings with a `Words` constant, integers as `BigInt` (a Dart
+  `int` and `double` are one number on the web), `AosError` carrying `errorClass`, `subject`,
+  `line` and `column`, a `Settings` holding every limit with `nonDefaults()`, a `FileSystem`
+  interface with `IoFileSystem` in `package:coqui_aos/io.dart`, and `SkillSource` for fetching. It
+  passes every case of `vectors/` on the VM and in Chrome, none skipped.
+
 - The `coqui-aos` Python package (`python/`, import `coqui_aos`): the same reader in pure Python 3.9
   and later, with `ruamel.yaml` (and `tomli` below 3.11) as its only dependencies. Snake-case
   functions, `str` enums for the closed sets, `Error` carrying `class_`, `subject`, `line` and
