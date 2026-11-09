@@ -19,6 +19,9 @@ __pycache__/
 *.egg-info/
 /ts/node_modules/
 /dart/.dart_tool/
+/dart/pubspec.lock
+# Staged for the browser run by dart/tool/stage_vectors.dart.
+/dart/test/vectors/
 
 # A library does not commit its lockfile.
 /rust/Cargo.lock
