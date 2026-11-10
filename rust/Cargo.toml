@@ -26,7 +26,7 @@ fs = []
 
 [dependencies]
 # The settings types describe themselves once, through these derives.
-guatiao = { git = "https://github.com/Boriken-Dev/guatiao", rev = "0350bae7fef4cef2aa46ce73f1ef6be15983d83b", default-features = false, features = ["derive"] }
+guatiao = { git = "https://github.com/Boriken-Dev/guatiao", rev = "e0136dcc9760ddd6dd8dc89fc4d41320eec6306e", default-features = false, features = ["derive"] }
 # AOS refuses a YAML tag, anchor, alias, merge key and directive, which only the parser's events show;
 # this is the parser `serde-saphyr` is built on.
 granit-parser = { version = "2", default-features = false, features = ["std"] }

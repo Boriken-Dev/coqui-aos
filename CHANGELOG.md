@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- guatiao is pinned at `e0136dcc`, so the coqui family builds against one revision.
 - The three implementations agree on behaviours their reviews settled, and the vectors now hold all
   three to them (specification commit `268fbe4`): a fetched skill lists the files its pin covers
   (`files`) and an entry under an excluded name is no refusal; a refusal's subject has its control,
