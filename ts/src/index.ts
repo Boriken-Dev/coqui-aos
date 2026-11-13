@@ -18,6 +18,7 @@ export { Environment, Facts, type FactsFields } from "./environment.ts";
 export { readDotenv, effective, composedEnvironment, hookEnvironment, hostSetting, type NonDefaultSetting, type ScriptRun, type SetupRun, type Needs, type Effective, type ComposedEnvironment } from "./apply.ts";
 export * from "./prepare.ts";
 export * from "./subst.ts";
+export * from "./template.ts";
 export * from "./catalog.ts";
 export * from "./skills.ts";
 export { HOOK_EVENTS, hookEvent, DECISIONS, decision, ON_FAILURES, onFailure, HOOK_SCOPES, hookScope, HOOK_FAILURES, hookFailure, HookFailed, hooksDeclared, hooksOf, hookFacts, hookPlan, hookMatches, hookPayload, HookOutput, readHookOutput, HookRun, hookRun, hookResult, FiredEvent, fireEvent, type HookEvent, type Decision, type OnFailure, type HookScope, type HookFailure, type Hook, type HookFacts, type HookPlan, type HookReport } from "./hooks.ts";

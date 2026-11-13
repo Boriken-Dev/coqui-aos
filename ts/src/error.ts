@@ -22,6 +22,7 @@ export const CLASSES = [
   "invalid-env-file",
   "invalid-label",
   "invalid-name",
+  "invalid-option",
   "invalid-pattern",
   "invalid-reference",
   "invalid-requirements",

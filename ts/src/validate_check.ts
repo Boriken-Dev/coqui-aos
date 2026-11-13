@@ -214,6 +214,9 @@ export class Check {
           this.each(value, at, (entry, there) => this.skillEntry(entry, there));
           this.unique(value, at);
           break;
+        case "options":
+          this.options(value, at);
+          break;
         case "env":
           this.envMap(value, at);
           break;
@@ -327,6 +330,44 @@ export class Check {
     this.require(value.length > 0, at);
     value.forEach((item, index) => this.string(item, join(at, index), ok));
     this.unique(value, at);
+  }
+
+  /** An `options` table: each variable name that is not reserved has a table of `type` and optionally `default`, `sensitive` and `description`. */
+  options(value: Value, at: string): void {
+    if (!(value instanceof Map)) {
+      this.fail("schema", at);
+      return;
+    }
+    for (const [name, declared] of value) {
+      const here = join(at, name);
+      this.variable(name, here);
+      const table = this.object(declared, here, ["type", "default", "sensitive", "description"]);
+      if (!table) continue;
+      this.required(table, here, ["type"]);
+      const kind = table.get("type");
+      if (kind !== undefined) this.require(kind === "string" || kind === "integer" || kind === "boolean", join(here, "type"));
+      const sensitive = table.get("sensitive");
+      if (sensitive !== undefined) this.boolean(sensitive, join(here, "sensitive"));
+      const description = table.get("description");
+      if (description !== undefined) this.string(description, join(here, "description"), () => true);
+      const fallback = table.get("default");
+      if (fallback !== undefined) {
+        const there = join(here, "default");
+        if (!(typeof fallback === "string" || typeof fallback === "bigint" || typeof fallback === "number" || typeof fallback === "boolean")) {
+          this.fail("schema", there);
+        } else if (sensitive === true) {
+          this.fail("option-sensitive-default", there);
+        } else if (
+          !(
+            (kind === "string" && typeof fallback === "string") ||
+            (kind === "integer" && typeof fallback === "bigint") ||
+            (kind === "boolean" && typeof fallback === "boolean")
+          )
+        ) {
+          this.fail("option-default-type", there);
+        }
+      }
+    }
   }
 
   envMap(value: Value, at: string): void {
