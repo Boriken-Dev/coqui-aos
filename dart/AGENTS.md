@@ -20,8 +20,10 @@ An integer is a `BigInt` in the signed 64-bit range and a float a finite `double
 ## Errors (`AosError`)
 
 ```dart
-class AosError implements Exception { final String errorClass; final String subject; int? get line; int? get column; String get message }
+class AosError implements Exception { final String errorClass; final String subject; int? get line; int? get column; String? get setting; String get message;  AosError over(String setting) }
 const List<String> errorClasses;  String? classNamed(String word)
+
+For a refusal of a limit (`too-large`, `too-deep`, `too-complex`, `icon-too-large`, `icon-dimensions`) `setting` is the key of the setting that was passed, as a configuration writes it (`tree_files`, `manifest_depth`, `icon_width`, ...): stable, unlike `subject`'s wording; null for any other refusal.
 ```
 
 **`errorClass` is the contract**: a word from `errorClasses` (`'parse-error'`, `'duplicate-key'`, `'too-deep'`, `'symlink'`, `'undefined-variable'`, ...), including `'io'`, `'duplicate-member'`, `'invalid-requirements'` and `'invalid-digest'`. `subject` names what it is about for a person, never text from a document; do not match on it. `line` and `column` are one-based, `column` counts Unicode scalar values, a line counts from the file's first line, a format line included. `message` is `class: subject at line N column M`. A `subject` is escaped as the specification's conformance chapter writes it and cut to 256 characters. Subclasses: `Cycle` (`chain`; from `resolve` and `compose`), `PartialLock` (from `dependenciesOf` and `environments`), `HookFailed` (`failure`; from `hookResult`). A caller's `FileSystem` or `SkillSource` may throw anything; the core reports a file system's as `io`.
@@ -116,6 +118,7 @@ class Facts { Facts(String os);  copyWith(...);  mutable fields os, root, identi
 class Environment { Environment([Iterable<(String, String)> base, bool windows]);  settings(s), get, set(name, value, secret), unset, values(), isSecret, clone }
 ComposedEnvironment composedEnvironment(List<(Document, Facts)> active, Environment base, Map<String, HookRun> preEnv, List<NonDefaultSetting> nonDefaults)
 Preparation preparation(change, record, digest, setup, dependencies, fails);  String? setupPhase(change, recorded, digest)
+Map<String, String> SetupRecord.toJson();  SetupRecord.fromJson(Object? json)   // {"digest", "phase"}; a FormatException for anything else;  phaseWords.named(word)
 String substitute(String text, Lookup lookup);  String substituteWith(String text, Lookup lookup, Settings settings)
 ```
 
@@ -138,7 +141,7 @@ SkillPlan resolveSkills(overlays, requested, trees, catalogs, List<String> order
 FetchedSkill readFetchedSkill(String name, List<(String, Uint8List)> files, String? pin, Settings settings)     // FetchedSkill(digest, reported, files)
 abstract interface class SkillSource { FutureOr<List<(String, Uint8List)>> fetch(Source source) }
 Future<List<FetchedPlanned>> fetchPlanned(SkillPlan plan, SkillSource fetcher, Settings settings)     // one at a time; FetchedPlanned.ok, .skill, .error
-hooksOf, HookPlan hookPlan(Document manifest, files, HookFacts facts, Settings settings);  hookMatches, hookPayload, readHookOutput, HookOutput hookResult(event, HookRun run, Settings settings);  FiredEvent fireEvent(event, runs, applies, settings, windows, [int contextUsed = 0]);  List<(String, String)> hookOrder(overlays, requested, has, scopes);  Environment hookEnvironment(event, active, base, preEnv, String? identity)
+hooksOf, bool hooksDeclared(Document manifest, OverlayTree tree) /* any hook on any OS with any interpreter */, HookPlan hookPlan(Document manifest, files, HookFacts facts, Settings settings);  hookMatches, hookPayload, readHookOutput, HookOutput hookResult(event, HookRun run, Settings settings);  FiredEvent fireEvent(event, runs, applies, settings, windows, [int contextUsed = 0]);  List<(String, String)> hookOrder(overlays, requested, has, scopes);  Environment hookEnvironment(event, active, base, preEnv, String? identity)
 HookRun hookRun(String source, [Uint8List? stdout])        // fields: exit, seconds, timedOut, notRun, payloadSize, sets, onFailure
 ```
 

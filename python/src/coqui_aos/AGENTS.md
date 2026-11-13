@@ -9,11 +9,11 @@ Imports: everything is at the package root (`from coqui_aos import read_document
 ## Errors
 
 ```python
-class Error(Exception): class_: Class; subject: str; line: int | None; column: int | None
+class Error(Exception): class_: Class; subject: str; line: int | None; column: int | None; setting: str | None;  over(setting) -> Error
 class Class(str, Enum)       # every class the vectors name; Class.named(word) -> Class | None
 ```
 
-`class_` is the contract (`Class.DUPLICATE_KEY == "duplicate-key"`); `subject` names what it is about (a variable, a path, a pointer) for a person, never text from a document, so do not match on it. `line` and `column` are one-based, `column` counts code points. A subject is escaped (control, format, separator, surrogate, private-use and unassigned characters as `\xNN`, `\uNNNN` or `\UNNNNNNNN`) and cut to 256 characters, then `...`, and holds no text from a document or a parser's or the operating system's message. Nothing but `Error` leaves a reader on hostile input; `PartialLock` and `Cycle` (with `.chain`, the whole loop) are `Error` subclasses, and `HookError` carries a `HookFailure`.
+For a refusal of a limit (`too-large`, `too-deep`, `too-complex`, `icon-too-large`, `icon-dimensions`) `setting` is the key of the setting that was passed, as a configuration writes it (`tree_files`, `manifest_depth`, `icon_width`, ...): stable, unlike `subject`'s wording; `None` for any other refusal. `class_` is the contract (`Class.DUPLICATE_KEY == "duplicate-key"`); `subject` names what it is about (a variable, a path, a pointer) for a person, never text from a document, so do not match on it. `line` and `column` are one-based, `column` counts code points. A subject is escaped (control, format, separator, surrogate, private-use and unassigned characters as `\xNN`, `\uNNNN` or `\UNNNNNNNN`) and cut to 256 characters, then `...`, and holds no text from a document or a parser's or the operating system's message. Nothing but `Error` leaves a reader on hostile input; `PartialLock` and `Cycle` (with `.chain`, the whole loop) are `Error` subclasses, and `HookError` carries a `HookFailure`.
 
 Closed sets are `str` enums (`Runtime`, `Format`, `ManifestFile`, `Case`, `SplitCase`, `Change`, `Phase`, `LeftState`, `FailStep`, `NonDefaultId`, `HookEvent`, `HookFailure`, `Decision`, `OnFailure`, `HookScope`, `PlannedOrigin`, `CatalogForm`, `IconFormat`, `EntryRefusal`, `SourceKind`, `EntryKind`, `FileKind`): a member equals its word. `to_data(value)` turns any result (dataclass, named tuple, enum) into plain JSON data, the shape the vectors write.
 
@@ -77,6 +77,7 @@ Environment(base, windows) -> get / set(name, value, secret) / unset / values() 
 substitute(text, lookup) -> str;  substitute_with(text, lookup, settings)
 rules_of / context_of / paths_of / env_files_of / skills_of / skill_entries / default_paths / default_on / context_ignored / harness_context_of
 dependencies_of(manifest, tree, os) -> list[Dependency]   # PartialLock;  check_requirements(text, locked)
+SetupRecord(digest, phase).to_dict() -> {"digest", "phase"};  SetupRecord.from_dict(data) -> SetupRecord (ValueError for anything else);  Phase.named(word) -> Phase | None;
 setup_phase(change, recorded, digest) -> Phase | None;  preparation(...) -> Preparation;  environments(overlays, active, trees, os, removed) -> Environments
 ```
 
@@ -98,7 +99,7 @@ class SkillSource(Protocol): fetch(source: Source) -> list[tuple[str, bytes]];  
 ## Hooks
 
 ```python
-hooks_of(manifest, tree, os, interpreters) -> (list[Hook], list[str]);  hook_plan(manifest, tree, facts: HookFacts, settings=None) -> HookPlan
+hooks_of(manifest, tree, os, interpreters) -> (list[Hook], list[str]);  hooks_declared(manifest, tree) -> bool   # any hook on any OS with any interpreter;  hook_plan(manifest, tree, facts: HookFacts, settings=None) -> HookPlan
 hook_matches(event, select, value) -> bool;  hook_payload(event, known) -> dict
 read_hook_output(event, data, sets, settings=None) / hook_result(event, run: HookRun, settings=None) -> HookOutput   # raise HookError
 fire_event(event, runs, applies=None, settings=None, windows=False, context_used=0) -> FiredEvent

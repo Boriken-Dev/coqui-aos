@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The four things a host that wraps the readers worked around, in every language where they apply:
+  - Rust: `coqui_aos::vectors::Runner`, behind a `test-support` feature, runs every conformance vector
+    file against the crate, so a host's tests no longer copy the runner; and `NonDefaultSetting::new`
+    lets a host report non-default settings of its own beside `effective`'s.
+  - A setup record is `{"digest": ..., "phase": ...}` as data: `Serialize` and `Deserialize` for
+    `SetupRecord` and `Phase` behind a Rust `serde` feature, and `Phase::named`; `SetupRecord.to_dict`
+    and `from_dict` in Python (which already had `Phase.named`); `toJson` and `fromJson` in Dart
+    (`phaseWords.named` reads a phase); `setupRecordToJson` and `setupRecordFromJson` in TypeScript
+    (`phase.named` reads a phase).
+  - `hooks_declared(manifest, tree)` (`hooksDeclared` in Dart and TypeScript): whether an overlay
+    declares a hook on any OS with any interpreter, for a consumer that runs none.
+  - A refusal for a limit names the setting that was passed: `Error::setting` (Rust), `Error.setting`
+    (Python), `AosError.setting` (Dart, TypeScript), the key as a configuration writes it, such as
+    `tree_files`. The message and `subject` are unchanged.
+
 ### Changed
 
 - The vectors are those of specification commit `d11c60b`, and the four implementations pass them:

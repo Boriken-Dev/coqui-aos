@@ -18,9 +18,11 @@ An integer is a `bigint` in the signed 64-bit range and a float a finite `number
 ## Errors (`AosError`, `ErrorClass`)
 
 ```ts
-class AosError extends Error { readonly class: ErrorClass; readonly subject: string; line: number | undefined; column: number | undefined }
+class AosError extends Error { readonly class: ErrorClass; readonly subject: string; line: number | undefined; column: number | undefined; readonly setting: string | undefined;  over(setting: string): this }
 const CLASSES: readonly ErrorClass[];   classNamed(word: string): ErrorClass | undefined
 ```
+
+For a refusal of a limit (`too-large`, `too-deep`, `too-complex`, `icon-too-large`, `icon-dimensions`) `setting` is the key of the setting that was passed, as a configuration writes it (`tree_files`, `manifest_depth`, `icon_width`, ...): stable, unlike `subject`'s wording; `undefined` for any other refusal.
 
 **`class` is the contract**: a string-literal union of the classes the specification's vectors name (`"parse-error"`, `"duplicate-key"`, `"too-deep"`, `"symlink"`, `"undefined-variable"`, ...) plus `"io"`, `"duplicate-member"`, `"invalid-requirements"`, `"invalid-digest"`. `subject` names what it is about (a variable, a path, a pointer) for a person, never text from a document; do not match on it. `line` and `column` are one-based, `column` counts Unicode scalar values, a line counts from the file's first line, a format line included. `message` is `class: subject at line N column M`. `line` and `column` are read-only. A `subject` is escaped as the specification's conformance chapter writes it (control, format, separator, surrogate, private-use and unassigned characters as `\xNN`, `\uNNNN` or `\UNNNNNNNN`) and cut to 256 characters, then `...`, whoever builds the error. Applying refuses a variable name that is no name and a path that leaves the overlay as `invalid-reference`, naming it. Three subclasses carry more: `Cycle` (class `cycle`, `chain`; from `resolve` and `compose`), `PartialLock` (class `partial-lock`; from `dependenciesOf` and `environments`) and `HookFailed` (class `hook-refused`, `failure`; from `hookResult`), so `instanceof AosError` and `.class` hold everywhere. A caller's `FileSystem` or `SkillSource` may throw anything; the core reports a file system's as `io`.
 
@@ -120,7 +122,8 @@ effective(manifest: Document, facts: Facts): Effective
 class Facts { constructor(os: string, changes?); with(changes): Facts }    // fields: os, root, identity, state, pinned, baseEnv, hostEnv, grants, secrets, secretFiles, providers, providerValues, enforcesNetwork, envScriptsEnabled, gateEnvScripts, digest, allowed, interpreters, packages, tree, settings
 class Environment { constructor(base?: Iterable<[string, string]>, windows?: boolean);  settings(s), get, set(name, value, secret), unset, values(), isSecret, clone }
 composedEnvironment(active: Array<[Document, Facts]>, base: Environment, preEnv: ReadonlyMap<string, HookRun>, nonDefaults: NonDefaultSetting[]): { env | undefined, error | undefined, hookReports, hookNonDefaults }
-preparation(change, record, digest, setup, dependencies, fails): Preparation;  setupPhase(change, recorded, digest): Phase | undefined
+preparation(change, record, digest, setup, dependencies, fails): Preparation;  setupPhase(change, recorded, digest): Phase | undefined;
+setupRecordToJson(record): { digest, phase };  setupRecordFromJson(value: unknown): SetupRecord   // a TypeError for anything else;  PHASES, phase.named(word)
 substitute(text, lookup: (name) => string | undefined): string;  substituteWith(text, lookup, settings)
 ```
 
@@ -143,7 +146,7 @@ resolveSkills(overlays, requested, trees, catalogs, order: readonly string[], fe
 readFetchedSkill(name, files: Array<[string, Uint8Array]>, pin: string | undefined, settings): FetchedSkill     // { digest, reported, files }
 interface SkillSource { fetch(source: Source): Files | Promise<Files> }
 fetchPlanned(plan, fetcher: SkillSource, settings): Promise<FetchedPlanned[]>      // one skill after another; each outcome is { ok: true, skill } or { ok: false, error }
-hooksOf, hookPlan(manifest, files, facts: HookFacts, settings): HookPlan;  hookMatches, hookPayload, readHookOutput, hookResult(event, run, settings): HookOutput;  fireEvent(event, runs, applies, settings, windows, contextUsed = 0): FiredEvent;  hookOrder(overlays, requested, has, scopes): Array<[string, string]>;  hookEnvironment(event, active, base, preEnv, identity: string | undefined): Environment
+hooksOf, hooksDeclared(manifest, tree): boolean /* any hook on any OS with any interpreter */, hookPlan(manifest, files, facts: HookFacts, settings): HookPlan;  hookMatches, hookPayload, readHookOutput, hookResult(event, run, settings): HookOutput;  fireEvent(event, runs, applies, settings, windows, contextUsed = 0): FiredEvent;  hookOrder(overlays, requested, has, scopes): Array<[string, string]>;  hookEnvironment(event, active, base, preEnv, identity: string | undefined): Environment
 hookRun(source: string, stdout?: Uint8Array): HookRun        // fields: exit, seconds, timedOut, notRun, payloadSize, sets, onFailure
 ```
 
