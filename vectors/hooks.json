@@ -1,5 +1,5 @@
 {
-  "description": "Hooks. A 'plan-' case gives a 'manifest' (or, with none, an overlay's 'files' by path and text, its manifest read from them) and the consumer's 'facts': os, files, interpreters (absent, all five), identity, scope ('overlay', the default, 'user' or 'project'), digest (the overlay's; absent, unknown), tree (for a project, every file of the directory holding its configuration, by path and text, whose tree digest is the digest), allowed (the one digest at which the user allowed its hooks), fires (the events the consumer can fire on this harness; absent, every one), partial (those it fires for only some occurrences) and limits ('timeout', the consumer's bound on a run, in seconds); 'expect' gives each hook in event order (event, path and interpreter, or null for a hook.<ext> none of which can run here; whether it 'runs' here; match, sets, timeout after the bound, on_failure, and the payload's keys), whether they are 'on', whether the overlay 'activates', the interpreters a probe 'needs', the 'reports' ([id, subject]) and 'non_defaults' ([id, subject]), and the manifest's 'issues' (pointers). A 'payload-' case gives an 'event' and what the consumer knows ('known'); 'expect' is the payload. An 'output-' case gives an 'event', one 'run' ('stdout', or 'stdout_base64', or 'stdout_parts' as [text, times]; 'exit', default 0; 'timed_out'; 'not_run'; 'payload_size'; 'sets', the variables its entry declares) and optional 'limits' ('max_output', 'max_payload'); 'expect' is the 'output' that applies, or the cause it 'failed' with. An 'event-' case gives an 'event', its 'runs' in order (each with its 'source', 'on_failure', default 'report', and the 'seconds' it took), what the consumer 'applies' on this harness ('context', 'env', 'block', 'deny', 'ask', 'refuse'; absent, all the event takes, and refuse), 'limits' (also 'event_timeout') and 'os'; 'expect' gives the sources that 'ran', the 'decision' ('block', 'deny', 'ask', 'refuse' or null), the source it was 'by' and the hook's own 'reason' (null for a refusal by failure), the 'context' as [source, text], the 'env' (null unsets), the 'reports' and the 'non_defaults'. A 'match-' case gives an 'event', a 'match' (or null) and the reason or tool kind ('value'); 'expect' says whether the hook 'runs'.",
+  "description": "Hooks. A 'plan-' case gives a 'manifest' (or, with none, an overlay's 'files' by path and text, its manifest read from them) and the consumer's 'facts': os, files, interpreters (absent, all five), identity, scope ('overlay', the default, 'user' or 'project'), digest (the overlay's; absent, unknown), tree (for a project, every file of the directory holding its configuration, by path and text, whose tree digest is the digest), allowed (the one digest at which the user allowed its hooks), fires (the events the consumer can fire on this harness; absent, every one), partial (those it fires for only some occurrences) and limits ('timeout', the consumer's bound on a run, in seconds); 'expect' gives each hook in event order (event, path and interpreter, or null for a hook.<ext> none of which can run here; whether it 'runs' here; match, sets, timeout after the bound, on_failure, and the payload's keys), whether they are 'on', whether the overlay 'activates', the interpreters a probe 'needs', the 'reports' ([id, subject]) and 'non_defaults' ([id, subject]), and the manifest's 'issues' (pointers). A 'payload-' case gives an 'event' and what the consumer knows ('known'); 'expect' is the payload. An 'output-' case gives an 'event', one 'run' ('stdout', or 'stdout_base64', or 'stdout_parts' as [text, times]; 'exit', default 0; 'timed_out'; 'not_run'; 'payload_size'; 'sets', the variables its entry declares) and optional 'limits' ('max_output', 'max_payload'); 'expect' is the 'output' that applies, or the cause it 'failed' with. An 'event-' case gives an 'event', its 'runs' in order (each with its 'source', 'on_failure', default 'report', and the 'seconds' it took), what the consumer 'applies' on this harness ('context', 'env', 'block', 'deny', 'ask', 'refuse'; absent, all the event takes, and refuse), 'limits' (also 'event_timeout') and 'os'; 'expect' gives the sources that 'ran', the 'decision' ('block', 'deny', 'ask', 'refuse' or null), the source it was 'by' and the hook's own 'reason' (null for a refusal by failure), the 'context' as [source, text], the 'env' (null unsets), the 'reports' and the 'non_defaults'. A 'match-' case gives an 'event', a 'match' (or null) and the reason or tool kind ('value'); 'expect' says whether the hook 'runs'. An 'event-' case may give 'context_used', the bytes the session's context already holds, and 'limits' may give 'context_bytes' (default 1 MiB). An 'order-' case gives 'overlays', 'requested', the overlays that 'has' a hook for the event and the 'scopes' (user, project) that have one; 'expect' is the 'order' of [scope, source] pairs. An 'environment-' case gives an 'event', 'overlays', 'requested', optional 'files' (an overlay's env file texts), the compose 'facts' (os, base_env, roots, states, pre_env, grants, secrets) and the hook, an 'identity' or a 'scope' of user or project; 'expect' is the 'env' it runs with.",
   "spec": "spec/v0/hooks.md",
   "cases": [
     {
@@ -6791,6 +6791,1396 @@
       "value": "clear",
       "expect": {
         "runs": false
+      }
+    },
+    {
+      "id": "event-context-bound",
+      "description": "A part of context past the bound is not added, whole and never cut, and reported; a later part that fits still is.",
+      "event": "session-start",
+      "runs": [
+        {
+          "source": "a",
+          "stdout": "{\"context\": \"123456\"}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"context\": \"abcdefg\"}"
+        },
+        {
+          "source": "c",
+          "stdout": "{\"context\": \"xyz\"}"
+        },
+        {
+          "source": "d",
+          "stdout": "{\"context\": \"ab\"}"
+        }
+      ],
+      "limits": {
+        "context_bytes": 10
+      },
+      "expect": {
+        "ran": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [
+          [
+            "a",
+            "123456"
+          ],
+          [
+            "c",
+            "xyz"
+          ]
+        ],
+        "env": {},
+        "reports": [
+          [
+            "hook-not-applied",
+            "b",
+            "session-start",
+            "context"
+          ],
+          [
+            "hook-not-applied",
+            "d",
+            "session-start",
+            "context"
+          ]
+        ],
+        "non_defaults": []
+      }
+    },
+    {
+      "id": "event-context-bound-exact",
+      "description": "A part that reaches the bound exactly fits; the next byte does not.",
+      "event": "prompt",
+      "runs": [
+        {
+          "source": "a",
+          "stdout": "{\"context\": \"0123456789\"}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"context\": \"\"}"
+        },
+        {
+          "source": "c",
+          "stdout": "{\"context\": \"x\"}"
+        }
+      ],
+      "limits": {
+        "context_bytes": 10
+      },
+      "expect": {
+        "ran": [
+          "a",
+          "b",
+          "c"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [
+          [
+            "a",
+            "0123456789"
+          ]
+        ],
+        "env": {},
+        "reports": [
+          [
+            "hook-not-applied",
+            "c",
+            "prompt",
+            "context"
+          ]
+        ],
+        "non_defaults": []
+      }
+    },
+    {
+      "id": "event-context-bound-bytes",
+      "description": "The bound counts the bytes of the UTF-8 text, not its characters.",
+      "event": "session-start",
+      "runs": [
+        {
+          "source": "a",
+          "stdout": "{\"context\": \"\\u00e9\\u00e9\\u00e9\"}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"context\": \"\\u00e9\"}"
+        }
+      ],
+      "limits": {
+        "context_bytes": 6
+      },
+      "expect": {
+        "ran": [
+          "a",
+          "b"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [
+          [
+            "a",
+            "ééé"
+          ]
+        ],
+        "env": {},
+        "reports": [
+          [
+            "hook-not-applied",
+            "b",
+            "session-start",
+            "context"
+          ]
+        ],
+        "non_defaults": []
+      }
+    },
+    {
+      "id": "event-context-bound-used",
+      "description": "What the session already holds counts: with 8 of 10 bytes used, three more do not fit and two do.",
+      "event": "session-start",
+      "runs": [
+        {
+          "source": "a",
+          "stdout": "{\"context\": \"abc\"}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"context\": \"ab\"}"
+        }
+      ],
+      "limits": {
+        "context_bytes": 10
+      },
+      "context_used": 8,
+      "expect": {
+        "ran": [
+          "a",
+          "b"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [
+          [
+            "b",
+            "ab"
+          ]
+        ],
+        "env": {},
+        "reports": [
+          [
+            "hook-not-applied",
+            "a",
+            "session-start",
+            "context"
+          ]
+        ],
+        "non_defaults": []
+      }
+    },
+    {
+      "id": "event-context-bound-default",
+      "description": "The default bound is 1 MiB.",
+      "event": "session-start",
+      "runs": [
+        {
+          "source": "a",
+          "stdout": "{\"context\": \"ab\"}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"context\": \"a\"}"
+        }
+      ],
+      "context_used": 1048575,
+      "expect": {
+        "ran": [
+          "a",
+          "b"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [
+          [
+            "b",
+            "a"
+          ]
+        ],
+        "env": {},
+        "reports": [
+          [
+            "hook-not-applied",
+            "a",
+            "session-start",
+            "context"
+          ]
+        ],
+        "non_defaults": []
+      }
+    },
+    {
+      "id": "event-context-bound-failed-hook",
+      "description": "Context of a run that failed was never added, so it does not count.",
+      "event": "session-start",
+      "runs": [
+        {
+          "exit": 1,
+          "source": "a",
+          "stdout": "{\"context\": \"0123456789\"}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"context\": \"abcdefghij\"}"
+        }
+      ],
+      "limits": {
+        "context_bytes": 10
+      },
+      "expect": {
+        "ran": [
+          "a",
+          "b"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [
+          [
+            "b",
+            "abcdefghij"
+          ]
+        ],
+        "env": {},
+        "reports": [
+          [
+            "hook-failed",
+            "a",
+            "session-start",
+            "exit"
+          ]
+        ],
+        "non_defaults": []
+      }
+    },
+    {
+      "id": "event-context-bound-not-applicable",
+      "description": "Where the consumer cannot add context at all, that is the report, once per part, bound or not.",
+      "event": "post-tool",
+      "runs": [
+        {
+          "source": "a",
+          "stdout": "{\"context\": \"lint\"}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"context\": \"more\"}"
+        }
+      ],
+      "applies": [],
+      "limits": {
+        "context_bytes": 10
+      },
+      "expect": {
+        "ran": [
+          "a",
+          "b"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [],
+        "env": {},
+        "reports": [
+          [
+            "hook-not-applied",
+            "a",
+            "post-tool",
+            "context"
+          ],
+          [
+            "hook-not-applied",
+            "b",
+            "post-tool",
+            "context"
+          ]
+        ],
+        "non_defaults": []
+      }
+    },
+    {
+      "id": "event-scope-order-deny",
+      "description": "Overlays, then the user's own, then the project's: the user's deny ends the event before the project's hook runs.",
+      "event": "pre-tool",
+      "runs": [
+        {
+          "source": "overlay-a",
+          "stdout": "{\"context\": \"from a\"}"
+        },
+        {
+          "source": "user",
+          "stdout": "{\"decision\": \"deny\", \"reason\": \"no\"}"
+        },
+        {
+          "source": "project",
+          "stdout": "{\"context\": \"from project\"}"
+        }
+      ],
+      "expect": {
+        "ran": [
+          "overlay-a",
+          "user"
+        ],
+        "decision": "deny",
+        "by": "user",
+        "reason": "no",
+        "context": [],
+        "env": {},
+        "reports": [],
+        "non_defaults": []
+      }
+    },
+    {
+      "id": "event-scope-order-context",
+      "description": "Context is added in that run order, each part marked with where it came from.",
+      "event": "session-start",
+      "runs": [
+        {
+          "source": "overlay-a",
+          "stdout": "{\"context\": \"one\"}"
+        },
+        {
+          "source": "overlay-b",
+          "stdout": "{\"context\": \"two\"}"
+        },
+        {
+          "source": "user",
+          "stdout": "{\"context\": \"three\"}"
+        },
+        {
+          "source": "project",
+          "stdout": "{\"context\": \"four\"}"
+        }
+      ],
+      "expect": {
+        "ran": [
+          "overlay-a",
+          "overlay-b",
+          "user",
+          "project"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [
+          [
+            "overlay-a",
+            "one"
+          ],
+          [
+            "overlay-b",
+            "two"
+          ],
+          [
+            "user",
+            "three"
+          ],
+          [
+            "project",
+            "four"
+          ]
+        ],
+        "env": {},
+        "reports": [],
+        "non_defaults": []
+      }
+    },
+    {
+      "id": "event-scope-order-variables",
+      "description": "A later hook's variable replaces an earlier one's: the project's replaces the user's, which replaced an overlay's.",
+      "event": "session-start",
+      "runs": [
+        {
+          "sets": [
+            "MODE"
+          ],
+          "source": "overlay-a",
+          "stdout": "{\"env\": {\"MODE\": \"overlay\"}}"
+        },
+        {
+          "sets": [
+            "MODE"
+          ],
+          "source": "user",
+          "stdout": "{\"env\": {\"MODE\": \"user\"}}"
+        },
+        {
+          "sets": [
+            "MODE"
+          ],
+          "source": "project",
+          "stdout": "{\"env\": {\"MODE\": \"project\"}}"
+        }
+      ],
+      "expect": {
+        "ran": [
+          "overlay-a",
+          "user",
+          "project"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [],
+        "env": {
+          "MODE": "project"
+        },
+        "reports": [],
+        "non_defaults": []
+      }
+    },
+    {
+      "id": "order-priority",
+      "description": "Overlays in composition order: ascending priority.",
+      "overlays": {
+        "low": {
+          "priority": 100
+        },
+        "mid": {},
+        "high": {
+          "priority": 900
+        }
+      },
+      "requested": [
+        "high",
+        "mid",
+        "low"
+      ],
+      "has": [
+        "high",
+        "mid",
+        "low"
+      ],
+      "scopes": [],
+      "expect": {
+        "order": [
+          [
+            "overlay",
+            "low"
+          ],
+          [
+            "overlay",
+            "mid"
+          ],
+          [
+            "overlay",
+            "high"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "order-name-breaks-ties",
+      "description": "Equal priorities by name.",
+      "overlays": {
+        "b": {
+          "priority": 300
+        },
+        "a": {
+          "priority": 300
+        },
+        "c": {
+          "priority": 300
+        }
+      },
+      "requested": [
+        "c",
+        "b",
+        "a"
+      ],
+      "has": [
+        "c",
+        "b",
+        "a"
+      ],
+      "scopes": [],
+      "expect": {
+        "order": [
+          [
+            "overlay",
+            "a"
+          ],
+          [
+            "overlay",
+            "b"
+          ],
+          [
+            "overlay",
+            "c"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "order-only-those-with-a-hook",
+      "description": "An overlay with no hook for the event is not in the order.",
+      "overlays": {
+        "low": {
+          "priority": 100
+        },
+        "mid": {},
+        "high": {
+          "priority": 900
+        }
+      },
+      "requested": [
+        "high",
+        "mid",
+        "low"
+      ],
+      "has": [
+        "high",
+        "low"
+      ],
+      "scopes": [],
+      "expect": {
+        "order": [
+          [
+            "overlay",
+            "low"
+          ],
+          [
+            "overlay",
+            "high"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "order-required-overlay",
+      "description": "A required overlay is active though not asked for, and runs its hook in its place.",
+      "overlays": {
+        "app": {
+          "requires": [
+            "lib"
+          ]
+        },
+        "lib": {
+          "priority": 100
+        }
+      },
+      "requested": [
+        "app"
+      ],
+      "has": [
+        "app",
+        "lib"
+      ],
+      "scopes": [],
+      "expect": {
+        "order": [
+          [
+            "overlay",
+            "lib"
+          ],
+          [
+            "overlay",
+            "app"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "order-scopes-after",
+      "description": "The user's own hooks, then the project's, after every overlay's.",
+      "overlays": {
+        "low": {
+          "priority": 100
+        },
+        "high": {
+          "priority": 900
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "has": [
+        "high",
+        "low"
+      ],
+      "scopes": [
+        "user",
+        "project"
+      ],
+      "expect": {
+        "order": [
+          [
+            "overlay",
+            "low"
+          ],
+          [
+            "overlay",
+            "high"
+          ],
+          [
+            "user",
+            ""
+          ],
+          [
+            "project",
+            ""
+          ]
+        ]
+      }
+    },
+    {
+      "id": "order-scopes-named-backwards",
+      "description": "That order is the same however the consumer lists the scopes.",
+      "overlays": {
+        "low": {
+          "priority": 100
+        },
+        "high": {
+          "priority": 900
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "has": [
+        "high",
+        "low"
+      ],
+      "scopes": [
+        "project",
+        "user"
+      ],
+      "expect": {
+        "order": [
+          [
+            "overlay",
+            "low"
+          ],
+          [
+            "overlay",
+            "high"
+          ],
+          [
+            "user",
+            ""
+          ],
+          [
+            "project",
+            ""
+          ]
+        ]
+      }
+    },
+    {
+      "id": "order-overlay-named-user",
+      "description": "An overlay named user is an overlay, in its composition place.",
+      "overlays": {
+        "user": {
+          "priority": 900
+        },
+        "other": {
+          "priority": 100
+        }
+      },
+      "requested": [
+        "user",
+        "other"
+      ],
+      "has": [
+        "user",
+        "other"
+      ],
+      "scopes": [
+        "user"
+      ],
+      "expect": {
+        "order": [
+          [
+            "overlay",
+            "other"
+          ],
+          [
+            "overlay",
+            "user"
+          ],
+          [
+            "user",
+            ""
+          ]
+        ]
+      }
+    },
+    {
+      "id": "order-project-only",
+      "description": "A project's hook alone.",
+      "overlays": {
+        "low": {
+          "priority": 100
+        }
+      },
+      "requested": [
+        "low"
+      ],
+      "has": [],
+      "scopes": [
+        "project"
+      ],
+      "expect": {
+        "order": [
+          [
+            "project",
+            ""
+          ]
+        ]
+      }
+    },
+    {
+      "id": "order-scopes-without-overlays",
+      "description": "Both scopes, no overlay with a hook.",
+      "overlays": {
+        "low": {
+          "priority": 100
+        }
+      },
+      "requested": [
+        "low"
+      ],
+      "has": [],
+      "scopes": [
+        "project",
+        "user"
+      ],
+      "expect": {
+        "order": [
+          [
+            "user",
+            ""
+          ],
+          [
+            "project",
+            ""
+          ]
+        ]
+      }
+    },
+    {
+      "id": "environment-own-declarations",
+      "description": "An overlay's hook gets its own declarations, each with the value it was substituted to in the session's order, and none of another overlay's.",
+      "event": "session-start",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "BASE_LEVEL": "low",
+            "SHARED": "from-low"
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "LEVEL": "${BASE_LEVEL}-high"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {
+          "HOME": "/home/u"
+        },
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        }
+      },
+      "identity": "high",
+      "expect": {
+        "env": {
+          "HOME": "/home/u",
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "LEVEL": "low-high",
+          "AOS_OVERLAY_ROOT": "/ov/high",
+          "AOS_OVERLAY_NAME": "high",
+          "AOS_HOOK_EVENT": "session-start"
+        }
+      }
+    },
+    {
+      "id": "environment-own-declarations-first",
+      "description": "The first overlay in composition order sees its own and nothing of a later one.",
+      "event": "session-start",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "BASE_LEVEL": "low",
+            "SHARED": "from-low"
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "LEVEL": "${BASE_LEVEL}-high"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {
+          "HOME": "/home/u"
+        },
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        }
+      },
+      "identity": "low",
+      "expect": {
+        "env": {
+          "HOME": "/home/u",
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "BASE_LEVEL": "low",
+          "SHARED": "from-low",
+          "AOS_OVERLAY_ROOT": "/ov/low",
+          "AOS_OVERLAY_NAME": "low",
+          "AOS_HOOK_EVENT": "session-start"
+        }
+      }
+    },
+    {
+      "id": "environment-secret-stays",
+      "description": "A secret one overlay was granted never reaches another overlay's hook.",
+      "event": "pre-tool",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "DEPLOY_KEY": {
+              "secret": "deploy"
+            }
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "MODE": "ci"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {},
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        },
+        "grants": {
+          "secret": [
+            "deploy"
+          ]
+        },
+        "secrets": {
+          "deploy": "s3cret"
+        }
+      },
+      "identity": "high",
+      "expect": {
+        "env": {
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "MODE": "ci",
+          "AOS_OVERLAY_ROOT": "/ov/high",
+          "AOS_OVERLAY_NAME": "high",
+          "AOS_HOOK_EVENT": "pre-tool"
+        }
+      }
+    },
+    {
+      "id": "environment-secret-is-its-own",
+      "description": "The overlay it was granted to gets it.",
+      "event": "pre-tool",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "DEPLOY_KEY": {
+              "secret": "deploy"
+            }
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "MODE": "ci"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {},
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        },
+        "grants": {
+          "secret": [
+            "deploy"
+          ]
+        },
+        "secrets": {
+          "deploy": "s3cret"
+        }
+      },
+      "identity": "low",
+      "expect": {
+        "env": {
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "DEPLOY_KEY": "s3cret",
+          "AOS_OVERLAY_ROOT": "/ov/low",
+          "AOS_OVERLAY_NAME": "low",
+          "AOS_HOOK_EVENT": "pre-tool"
+        }
+      }
+    },
+    {
+      "id": "environment-steps-variables",
+      "description": "AOS_OVERLAY_ROOT, AOS_OVERLAY_NAME and AOS_OVERLAY_STATE, as a step has them, and AOS_HOOK_EVENT; every overlay's root and state variable is set in each overlay's process.",
+      "event": "turn-end",
+      "overlays": {
+        "low": {
+          "priority": 100
+        },
+        "high": {
+          "priority": 900
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {},
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        },
+        "states": {
+          "low": "/st/low",
+          "high": "/st/high"
+        }
+      },
+      "identity": "low",
+      "expect": {
+        "env": {
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "LOW_OVERLAY_STATE": "/st/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "HIGH_OVERLAY_STATE": "/st/high",
+          "AOS_OVERLAY_ROOT": "/ov/low",
+          "AOS_OVERLAY_NAME": "low",
+          "AOS_OVERLAY_STATE": "/st/low",
+          "AOS_HOOK_EVENT": "turn-end"
+        }
+      }
+    },
+    {
+      "id": "environment-no-state-no-variable",
+      "description": "An overlay with no state directory has no AOS_OVERLAY_STATE.",
+      "event": "turn-end",
+      "overlays": {
+        "low": {
+          "priority": 100
+        },
+        "high": {
+          "priority": 900
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {},
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        },
+        "states": {
+          "high": "/st/high"
+        }
+      },
+      "identity": "low",
+      "expect": {
+        "env": {
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "HIGH_OVERLAY_STATE": "/st/high",
+          "AOS_OVERLAY_ROOT": "/ov/low",
+          "AOS_OVERLAY_NAME": "low",
+          "AOS_HOOK_EVENT": "turn-end"
+        }
+      }
+    },
+    {
+      "id": "environment-own-pre-env",
+      "description": "Its own pre-env output is its own, as an env script's is; another overlay's is not.",
+      "event": "session-start",
+      "overlays": {
+        "low": {
+          "priority": 100
+        },
+        "high": {
+          "priority": 900
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {},
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        },
+        "pre_env": {
+          "low": {
+            "stdout": "{\"FROM_LOW\": \"1\", \"SHARED\": \"low\"}"
+          },
+          "high": {
+            "stdout": "{\"FROM_HIGH\": \"2\"}"
+          }
+        }
+      },
+      "identity": "high",
+      "expect": {
+        "env": {
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "FROM_HIGH": "2",
+          "AOS_OVERLAY_ROOT": "/ov/high",
+          "AOS_OVERLAY_NAME": "high",
+          "AOS_HOOK_EVENT": "session-start"
+        }
+      }
+    },
+    {
+      "id": "environment-pre-env-hook",
+      "description": "A pre-env hook runs before any declaration: the base, every root and state variable, and no pre-env output or declaration.",
+      "event": "pre-env",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "BASE_LEVEL": "low",
+            "SHARED": "from-low"
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "LEVEL": "${BASE_LEVEL}-high"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {
+          "HOME": "/home/u"
+        },
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        },
+        "states": {
+          "high": "/st/high"
+        },
+        "pre_env": {
+          "low": {
+            "stdout": "{\"FROM_LOW\": \"1\"}"
+          }
+        }
+      },
+      "identity": "high",
+      "expect": {
+        "env": {
+          "HOME": "/home/u",
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "HIGH_OVERLAY_STATE": "/st/high",
+          "AOS_OVERLAY_ROOT": "/ov/high",
+          "AOS_OVERLAY_NAME": "high",
+          "AOS_OVERLAY_STATE": "/st/high",
+          "AOS_HOOK_EVENT": "pre-env"
+        }
+      }
+    },
+    {
+      "id": "environment-scope-user",
+      "description": "The user's own hook gets the base environment and AOS_HOOK_EVENT alone: no root, no declaration, no AOS_OVERLAY_*.",
+      "event": "session-start",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "BASE_LEVEL": "low",
+            "SHARED": "from-low"
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "LEVEL": "${BASE_LEVEL}-high"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {
+          "HOME": "/home/u"
+        },
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        },
+        "states": {
+          "high": "/st/high"
+        },
+        "pre_env": {
+          "low": {
+            "stdout": "{\"FROM_LOW\": \"1\"}"
+          }
+        }
+      },
+      "scope": "user",
+      "expect": {
+        "env": {
+          "HOME": "/home/u",
+          "AOS_HOOK_EVENT": "session-start"
+        }
+      }
+    },
+    {
+      "id": "environment-scope-project",
+      "description": "So does a project's.",
+      "event": "prompt",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "BASE_LEVEL": "low",
+            "SHARED": "from-low"
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "LEVEL": "${BASE_LEVEL}-high"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {
+          "HOME": "/home/u"
+        },
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        }
+      },
+      "scope": "project",
+      "expect": {
+        "env": {
+          "HOME": "/home/u",
+          "AOS_HOOK_EVENT": "prompt"
+        }
+      }
+    },
+    {
+      "id": "environment-path-additions",
+      "description": "An overlay's path addition is made to the base's value, not to another overlay's.",
+      "event": "session-start",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "paths": [
+            {
+              "variable": "PATH",
+              "path": "bin"
+            }
+          ]
+        },
+        "high": {
+          "priority": 900,
+          "paths": [
+            {
+              "variable": "PATH",
+              "path": "tools"
+            }
+          ]
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {
+          "PATH": "/usr/bin"
+        },
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        }
+      },
+      "identity": "high",
+      "expect": {
+        "env": {
+          "PATH": "/ov/high/tools:/usr/bin",
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "AOS_OVERLAY_ROOT": "/ov/high",
+          "AOS_OVERLAY_NAME": "high",
+          "AOS_HOOK_EVENT": "session-start"
+        }
+      }
+    },
+    {
+      "id": "environment-env-file",
+      "description": "An env file's lines are its overlay's own declarations too.",
+      "event": "session-start",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env_files": [
+            {
+              "path": "vars.env",
+              "format": "dotenv"
+            }
+          ]
+        },
+        "high": {
+          "priority": 900
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "files": {
+        "low": {
+          "vars.env": "A=1\nB=${A}2\n"
+        }
+      },
+      "facts": {
+        "os": "linux",
+        "base_env": {},
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        }
+      },
+      "identity": "low",
+      "expect": {
+        "env": {
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "A": "1",
+          "B": "12",
+          "AOS_OVERLAY_ROOT": "/ov/low",
+          "AOS_OVERLAY_NAME": "low",
+          "AOS_HOOK_EVENT": "session-start"
+        }
+      }
+    },
+    {
+      "id": "environment-windows-case",
+      "description": "On Windows a name set under another case keeps the spelling the base has.",
+      "event": "session-start",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "MODE": "own"
+          }
+        }
+      },
+      "requested": [
+        "low"
+      ],
+      "facts": {
+        "os": "windows",
+        "base_env": {
+          "Mode": "base"
+        },
+        "roots": {
+          "low": "C:\\ov\\low"
+        }
+      },
+      "identity": "low",
+      "expect": {
+        "env": {
+          "Mode": "own",
+          "LOW_OVERLAY_ROOT": "C:\\ov\\low",
+          "AOS_OVERLAY_ROOT": "C:\\ov\\low",
+          "AOS_OVERLAY_NAME": "low",
+          "AOS_HOOK_EVENT": "session-start"
+        }
       }
     }
   ]

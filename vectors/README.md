@@ -14,7 +14,7 @@ rules and the classes they serve are in
 | `source.json` | `[git+]<location>[@<ref>][#<path>]` |
 | `digest.json` | The tree digest |
 | `compose.json` | `requires`, cycles, composition order, contributions, environment across overlays (values chained from one overlay to the next, and `pre-env` hooks' output before every overlay's), and the defaults of `rules`, `context`, `skills` and `paths` |
-| `effective.json` | One overlay's environment, setup, setup phases, runtime, needs and non-default settings on a given OS, with the defaults of `paths`, `env_files`, `env_scripts` and `setup` |
+| `effective.json` | One overlay's environment, setup, setup phases, runtime, needs and non-default settings on a given OS, with the defaults of `paths`, `env_files`, `env_scripts` and `setup`, and env scripts off until the digest is allowed |
 | `catalog.json` | Catalogs in both forms, overlays and skills, sources resolved beside the catalog, refused entries and ignored fields, names several catalogs share, and icons |
 | `hooks.json` | Hooks: which run at each event and with what, `hook.<ext>` chosen by runtime, off until allowed at one digest (a project's over every file beside its configuration), a guard that is off keeping its overlay inactive, events a consumer cannot fire or fires in part; each event's payload; which calls a `match` selects; a run's output, and every way it fails, an attempt to grant, an undeclared variable and a control character included; several hooks of one event combined within the event's bound, and what a consumer cannot apply on a harness |
 
@@ -40,7 +40,7 @@ Error classes:
   and for a requested name `ambiguous`, `not-found`;
 - icons: `icon-format`, `icon-too-large`, `icon-mismatch`, `icon-unreadable`, `icon-dimensions`;
 - hooks: a run fails with `event-timeout`, `not-run`, `payload-too-large`, `timeout`, `too-large`,
-  `exit`, `grant` or `output`; reports are `hook-not-allowed`, `hook-unsupported`, `hook-partial`,
+  `exit`, `grant` or `output`; reports are `hook-not-allowed`, `env-script-not-allowed`, `hook-unsupported`, `hook-partial`,
   `hook-failed`, `hook-not-applied` and `hook-ask-denied`, and the non-default setting `hook`; a `pre-env` refusal
   is `hook-refused` when applying.
 
