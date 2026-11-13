@@ -21,6 +21,8 @@ const List<String> issueCodes = [
   'mcp-url',
   'missing-file',
   'missing-skill',
+  'option-default-type',
+  'option-sensitive-default',
   'ref-not-allowed',
   'reserved-name',
   'reserved-variable',

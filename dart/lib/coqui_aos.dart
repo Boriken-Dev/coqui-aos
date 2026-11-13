@@ -24,6 +24,7 @@ export 'src/read.dart';
 export 'src/skills.dart';
 export 'src/source.dart';
 export 'src/subst.dart';
+export 'src/template.dart';
 export 'src/text.dart' show decodeUtf8, encodeUtf8;
 export 'src/tree.dart';
 export 'src/validate.dart';

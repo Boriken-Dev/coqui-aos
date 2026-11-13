@@ -265,6 +265,8 @@ class Check {
         case 'skills':
           each(value, at, skillEntry);
           unique(value, at);
+        case 'options':
+          options(value, at);
         case 'env':
           envMap(value, at);
         case 'env_files':
@@ -413,6 +415,56 @@ class Check {
       string(value[index], join(at, index), ok);
     }
     unique(value, at);
+  }
+
+  /// An `options` table: each variable name that is not reserved has a table of `type` and
+  /// optionally `default`, `sensitive` and `description`.
+  void options(Object? value, String at) {
+    if (value is! Map<String, Object>) {
+      fail('schema', at);
+      return;
+    }
+    for (final MapEntry(key: name, value: declared) in value.entries) {
+      final here = join(at, name);
+      variable(name, here);
+      final table = object(declared, here, const [
+        'type',
+        'default',
+        'sensitive',
+        'description',
+      ]);
+      if (table == null) continue;
+      required(table, here, const ['type']);
+      final kind = table['type'];
+      if (kind != null) {
+        require(
+          kind == 'string' || kind == 'integer' || kind == 'boolean',
+          join(here, 'type'),
+        );
+      }
+      final sensitive = table['sensitive'];
+      if (sensitive != null) boolean(sensitive, join(here, 'sensitive'));
+      final description = table['description'];
+      if (description != null) {
+        string(description, join(here, 'description'), _anyText);
+      }
+      final fallback = table['default'];
+      if (fallback != null) {
+        final there = join(here, 'default');
+        if (!(fallback is String ||
+            fallback is BigInt ||
+            fallback is double ||
+            fallback is bool)) {
+          fail('schema', there);
+        } else if (sensitive == true) {
+          fail('option-sensitive-default', there);
+        } else if (!((kind == 'string' && fallback is String) ||
+            (kind == 'integer' && fallback is BigInt) ||
+            (kind == 'boolean' && fallback is bool))) {
+          fail('option-default-type', there);
+        }
+      }
+    }
   }
 
   /// An `env` table: variable names and their value forms.
