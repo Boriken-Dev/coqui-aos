@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Options and templating, from specification revision 9692b20, in every language: `validate` checks an
+  overlay's `options` (`option-default-type`, `option-sensitive-default`); `template_values`, `template`,
+  `context_text` and `skill_text` (`templateValues`, `template`, `contextText`, `skillText` in Dart and
+  TypeScript) replace `${NAME}` for the five `AOS_` names and the non-sensitive options in the context a
+  consumer assembles and in a bundled skill's body, with `TemplateFacts` the consumer's values and the new
+  error class `invalid-option`. The Rust vector runner runs `templating.json`.
 - The four things a host that wraps the readers worked around, in every language where they apply:
   - Rust: `coqui_aos::vectors::Runner`, behind a `test-support` feature, runs every conformance vector
     file against the crate, so a host's tests no longer copy the runner; and `NonDefaultSetting::new`

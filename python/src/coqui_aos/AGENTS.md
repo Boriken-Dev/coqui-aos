@@ -56,6 +56,18 @@ TreeEntry.file(data) / .directory() / .symlink() / .special();  Digest(str): "sh
 
 `Issue.at` is an RFC 6901 pointer. With a tree, the files a field names must be in it. A `Source` never shows user information or a query in `repr` or `shown()`. `tree_digest` and `read_tree` check each entry with `FileSystem.metadata` before reading or descending and refuse symlinks, special files, non-Unicode and invalid names and case collisions.
 
+## Templating
+
+```python
+TemplateFacts(root=None, state=None, name=None, scope=None, project=None, options={})   # frozen dataclass
+template_values(manifest, facts) -> dict[str, str]        # invalid-option
+template(text, values) -> str
+context_text(data: bytes, values, settings=None) -> str   # front matter dropped; too-large, invalid-utf8
+skill_text(data: bytes, values, settings=None) -> str     # front matter as written
+```
+
+`${NAME}` is replaced in the context a consumer assembles and in the body of a bundled skill it serves, never in an installed file, and only for `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_STATE`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_SCOPE`, `AOS_PROJECT_ROOT` and the overlay's `options` that have a value; a name with no value, an unknown name, one with an operator and a sensitive option are left as written, `$${` is `${`, and a value is never read again. A skill's front matter is served as written. A configured value of the wrong type is `invalid-option`, never converted. The bound on the context counts the text after replacing: the caller checks it.
+
 ## The filesystem
 
 ```python

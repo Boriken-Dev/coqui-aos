@@ -69,6 +69,18 @@ skillFlags(doc, tree): string[];  validLicense(expression: string): boolean
 
 With a tree, the files a field names must be in it. The `hooks` field's files are checked, not run.
 
+## Templating
+
+```ts
+interface TemplateFacts { root?, state?, name?, scope?, project?: string; options?: ReadonlyMap<string, Value> }   // option values: string, bigint, boolean
+templateValues(manifest: Document, facts: TemplateFacts): ReadonlyMap<string, string>   // invalid-option
+template(text: string, values: ReadonlyMap<string, string>): string
+contextText(data: Uint8Array, values, settings: Settings): string   // front matter dropped; too-large, invalid-utf8
+skillText(data: Uint8Array, values, settings: Settings): string     // front matter as written
+```
+
+`${NAME}` is replaced in the context a consumer assembles and in the body of a bundled skill it serves, never in an installed file, and only for `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_STATE`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_SCOPE`, `AOS_PROJECT_ROOT` and the overlay's `options` that have a value; a name with no value, an unknown name, one with an operator and a sensitive option are left as written, `$${` is `${`, and a value is never read again. A skill's front matter is served as written. A configured value of the wrong type is `invalid-option`, never converted. The bound on the context counts the text after replacing: the caller checks it.
+
 ## Names, sources, digests
 
 ```ts

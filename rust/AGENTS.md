@@ -79,6 +79,20 @@ pub fn valid_license(expression: &str) -> bool
 
 `at` is an RFC 6901 pointer with `~` and `/` escaped. With a tree, files a field names must be in it. The `hooks` field is not validated yet.
 
+## Templating (`template_values`, `template`, `context_text`, `skill_text`)
+
+```rust
+#[non_exhaustive] pub struct TemplateFacts { pub root, state, name, scope, project: Option<String>, pub options: Document }   // Default; TemplateFacts::new().root(..).state(..).name(..).scope(..).project(..).options(..)
+pub fn template_values(manifest: &Document, facts: &TemplateFacts) -> Result<Template, Error>   // invalid-option
+pub fn template(text: &str, values: &Template) -> String;  Template::get(&self, name: &str) -> Option<&str>
+pub fn context_text(data: &[u8], values: &Template, settings: &Settings) -> Result<String, Error>   // front matter dropped; too-large, invalid-utf8
+pub fn skill_text(data: &[u8], values: &Template, settings: &Settings) -> Result<String, Error>     // front matter as written
+```
+
+`${NAME}` is replaced in the context a consumer assembles and in the body of a bundled skill it serves, never in an installed file, and only for `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_STATE`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_SCOPE`, `AOS_PROJECT_ROOT` and the overlay's `options` that have a value; a name with no value, an unknown name, one with an operator and a sensitive option are left as written, `$${` is `${`, and a value is never read again. A skill's front matter is served as written. A configured value of the wrong type is `invalid-option`, never converted. The bound on the context counts the text after replacing: the caller checks it.
+
+`options` is validated by `validate` (`option-default-type`, `option-sensitive-default`, a reserved or malformed name is `schema`). `substitute` and its operators are for env values and are unchanged.
+
 ## Names, sources, digests
 
 ```rust
@@ -202,7 +216,7 @@ Running a hook is the caller's: it builds a `HookRun` (`HookRun::new(source, std
 
 ```rust
 pub struct vectors::Runner;   pub struct vectors::Report { pub file: String, pub passed: usize, pub skipped: Vec<String>, pub failed: Vec<String> }
-pub const Runner::FILES: [&str; 11]
+pub const Runner::FILES: [&str; 12]
 pub fn Runner::new(dir: impl Into<PathBuf>) -> Runner       // the specification's tests/vectors/ or a copy
 pub fn Runner::skip(self, f: impl Fn(&str /*file*/, &Value /*case*/) -> Option<&'static str /*reason*/>) -> Runner
 pub fn Runner::effective(self, f: impl Fn(&Document, &Facts) -> Result<Effective, Error>) -> Runner   // a host's wrapper of `effective`

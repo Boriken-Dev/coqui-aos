@@ -65,6 +65,18 @@ List<(String, String)> namedFiles(Document doc);  List<String> skillFlags(Docume
 
 With a tree, the files a field names must be in it. The `hooks` field's files are checked, not run.
 
+## Templating
+
+```dart
+TemplateFacts({String? root, state, name, scope, project, Map<String, Object> options = const {}})   // option values: String, BigInt, bool
+Map<String, String> templateValues(Document manifest, TemplateFacts facts)   // invalid-option
+String template(String text, Map<String, String> values)
+String contextText(Uint8List data, Map<String, String> values, Settings settings)   // front matter dropped; too-large, invalid-utf8
+String skillText(Uint8List data, Map<String, String> values, Settings settings)     // front matter as written
+```
+
+`${NAME}` is replaced in the context a consumer assembles and in the body of a bundled skill it serves, never in an installed file, and only for `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_STATE`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_SCOPE`, `AOS_PROJECT_ROOT` and the overlay's `options` that have a value; a name with no value, an unknown name, one with an operator and a sensitive option are left as written, `$${` is `${`, and a value is never read again. A skill's front matter is served as written. A configured value of the wrong type is `invalid-option`, never converted. The bound on the context counts the text after replacing: the caller checks it.
+
 ## Names, sources, digests
 
 ```dart
