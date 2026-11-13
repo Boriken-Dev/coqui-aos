@@ -25,6 +25,8 @@ default = ["fs"]
 fs = []
 # `coqui_aos::vectors`: the specification's conformance vectors as a runner a consumer calls from its own tests.
 test-support = ["dep:base64"]
+# `Serialize` and `Deserialize` for `SetupRecord` and `Phase`.
+serde = ["dep:serde"]
 
 [dependencies]
 # The settings types describe themselves once, through these derives.
@@ -37,6 +39,8 @@ granit-parser = { version = "2", default-features = false, features = ["std"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 # Reading the vectors' base64, for `test-support`.
 base64 = { version = "0.22", optional = true }
+# `Serialize` and `Deserialize`, for `serde`.
+serde = { version = "1", default-features = false, features = ["alloc", "derive"], optional = true }
 sha2 = { version = "0.10", default-features = false }
 toml = { version = "1", default-features = false, features = ["std", "parse", "serde", "preserve_order"] }
 # A refusal's subject escapes the characters of the general categories the specification names.
@@ -44,7 +48,7 @@ unicode-general-category = "1"
 
 [dev-dependencies]
 # This crate's own tests run the vectors through `coqui_aos::vectors`.
-coqui-aos = { path = ".", default-features = false, features = ["test-support"] }
+coqui-aos = { path = ".", default-features = false, features = ["test-support", "serde"] }
 # Directories the tree tests write.
 tempfile = "3"
 

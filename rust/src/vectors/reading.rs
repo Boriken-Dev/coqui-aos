@@ -440,11 +440,8 @@ pub(super) fn effective_vectors(runner: &Runner) -> Report {
                         let record = raw.get("record").filter(|r| r.is_object()).map(|record| {
                             crate::SetupRecord::new(
                                 record["digest"].as_str().expect("digest"),
-                                match record["phase"].as_str().expect("phase") {
-                                    "install" => crate::Phase::Install,
-                                    "sync" => crate::Phase::Sync,
-                                    _ => crate::Phase::Remove,
-                                },
+                                crate::Phase::named(record["phase"].as_str().expect("phase"))
+                                    .expect("a phase"),
                             )
                         });
                         let prepared = preparation(

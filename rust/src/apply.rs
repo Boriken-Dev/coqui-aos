@@ -1176,8 +1176,10 @@ pub enum Change {
     Remove,
 }
 
-/// A setup phase.
+/// A setup phase. With the `serde` feature it is written as its [`name`](Phase::name).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 #[non_exhaustive]
 pub enum Phase {
     /// The first preparation of an identity on an OS.
@@ -1197,11 +1199,24 @@ impl Phase {
             Self::Remove => "remove",
         }
     }
+
+    /// The phase a name stands for: exactly `install`, `sync` or `remove`.
+    #[must_use]
+    pub fn named(name: &str) -> Option<Self> {
+        match name {
+            "install" => Some(Self::Install),
+            "sync" => Some(Self::Sync),
+            "remove" => Some(Self::Remove),
+            _ => None,
+        }
+    }
 }
 
 /// The last preparation that succeeded for an overlay identity on one OS (per Theater, for a
-/// Station): its digest and phase.
+/// Station): its digest and phase. With the `serde` feature it is the object
+/// `{"digest": ..., "phase": ...}`.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub struct SetupRecord {
     /// The digest prepared, `sha256:<hex>`.
