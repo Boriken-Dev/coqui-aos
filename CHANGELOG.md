@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The vectors are those of specification commit `d11c60b`, and the four implementations pass them:
+  the bound on the context a hook adds counts UTF-8 bytes together with what the session holds, a
+  part past it is not added (whole, never cut) and is reported `hook-not-applied`, and a later part
+  that fits still is; the hooks of an event run in composition order, then the user's, then the
+  project's; a hook gets its own overlay's environment (its own declarations and `pre-env` output,
+  every overlay's root variable, `AOS_OVERLAY_*` and `AOS_HOOK_EVENT`), a `pre-env` hook the base and
+  the root and state variables, and a user's or a project's hook the base and `AOS_HOOK_EVENT`; an
+  overlay whose digest is not the one allowed for its hooks runs no env script, declared or default,
+  is otherwise applied, and is reported `env-script-not-allowed`. Additive in every language:
+  `fire_event_after` (Rust) and an optional `context_used` (Python, Dart, TypeScript); `hook_order` and
+  `hook_environment`; `Facts` fields `gate_env_scripts`, `digest` and `allowed`; and `Effective.reports`.
+
 - guatiao is pinned at `e0136dcc`, so the coqui family builds against one revision.
 - The three implementations agree on behaviours their reviews settled, and the vectors now hold all
   three to them (specification commit `268fbe4`): a fetched skill lists the files its pin covers
