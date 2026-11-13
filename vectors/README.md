@@ -15,6 +15,7 @@ rules and the classes they serve are in
 | `digest.json` | The tree digest |
 | `compose.json` | `requires`, cycles, composition order, contributions, environment across overlays (values chained from one overlay to the next, and `pre-env` hooks' output before every overlay's), and the defaults of `rules`, `context`, `skills` and `paths` |
 | `effective.json` | One overlay's environment, setup, setup phases, runtime, needs and non-default settings on a given OS, with the defaults of `paths`, `env_files`, `env_scripts` and `setup`, and env scripts off until the digest is allowed |
+| `templating.json` | `${NAME}` in context and in a bundled skill's body: the five `AOS_` names, an unknown name and other forms left as written, `$${`, options with a default, with a configured value and with the wrong type, a sensitive option kept out, and a value never read again |
 | `catalog.json` | Catalogs in both forms, overlays and skills, sources resolved beside the catalog, refused entries and ignored fields, names several catalogs share, and icons |
 | `hooks.json` | Hooks: which run at each event and with what, `hook.<ext>` chosen by runtime, off until allowed at one digest (a project's over every file beside its configuration), a guard that is off keeping its overlay inactive, events a consumer cannot fire or fires in part; each event's payload; which calls a `match` selects; a run's output, and every way it fails, an attempt to grant, an undeclared variable and a control character included; several hooks of one event combined within the event's bound, and what a consumer cannot apply on a harness |
 
@@ -25,6 +26,7 @@ Error classes:
   `integer-range`, `invalid-unicode`, `yaml-tag`, `yaml-anchor`, `yaml-merge-key`,
   `yaml-directive`, `too-deep`, `too-large`, `dotenv-syntax`, `env-script-output`,
   `unterminated-front-matter`, `malformed-fence`, and for an overlay's files `two-manifests`;
+- templating: `invalid-option`, and `invalid-utf8` and `too-large` as reading;
 - substituting, in `dotenv` reading cases and when applying: `undefined-variable`,
   `secret-placeholder`, `invalid-pattern`;
 - digest: `symlink`, `special-file`, `non-utf8-name`, `invalid-name`, `case-collision`;
