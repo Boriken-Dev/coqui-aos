@@ -147,6 +147,24 @@ class SetupRecord:
     digest: str
     phase: Phase
 
+    def to_dict(self) -> "Dict[str, str]":
+        """The record as a consumer keeps it: ``{"digest": ..., "phase": ...}``, the phase as its name."""
+        return {"digest": self.digest, "phase": self.phase.value}
+
+    @classmethod
+    def from_dict(cls, data: object) -> "SetupRecord":
+        """What ``to_dict`` wrote. Raises ``ValueError`` for anything else: not an object, no
+        ``digest`` string, or a ``phase`` that is not exactly ``install``, ``sync`` or ``remove``."""
+        if not isinstance(data, dict):
+            raise ValueError("a setup record is an object")
+        digest, name = data.get("digest"), data.get("phase")
+        if not isinstance(digest, str) or not isinstance(name, str):
+            raise ValueError("a setup record has a digest and a phase, both text")
+        phase = Phase.named(name)
+        if phase is None:
+            raise ValueError("not a setup phase: %r" % name)
+        return cls(digest, phase)
+
 
 class Needs(NamedTuple):
     """What a target must have for an overlay on its OS: interpreters and commands, each sorted."""

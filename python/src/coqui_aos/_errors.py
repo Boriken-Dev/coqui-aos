@@ -134,7 +134,10 @@ class Error(Exception):
     ``class_`` is the contract; ``subject`` names what it is about (a variable, a path, a
     pointer) for a person, never text from a document, so do not match on it. ``line`` and
     ``column`` are one-based, ``column`` counts Unicode scalar values, and a line counts from
-    the first line of the file, a format line included.
+    the first line of the file, a format line included. For a refusal of a limit (``too-large``,
+    ``too-deep``, ``too-complex``, ``icon-too-large``, ``icon-dimensions``) ``setting`` is the
+    name of the ``Settings`` field that was passed, such as ``"tree_files"``: stable, unlike
+    ``subject``'s wording. It is ``None`` for any other refusal.
     """
 
     def __init__(
@@ -143,6 +146,7 @@ class Error(Exception):
         subject: str = "",
         line: "Optional[int]" = None,
         column: "Optional[int]" = None,
+        setting: "Optional[str]" = None,
     ) -> None:
         subject = _safe(subject)
         super().__init__(class_, subject, line, column)
@@ -150,6 +154,12 @@ class Error(Exception):
         self.subject = subject
         self.line = line
         self.column = column
+        self.setting = setting
+
+    def over(self, setting: str) -> "Error":
+        """The same error naming the ``Settings`` field whose limit was passed."""
+        self.setting = setting
+        return self
 
     def at(self, line: int, column: int) -> "Error":
         """The same error with a position."""
