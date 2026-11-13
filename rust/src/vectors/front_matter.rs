@@ -1,14 +1,13 @@
 //! `front_matter.json`: the split, the reading of metadata, a context file's text and an
 //! overlay's two manifests, context and problems.
 
-mod support;
-
-use coqui_aos::{
+use super::support::{bytes_of, settings_of};
+use super::{Report, Runner};
+use crate::{
     Case, OverlayTree, TreeEntry, applies, context_file_text, digest_entries, read_front_matter,
     read_overlay, split_front_matter, validate,
 };
 use serde_json::Value;
-use support::{bytes_of, run, settings_of};
 
 fn case_name(case: Case) -> &'static str {
     match case {
@@ -21,13 +20,12 @@ fn case_name(case: Case) -> &'static str {
         Case::DoesNotParse => "does-not-parse",
         Case::NotAMapping => "not-a-mapping",
         Case::Mapping => "mapping",
-        _ => "other",
     }
 }
 
 fn file_bytes(value: &Value) -> Vec<u8> {
     match value.get("base64").and_then(Value::as_str) {
-        Some(encoded) => support::decode(encoded),
+        Some(encoded) => super::support::decode(encoded),
         None => value.as_str().expect("a file is text").as_bytes().to_vec(),
     }
 }
@@ -48,7 +46,7 @@ fn check_bytes(
         ));
     }
     if let Some(encoded) = expect.get(base64_key).and_then(Value::as_str)
-        && got != support::decode(encoded)
+        && got != super::support::decode(encoded)
     {
         return Err(format!("{base64_key} differs"));
     }
@@ -97,7 +95,7 @@ fn document_case(case: &Value) -> Result<(), String> {
         "body_size",
     )?;
     if let Some(format) = expect.get("format").and_then(Value::as_str)
-        && read.format.map(coqui_aos::Format::as_str) != Some(format)
+        && read.format.map(crate::Format::as_str) != Some(format)
     {
         return Err(format!("format {:?}, expected {format}", read.format));
     }
@@ -107,7 +105,7 @@ fn document_case(case: &Value) -> Result<(), String> {
             return Err(format!("data {got:?}, expected {want}"));
         }
     }
-    let classes = support::expected_errors(expect);
+    let classes = super::support::expected_errors(expect);
     match (classes.is_empty(), &read.error) {
         (false, Some(error)) if classes.iter().any(|class| class == error.class.as_str()) => {
             if let Some(line) = expect.get("line").and_then(Value::as_u64)
@@ -194,32 +192,27 @@ fn files_case(case: &Value) -> Result<(), String> {
     Ok(())
 }
 
-#[test]
-fn front_matter() {
-    run(
-        "front_matter.json",
-        |case| {
-            if let Some(text) = case.get("context_file").and_then(Value::as_str) {
-                let settings = settings_of(case);
-                let expect = &case["expect"];
-                return match context_file_text(text.as_bytes(), &settings) {
-                    Ok(got) => (expect
-                        .get("text")
-                        .and_then(Value::as_str)
-                        .map(str::as_bytes)
-                        == Some(got))
+pub(super) fn front_matter(runner: &Runner) -> Report {
+    runner.each("front_matter.json", |case| {
+        if let Some(text) = case.get("context_file").and_then(Value::as_str) {
+            let settings = settings_of(case);
+            let expect = &case["expect"];
+            return match context_file_text(text.as_bytes(), &settings) {
+                Ok(got) => (expect
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .map(str::as_bytes)
+                    == Some(got))
+                .then_some(())
+                .ok_or(format!("text {:?}", String::from_utf8_lossy(got))),
+                Err(error) => (expect["error"] == error.class.as_str())
                     .then_some(())
-                    .ok_or(format!("text {:?}", String::from_utf8_lossy(got))),
-                    Err(error) => (expect["error"] == error.class.as_str())
-                        .then_some(())
-                        .ok_or(format!("refused {error}")),
-                };
-            }
-            if case.get("files").is_some() {
-                return files_case(case);
-            }
-            document_case(case)
-        },
-        support::none,
-    );
+                    .ok_or(format!("refused {error}")),
+            };
+        }
+        if case.get("files").is_some() {
+            return files_case(case);
+        }
+        document_case(case)
+    })
 }

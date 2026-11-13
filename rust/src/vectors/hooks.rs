@@ -2,17 +2,16 @@
 //! told, what of its output applies, which calls a `match` selects, the order the hooks of an event
 //! run in, and the environment each gets.
 
-mod support;
-
 use std::collections::BTreeMap;
 
-use coqui_aos::{
+use super::support::{object, strings};
+use super::{Report, Runner};
+use crate::{
     Environment, Facts, Hook, HookEvent, HookFacts, HookRun, HookScope, Limit, OnFailure,
     OverlayTree, Settings, composition_order, fire_event_after, hook_environment, hook_matches,
     hook_order, hook_payload, hook_plan, hook_result, read_overlay, resolve, validate,
 };
 use serde_json::{Map, Value, json};
-use support::{object, run, strings};
 
 fn event_of(case: &Value) -> HookEvent {
     HookEvent::named(case["event"].as_str().expect("event")).expect("a known event")
@@ -139,7 +138,7 @@ fn env_json(env: &[(String, Option<String>)]) -> Value {
 
 fn output_case(case: &Value) -> Result<(), String> {
     let limits = &case["limits"];
-    let hook = support::hook_run(&case["run"]);
+    let hook = super::support::hook_run(&case["run"]);
     let expect = &case["expect"];
     match hook_result(event_of(case), &hook, &settings_of(limits)) {
         Ok(output) => {
@@ -170,7 +169,7 @@ fn event_case(case: &Value) -> Result<(), String> {
         .as_array()
         .expect("runs")
         .iter()
-        .map(support::hook_run)
+        .map(super::support::hook_run)
         .collect();
     let applies = case.get("applies").map(strings);
     let applies: Option<Vec<&str>> = applies
@@ -204,7 +203,7 @@ fn event_case(case: &Value) -> Result<(), String> {
         .ok_or(format!("{got}"))
 }
 
-fn overlays_of(case: &Value) -> BTreeMap<String, coqui_aos::Document> {
+fn overlays_of(case: &Value) -> BTreeMap<String, crate::Document> {
     case["overlays"]
         .as_object()
         .expect("overlays")
@@ -251,8 +250,8 @@ fn environment_case(case: &Value) -> Result<(), String> {
             .map_err(|cycle| cycle.to_string())?
             .install_order,
     );
-    let shared = support::facts_of(raw);
-    let active: Vec<(&coqui_aos::Document, Facts)> = names
+    let shared = super::support::facts_of(raw);
+    let active: Vec<(&crate::Document, Facts)> = names
         .iter()
         .map(|name| {
             let mut own = shared.clone();
@@ -278,7 +277,7 @@ fn environment_case(case: &Value) -> Result<(), String> {
         .as_object()
         .into_iter()
         .flatten()
-        .map(|(name, run)| (name.clone(), support::hook_run(run)))
+        .map(|(name, run)| (name.clone(), super::support::hook_run(run)))
         .collect();
     let identity = match case["scope"].as_str() {
         Some("user" | "project") => None,
@@ -297,39 +296,34 @@ fn environment_case(case: &Value) -> Result<(), String> {
         .ok_or(format!("{got}"))
 }
 
-#[test]
-fn hooks() {
-    run(
-        "hooks.json",
-        |case| {
-            let id = case["id"].as_str().expect("id");
-            if id.starts_with("order-") {
-                order_case(case)
-            } else if id.starts_with("environment-") {
-                environment_case(case)
-            } else if id.starts_with("plan-") {
-                plan_case(case)
-            } else if id.starts_with("payload-") {
-                let got = Value::Object(hook_payload(event_of(case), &object(&case["known"])));
-                (got == case["expect"])
-                    .then_some(())
-                    .ok_or(format!("{got}"))
-            } else if id.starts_with("output-") {
-                output_case(case)
-            } else if id.starts_with("event-") {
-                event_case(case)
-            } else {
-                let select = case["match"].as_array().map(|_| strings(&case["match"]));
-                let got = hook_matches(
-                    event_of(case),
-                    select.as_deref(),
-                    case["value"].as_str().expect("value"),
-                );
-                (json!({"runs": got}) == case["expect"])
-                    .then_some(())
-                    .ok_or(format!("{got}"))
-            }
-        },
-        support::none,
-    );
+pub(super) fn hooks(runner: &Runner) -> Report {
+    runner.each("hooks.json", |case| {
+        let id = case["id"].as_str().expect("id");
+        if id.starts_with("order-") {
+            order_case(case)
+        } else if id.starts_with("environment-") {
+            environment_case(case)
+        } else if id.starts_with("plan-") {
+            plan_case(case)
+        } else if id.starts_with("payload-") {
+            let got = Value::Object(hook_payload(event_of(case), &object(&case["known"])));
+            (got == case["expect"])
+                .then_some(())
+                .ok_or(format!("{got}"))
+        } else if id.starts_with("output-") {
+            output_case(case)
+        } else if id.starts_with("event-") {
+            event_case(case)
+        } else {
+            let select = case["match"].as_array().map(|_| strings(&case["match"]));
+            let got = hook_matches(
+                event_of(case),
+                select.as_deref(),
+                case["value"].as_str().expect("value"),
+            );
+            (json!({"runs": got}) == case["expect"])
+                .then_some(())
+                .ok_or(format!("{got}"))
+        }
+    })
 }

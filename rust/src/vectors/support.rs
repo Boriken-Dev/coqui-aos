@@ -1,33 +1,14 @@
-//! What the vector tests share: the vector files, their comparison rules, and the JSON shapes
-//! the vectors write results in.
-#![allow(dead_code)]
+//! What the vector runners share: their comparison rules and the JSON shapes the vectors write
+//! results in.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
-use base64::Engine as _;
-use coqui_aos::{
-    Dependency, Error, Facts, LeftEnvironment, Needs, PackageConflict, PackageEnvironment, Phase,
+use crate::{
+    Dependency, Error, Facts, LeftEnvironment, Needs, PackageConflict, PackageEnvironment,
     ScriptRun, SetupRecord, SetupRun, Source, SourceKind,
 };
+use base64::Engine as _;
 use serde_json::{Map, Value, json};
-
-/// The vectors' directory, at the root of the repository.
-pub fn vector_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../vectors")
-}
-
-/// The cases of one vector file.
-pub fn cases(file: &str) -> Vec<Value> {
-    let path = vector_dir().join(file);
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
-    let document: Value = serde_json::from_str(&text).expect("a vector file is JSON");
-    document["cases"]
-        .as_array()
-        .expect("a vector file has cases")
-        .clone()
-}
 
 pub fn decode(encoded: &str) -> Vec<u8> {
     base64::engine::general_purpose::STANDARD
@@ -63,51 +44,20 @@ fn part_bytes(part: &Value) -> Vec<u8> {
 }
 
 /// The settings a case's `limits` write.
-pub fn settings_of(case: &Value) -> coqui_aos::Settings {
-    let mut settings = coqui_aos::Settings::default();
+pub fn settings_of(case: &Value) -> crate::Settings {
+    let mut settings = crate::Settings::default();
     let limits = &case["limits"];
     if let Some(bytes) = limits["max_bytes"].as_u64() {
-        settings.manifest_bytes = coqui_aos::Limit::at(bytes);
-        settings.catalog_bytes = coqui_aos::Limit::at(bytes);
+        settings.manifest_bytes = crate::Limit::at(bytes);
+        settings.catalog_bytes = crate::Limit::at(bytes);
     }
     if let Some(depth) = limits["max_depth"].as_u64() {
-        settings.manifest_depth = coqui_aos::Limit::at(depth);
+        settings.manifest_depth = crate::Limit::at(depth);
     }
     if let Some(bytes) = limits["max_context_bytes"].as_u64() {
-        settings.context_bytes = coqui_aos::Limit::at(bytes);
+        settings.context_bytes = crate::Limit::at(bytes);
     }
     settings
-}
-
-/// Runs `check` on every case, collecting the failures; `skip` names a case left out with the
-/// reason. Prints the counts, and fails when any case fails.
-pub fn run(
-    file: &str,
-    check: impl Fn(&Value) -> Result<(), String>,
-    skip: impl Fn(&Value) -> Option<&'static str>,
-) {
-    let (mut passed, mut skipped, mut failed) = (0, 0, Vec::new());
-    for case in cases(file) {
-        let id = case["id"].as_str().unwrap_or_default().to_owned();
-        if let Some(reason) = skip(&case) {
-            skipped += 1;
-            eprintln!("{file}: skipped {id}: {reason}");
-            continue;
-        }
-        match check(&case) {
-            Ok(()) => passed += 1,
-            Err(why) => failed.push(format!("{id}: {why}")),
-        }
-    }
-    eprintln!(
-        "{file}: {passed} passed, {skipped} skipped, {} failed",
-        failed.len()
-    );
-    assert!(failed.is_empty(), "{file}:\n{}", failed.join("\n"));
-}
-
-pub fn none(_: &Value) -> Option<&'static str> {
-    None
 }
 
 pub fn expected_errors(expect: &Value) -> Vec<String> {
@@ -195,10 +145,6 @@ pub fn facts_of(raw: &Value) -> Facts {
     facts
 }
 
-pub fn phase_name(phase: Phase) -> &'static str {
-    phase.name()
-}
-
 pub fn script_run(run: &ScriptRun) -> Value {
     json!({"interpreter": run.interpreter, "path": run.path, "args": run.args, "timeout": run.timeout})
 }
@@ -242,7 +188,6 @@ pub fn source(source: &Source) -> Value {
         SourceKind::Git => "git",
         SourceKind::Url => "url",
         SourceKind::Directory => "directory",
-        _ => unreachable!("a kind the vectors do not know"),
     };
     json!({"kind": kind, "location": source.location, "ref": source.reference, "path": source.path})
 }
@@ -251,7 +196,7 @@ pub fn object(value: &Value) -> Map<String, Value> {
     value.as_object().expect("an object").clone()
 }
 
-pub fn hook_run(value: &Value) -> coqui_aos::HookRun {
+pub fn hook_run(value: &Value) -> crate::HookRun {
     let stdout = if let Some(encoded) = value.get("stdout_base64").and_then(Value::as_str) {
         decode(encoded)
     } else if let Some(parts) = value.get("stdout_parts").and_then(Value::as_array) {
@@ -270,10 +215,10 @@ pub fn hook_run(value: &Value) -> coqui_aos::HookRun {
             .as_bytes()
             .to_vec()
     };
-    let mut hook = coqui_aos::HookRun::new(value["source"].as_str().unwrap_or_default(), stdout);
+    let mut hook = crate::HookRun::new(value["source"].as_str().unwrap_or_default(), stdout);
     hook.on_failure = match value["on_failure"].as_str() {
-        Some("refuse") => Some(coqui_aos::OnFailure::Refuse),
-        _ => Some(coqui_aos::OnFailure::Report),
+        Some("refuse") => Some(crate::OnFailure::Refuse),
+        _ => Some(crate::OnFailure::Report),
     };
     hook.seconds = value["seconds"].as_u64().unwrap_or(0);
     hook.not_run = value["not_run"].as_bool().unwrap_or(false);

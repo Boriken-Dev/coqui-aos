@@ -34,10 +34,13 @@ pub struct NonDefaultSetting {
 }
 
 impl NonDefaultSetting {
-    fn new(id: NonDefaultId, subject: &str) -> Self {
+    /// A non-default setting `id` about `subject`, empty for `unpinned`: the constructor a host
+    /// uses to report one of its own beside the ones [`effective`] finds.
+    #[must_use]
+    pub fn new(id: NonDefaultId, subject: impl Into<String>) -> Self {
         Self {
             id,
-            subject: subject.to_owned(),
+            subject: subject.into(),
         }
     }
 }
@@ -461,7 +464,7 @@ fn apply_mapping(
             } else {
                 non_defaults.push(NonDefaultSetting::new(
                     NonDefaultId::SecretRead,
-                    &reference_name(&entry),
+                    reference_name(&entry),
                 ));
             }
             value
@@ -1070,12 +1073,12 @@ pub fn effective(manifest: &Document, facts: &Facts) -> Result<Effective, Error>
                 } else if reference.get("provider").and_then(Data::as_str) == Some("env") {
                     non_defaults.push(NonDefaultSetting::new(
                         NonDefaultId::EnvPassthrough,
-                        &text_of(value, "key"),
+                        text_of(value, "key"),
                     ));
                 } else {
                     non_defaults.push(NonDefaultSetting::new(
                         NonDefaultId::SecretRead,
-                        &reference_name(reference),
+                        reference_name(reference),
                     ));
                 }
             }
@@ -1115,7 +1118,7 @@ pub fn effective(manifest: &Document, facts: &Facts) -> Result<Effective, Error>
             if host != "localhost" && host != "[::1]" && !host.starts_with("127.") {
                 non_defaults.push(NonDefaultSetting::new(
                     NonDefaultId::InsecureTransport,
-                    &text_of(server, "name"),
+                    text_of(server, "name"),
                 ));
             }
         }

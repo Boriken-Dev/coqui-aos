@@ -23,6 +23,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 # `std::fs` as a `FileSystem`. The core itself reads nothing: a build for wasm32-unknown-unknown turns this off.
 default = ["fs"]
 fs = []
+# `coqui_aos::vectors`: the specification's conformance vectors as a runner a consumer calls from its own tests.
+test-support = ["dep:base64"]
 
 [dependencies]
 # The settings types describe themselves once, through these derives.
@@ -33,14 +35,16 @@ granit-parser = { version = "2", default-features = false, features = ["std"] }
 # Order is kept: a document is read in the order it was written, and a refusal names the later of two
 # equal keys. `preserve_order` is global to a build that holds serde_json.
 serde_json = { version = "1", features = ["preserve_order"] }
+# Reading the vectors' base64, for `test-support`.
+base64 = { version = "0.22", optional = true }
 sha2 = { version = "0.10", default-features = false }
 toml = { version = "1", default-features = false, features = ["std", "parse", "serde", "preserve_order"] }
 # A refusal's subject escapes the characters of the general categories the specification names.
 unicode-general-category = "1"
 
 [dev-dependencies]
-# Reading the vectors' base64.
-base64 = "0.22"
+# This crate's own tests run the vectors through `coqui_aos::vectors`.
+coqui-aos = { path = ".", default-features = false, features = ["test-support"] }
 # Directories the tree tests write.
 tempfile = "3"
 

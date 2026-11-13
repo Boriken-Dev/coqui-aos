@@ -1,15 +1,14 @@
 //! `catalog.json`: catalogs in both forms, several catalogs listed and chosen from, and icons.
 
-mod support;
-
 use std::collections::BTreeMap;
 
-use coqui_aos::{Catalog, CatalogEntry, CatalogSection, list_catalogs, read_catalog, read_icon};
+use super::support::bytes_of;
+use super::{Report, Runner};
+use crate::{Catalog, CatalogEntry, CatalogSection, list_catalogs, read_catalog, read_icon};
 use serde_json::{Value, json};
-use support::{bytes_of, run};
 
 fn entry_json(entry: &CatalogEntry) -> Value {
-    let mut out = json!({"source": support::source(&entry.source)});
+    let mut out = json!({"source": super::support::source(&entry.source)});
     if let Some(pin) = &entry.pin {
         out["pin"] = json!(pin);
     }
@@ -41,7 +40,7 @@ fn catalog_json(catalog: &Catalog) -> Value {
     out.insert(
         "form".into(),
         json!(match catalog.form {
-            coqui_aos::CatalogForm::Minimal => "minimal",
+            crate::CatalogForm::Minimal => "minimal",
             _ => "full",
         }),
     );
@@ -64,7 +63,7 @@ fn catalog_json(catalog: &Catalog) -> Value {
     Value::Object(out)
 }
 
-fn read(item: &Value, settings: &coqui_aos::Settings) -> Result<Catalog, coqui_aos::Error> {
+fn read(item: &Value, settings: &crate::Settings) -> Result<Catalog, crate::Error> {
     read_catalog(
         item["text"].as_str().expect("text").as_bytes(),
         item["name"].as_str().expect("name"),
@@ -74,7 +73,7 @@ fn read(item: &Value, settings: &coqui_aos::Settings) -> Result<Catalog, coqui_a
 }
 
 fn catalogs_case(case: &Value) -> Result<(), String> {
-    let settings = coqui_aos::Settings::default();
+    let settings = crate::Settings::default();
     let items = case["catalogs"].as_array().expect("catalogs");
     let read_all: Vec<(String, Catalog)> = items
         .iter()
@@ -126,8 +125,8 @@ fn catalogs_case(case: &Value) -> Result<(), String> {
 
 fn icon_case(case: &Value) -> Result<(), String> {
     let icon = &case["icon"];
-    let mut settings = coqui_aos::Settings::default();
-    let limit = |key: &str| icon["limits"][key].as_u64().map(coqui_aos::Limit::at);
+    let mut settings = crate::Settings::default();
+    let limit = |key: &str| icon["limits"][key].as_u64().map(crate::Limit::at);
     if let Some(bytes) = limit("max_bytes") {
         settings = settings.icon_bytes(bytes);
     }
@@ -151,29 +150,24 @@ fn icon_case(case: &Value) -> Result<(), String> {
     }
 }
 
-#[test]
-fn catalogs_and_icons() {
-    run(
-        "catalog.json",
-        |case| {
-            if case.get("icon").is_some() {
-                return icon_case(case);
+pub(super) fn catalogs_and_icons(runner: &Runner) -> Report {
+    runner.each("catalog.json", |case| {
+        if case.get("icon").is_some() {
+            return icon_case(case);
+        }
+        if case.get("catalogs").is_some() {
+            return catalogs_case(case);
+        }
+        let item = &case["catalog"];
+        let expect = &case["expect"];
+        match read(item, &crate::Settings::default()) {
+            Ok(catalog) => {
+                let got = catalog_json(&catalog);
+                (got == *expect).then_some(()).ok_or(format!("{got}"))
             }
-            if case.get("catalogs").is_some() {
-                return catalogs_case(case);
-            }
-            let item = &case["catalog"];
-            let expect = &case["expect"];
-            match read(item, &coqui_aos::Settings::default()) {
-                Ok(catalog) => {
-                    let got = catalog_json(&catalog);
-                    (got == *expect).then_some(()).ok_or(format!("{got}"))
-                }
-                Err(error) => (expect["error"] == error.class.as_str())
-                    .then_some(())
-                    .ok_or(format!("refused {error}, expected {expect}")),
-            }
-        },
-        support::none,
-    );
+            Err(error) => (expect["error"] == error.class.as_str())
+                .then_some(())
+                .ok_or(format!("refused {error}, expected {expect}")),
+        }
+    })
 }

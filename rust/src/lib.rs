@@ -28,6 +28,8 @@ mod skills;
 mod source;
 mod subst;
 mod validate;
+#[cfg(feature = "test-support")]
+pub mod vectors;
 
 pub use apply::{
     Change, ComposedEnvironment, Effective, Environment, Facts, Needs, NonDefaultSetting, Phase,
