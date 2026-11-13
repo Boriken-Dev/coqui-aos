@@ -236,3 +236,24 @@ fn a_directory_read_whole_is_a_tree_a_manifest_can_be_read_from() {
     );
     assert_eq!(read.manifest["name"], "engineering");
 }
+
+#[test]
+fn a_tree_limit_refusal_carries_the_setting_it_passed() {
+    let root = tempfile::tempdir().expect("a directory");
+    write(
+        root.path(),
+        &[("a/b/c.md", "twelve bytes"), ("d.md", "twelve bytes")],
+    );
+    for (settings, setting) in [
+        (Settings::default().tree_files(Limit::at(2)), "tree_files"),
+        (Settings::default().tree_depth(Limit::at(1)), "tree_depth"),
+        (Settings::default().file_bytes(Limit::at(4)), "file_bytes"),
+        (Settings::default().tree_bytes(Limit::at(13)), "tree_bytes"),
+    ] {
+        let refused = tree_digest(&StdFs, root.path(), &settings).expect_err("refused");
+        assert_eq!(refused.class.as_str(), "too-large");
+        assert_eq!(refused.setting, Some(setting), "{refused}");
+    }
+    let fits = tree_digest(&StdFs, root.path(), &Settings::default()).expect("a digest");
+    assert!(!fits.files.is_empty());
+}

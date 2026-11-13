@@ -325,6 +325,10 @@ pub struct Error {
     pub line: Option<usize>,
     /// The one-based column, when it has one.
     pub column: Option<usize>,
+    /// For a refusal of a limit (`too-large`, `too-deep`, `too-complex`, `icon-too-large`,
+    /// `icon-dimensions`): the key of the [`Settings`](crate::Settings) field that was passed,
+    /// such as `tree_files`. Stable, unlike `subject`'s wording.
+    pub setting: Option<&'static str>,
 }
 
 impl Error {
@@ -338,7 +342,15 @@ impl Error {
             subject: safe_subject(&subject.into()),
             line: None,
             column: None,
+            setting: None,
         }
+    }
+
+    /// The same refusal, naming the `Settings` field whose limit was passed.
+    #[must_use]
+    pub fn over(mut self, setting: &'static str) -> Self {
+        self.setting = Some(setting);
+        self
     }
 
     /// The same refusal at a position in the document.
