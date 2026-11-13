@@ -81,8 +81,15 @@ export function catalogFormat(name: string): Format | undefined {
 export function readCatalogDocument(data: Uint8Array, name: string, settings: Settings): Document {
   const bounded = settings.with({ manifestBytes: settings.catalogBytes });
   const format = catalogFormat(name);
-  if (format === undefined) return readDocument(data, bounded);
-  if (!allows(bounded.manifestBytes, data.length)) throw new AosError("too-large", "a catalog");
+  if (format === undefined) {
+    try {
+      return readDocument(data, bounded);
+    } catch (error) {
+      if (error instanceof AosError && error.setting === "manifest_bytes") error.over("catalog_bytes");
+      throw error;
+    }
+  }
+  if (!allows(bounded.manifestBytes, data.length)) throw new AosError("too-large", "a catalog").over("catalog_bytes");
   const bytes = startsWithBytes(data, [0xef, 0xbb, 0xbf]) ? data.subarray(3) : data;
   return parsePayload(bytes, format, bounded, false);
 }
@@ -452,7 +459,7 @@ export function readIcon(data: Uint8Array, name: string, settings: Settings): Ic
   const dot = last.lastIndexOf(".");
   const extension = dot === -1 ? "" : asciiLower(last.slice(dot + 1));
   if (extension !== "png" && extension !== "webp") throw new AosError("icon-format", "");
-  if (!allows(settings.iconBytes, data.length)) throw new AosError("icon-too-large", "");
+  if (!allows(settings.iconBytes, data.length)) throw new AosError("icon-too-large", "").over("icon_bytes");
   let format: IconFormat;
   if (startsWithBytes(data, [0x89, ...ascii("PNG"), 0x0d, 0x0a, 0x1a, 0x0a])) format = "png";
   else if (same(data, 0, ascii("RIFF")) && same(data, 8, ascii("WEBP"))) format = "webp";
@@ -460,6 +467,7 @@ export function readIcon(data: Uint8Array, name: string, settings: Settings): Ic
   if (format !== extension) throw new AosError("icon-mismatch", "");
   const [width, height] = format === "png" ? pngSize(data) : webpSize(data);
   if (width === 0 || height === 0) throw new AosError("icon-unreadable", "");
-  if (!allows(settings.iconWidth, width) || !allows(settings.iconHeight, height)) throw new AosError("icon-dimensions", "");
+  if (!allows(settings.iconWidth, width)) throw new AosError("icon-dimensions", "").over("icon_width");
+  if (!allows(settings.iconHeight, height)) throw new AosError("icon-dimensions", "").over("icon_height");
   return { format, width, height };
 }

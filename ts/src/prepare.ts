@@ -2,18 +2,36 @@
 import type { SetupRun } from "./apply.ts";
 import type { Dependency } from "./defaults.ts";
 import type { FailStep, Step } from "./kinds.ts";
+import { words } from "./kinds.ts";
 
 /** What the user is doing to an overlay. */
 export const CHANGES = ["add", "sync", "activate", "remove"] as const;
 export type Change = (typeof CHANGES)[number];
 
 /** A setup script's phase: its first argument. */
-export type Phase = "install" | "sync" | "remove";
+export const PHASES = ["install", "sync", "remove"] as const;
+export type Phase = (typeof PHASES)[number];
+export const phase = words(PHASES);
 
 /** What was last prepared: the overlay's digest, and the phase that did it. */
 export interface SetupRecord {
   readonly digest: string;
   readonly phase: Phase;
+}
+
+/** A record as a consumer keeps it: `{"digest": ..., "phase": ...}`. */
+export function setupRecordToJson(record: SetupRecord): { digest: string; phase: Phase } {
+  return { digest: record.digest, phase: record.phase };
+}
+
+/** What `setupRecordToJson` wrote; a `TypeError` for anything else, including a `phase` that is not exactly a phase. */
+export function setupRecordFromJson(value: unknown): SetupRecord {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new TypeError("a setup record is an object");
+  const { digest, phase: name } = value as { digest?: unknown; phase?: unknown };
+  if (typeof digest !== "string" || typeof name !== "string") throw new TypeError("a setup record has a digest and a phase, both text");
+  const found = phase.named(name);
+  if (found === undefined) throw new TypeError("not a setup phase");
+  return { digest, phase: found };
 }
 
 const asciiLower = (text: string): string => text.replace(/[A-Z]/g, (c) => c.toLowerCase());

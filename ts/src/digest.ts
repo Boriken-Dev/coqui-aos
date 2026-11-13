@@ -154,19 +154,19 @@ export function digestEntries(entries: Iterable<readonly [ReadonlyArray<Uint8Arr
 /** Refuses entries past the tree limits before any is hashed: for trees a caller hands over rather than the library walks. */
 export function checkEntries(entries: ReadonlyArray<readonly [unknown, TreeEntry]>, settings: Settings): void {
   if (!allows(settings.treeFiles, entries.length)) {
-    throw new AosError("too-large", `more than ${limitText(settings.treeFiles)} files and directories`);
+    throw new AosError("too-large", `more than ${limitText(settings.treeFiles)} files and directories`).over("tree_files");
   }
   let total = 0;
   for (const [, entry] of entries) {
     if (entry.kind === "file") {
       if (!allows(settings.fileBytes, entry.bytes.length)) {
-        throw new AosError("too-large", `a file larger than ${limitText(settings.fileBytes)} bytes`);
+        throw new AosError("too-large", `a file larger than ${limitText(settings.fileBytes)} bytes`).over("file_bytes");
       }
       total += entry.bytes.length;
     }
   }
   if (!allows(settings.treeBytes, total)) {
-    throw new AosError("too-large", `more than ${limitText(settings.treeBytes)} bytes`);
+    throw new AosError("too-large", `more than ${limitText(settings.treeBytes)} bytes`).over("tree_bytes");
   }
 }
 
@@ -226,7 +226,7 @@ class Walk {
 
   async directory(path: string, components: Uint8Array[], depth: number): Promise<void> {
     if (!allows(this.settings.treeDepth, depth)) {
-      throw refused("too-large", `directories nested deeper than ${limitText(this.settings.treeDepth)}`);
+      throw refused("too-large", `directories nested deeper than ${limitText(this.settings.treeDepth)}`).over("tree_depth");
     }
     let listed;
     try {
@@ -253,7 +253,7 @@ class Walk {
   private count(): void {
     this.entries += 1;
     if (!allows(this.settings.treeFiles, this.entries)) {
-      throw refused("too-large", `more than ${limitText(this.settings.treeFiles)} files and directories`);
+      throw refused("too-large", `more than ${limitText(this.settings.treeFiles)} files and directories`).over("tree_files");
     }
   }
 
@@ -283,11 +283,11 @@ class Walk {
       throw ioError(error, `${member}: `);
     }
     if (!allows(this.settings.fileBytes, bytes.length)) {
-      throw refused("too-large", `${member} is larger than ${limitText(this.settings.fileBytes)} bytes`);
+      throw refused("too-large", `${member} is larger than ${limitText(this.settings.fileBytes)} bytes`).over("file_bytes");
     }
     this.bytes += bytes.length;
     if (!allows(this.settings.treeBytes, this.bytes)) {
-      throw refused("too-large", `more than ${limitText(this.settings.treeBytes)} bytes`);
+      throw refused("too-large", `more than ${limitText(this.settings.treeBytes)} bytes`).over("tree_bytes");
     }
     this.found.set(member, Digest.of(bytes));
     if (this.keep) this.contents.set(member, bytes);

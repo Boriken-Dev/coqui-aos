@@ -61,12 +61,12 @@ class Run {
 
   step(cost: number): void {
     this.steps += cost;
-    if (!allows(this.limits.substitutionSteps, this.steps)) throw new AosError("too-complex", "a pattern");
+    if (!allows(this.limits.substitutionSteps, this.steps)) throw new AosError("too-complex", "a pattern").over("substitution_steps");
   }
 
   /** Refuses an output of `size` UTF-8 bytes past `substitutionBytes`. */
   fits(size: number): void {
-    if (!allows(this.limits.substitutionBytes, size)) throw new AosError("too-large", "a substituted value");
+    if (!allows(this.limits.substitutionBytes, size)) throw new AosError("too-large", "a substituted value").over("substitution_bytes");
   }
 }
 
@@ -81,7 +81,7 @@ export function substituteWith(text: string, lookup: Lookup, settings: Settings)
 }
 
 function substituteCps(text: Cps, run: Run): string {
-  if (!allows(run.limits.substitutionDepth, run.depth)) throw new AosError("too-deep", "an expression");
+  if (!allows(run.limits.substitutionDepth, run.depth)) throw new AosError("too-deep", "an expression").over("substitution_depth");
   run.depth += 1;
   try {
     return substituteInner(text, run);

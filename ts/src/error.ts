@@ -81,6 +81,7 @@ export class AosError extends Error {
   readonly subject: string;
   #line: number | undefined;
   #column: number | undefined;
+  #setting: string | undefined;
 
   constructor(cls: ErrorClass, subject = "") {
     const safe = safeSubject(subject);
@@ -108,6 +109,21 @@ export class AosError extends Error {
   /** The one-based column, if the error has one. */
   get column(): number | undefined {
     return this.#column;
+  }
+
+  /**
+   * For a refusal of a limit (`too-large`, `too-deep`, `too-complex`, `icon-too-large`,
+   * `icon-dimensions`): the key of the setting that was passed, as a configuration writes it, such as
+   * `tree_files`. Stable, unlike `subject`'s wording; undefined for any other refusal.
+   */
+  get setting(): string | undefined {
+    return this.#setting;
+  }
+
+  /** This error naming the `setting` whose limit was passed; returns itself. */
+  over(setting: string): this {
+    this.#setting = setting;
+    return this;
   }
 
   /** This error with a position; returns itself. */

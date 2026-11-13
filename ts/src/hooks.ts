@@ -247,6 +247,19 @@ export function hooksOf(
   return { hooks: entries, notRun: needsDefault ? present : [] };
 }
 
+/**
+ * Whether the overlay declares a hook on any OS with any interpreter: `hooksOf` finds an entry or a
+ * `hook.<ext>` that cannot run, for some OS, were every interpreter AOS names present. Entries an
+ * overlay switches off (`false`, or `defaults.hooks = false`) are not declared. For a consumer that
+ * runs no hooks and refuses an overlay that asks for any, whatever it runs on.
+ */
+export function hooksDeclared(manifest: Document, tree: OverlayTree): boolean {
+  return ["windows", "linux"].some((os) => {
+    const found = hooksOf(manifest, tree, os, INTERPRETERS);
+    return found.hooks.length > 0 || found.notRun.length > 0;
+  });
+}
+
 /** What a consumer knows when it asks whether an overlay's hooks are on. */
 export interface HookFacts {
   readonly os: string;

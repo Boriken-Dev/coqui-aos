@@ -66,7 +66,7 @@ export function parsePayload(payload: Uint8Array, format: Format, settings: Sett
 /** Reads one AOS document: an optional byte-order mark, an optional format line, else TOML, then the data model. */
 export function readDocument(data: Uint8Array, settings: Settings): Document {
   if (!allows(settings.manifestBytes, data.length)) {
-    throw new AosError("too-large", `over ${limitText(settings.manifestBytes)} bytes`);
+    throw new AosError("too-large", `over ${limitText(settings.manifestBytes)} bytes`).over("manifest_bytes");
   }
   const bytes = startsWithBytes(data, BOM) ? data.subarray(3) : data;
   const { format, payload, lined } = chooseFormat(bytes, "toml");

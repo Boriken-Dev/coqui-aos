@@ -41,7 +41,7 @@ function wellFormed(text: string): string {
 }
 
 function tooDeep(depth: Limit): AosError {
-  return refusal("too-deep", `nested deeper than ${limitText(depth)}`);
+  return refusal("too-deep", `nested deeper than ${limitText(depth)}`).over("manifest_depth");
 }
 
 type Frame = { list: Value[] } | { map: Document; key: string | undefined };
@@ -165,7 +165,7 @@ export function readToml(text: string, depth: Limit): Value {
     );
     const where = error as { line?: unknown; column?: unknown };
     if (typeof where.line === "number") refused.at(where.line, typeof where.column === "number" ? where.column : 1);
-    throw refused;
+    throw cls === "too-deep" ? refused.over("manifest_depth") : refused;
   }
   try {
     return tomlValue(table, 1, depth);
@@ -435,7 +435,8 @@ export function readYaml(text: string, depth: Limit): Value {
   const [first] = parsed.errors;
   if (first !== undefined) {
     const deep = first.code === "RESOURCE_EXHAUSTION" || !allows(depth, nesting(text));
-    throw failure(deep ? "too-deep" : "parse-error", "not valid YAML", first.pos[0]);
+    const failed = failure(deep ? "too-deep" : "parse-error", "not valid YAML", first.pos[0]);
+    throw deep ? failed.over("manifest_depth") : failed;
   }
   if (parsed.contents === null) return new Map();
   return guarded(() =>

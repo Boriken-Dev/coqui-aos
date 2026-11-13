@@ -201,7 +201,7 @@ export function readFrontMatter(data: Uint8Array, settings: Settings): FrontMatt
       return {
         case: "too-large",
         data: undefined,
-        error: new AosError("too-large", "front matter").onLine(1),
+        error: new AosError("too-large", "front matter").over("manifest_bytes").onLine(1),
         format: undefined,
         bodyOffset: undefined,
         bodyLine: undefined,
@@ -233,6 +233,6 @@ export function readFrontMatter(data: Uint8Array, settings: Settings): FrontMatt
 /** A context file's text: the body when the file has front matter, the whole file when it has none. `too-large` when the front matter is. */
 export function contextFileText(data: Uint8Array, settings: Settings): Uint8Array {
   const split = splitFrontMatter(data, settings);
-  if (split.case === "too-large") throw new AosError("too-large", "front matter").onLine(1);
+  if (split.case === "too-large") throw new AosError("too-large", "front matter").over("manifest_bytes").onLine(1);
   return split.body(data);
 }

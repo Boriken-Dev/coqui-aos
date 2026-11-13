@@ -61,7 +61,7 @@ export function readOverlay(tree: OverlayTree, settings: Settings): OverlayRead 
   for (const [harness, entry] of harnesses ?? []) if (lists(entry)) named.push(...harnessContextOf(manifest, harness, tree));
   if (named.includes("OVERLAY.md") && body.some((byte) => !isBlank(byte))) {
     if (!allows(settings.contextBytes, body.length)) {
-      throw new AosError("too-large", "the body of OVERLAY.md").onLine(bodyLine);
+      throw new AosError("too-large", "the body of OVERLAY.md").over("context_bytes").onLine(bodyLine);
     }
     try {
       decodeUtf8(body);
