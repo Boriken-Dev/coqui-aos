@@ -22,6 +22,7 @@ RUNNERS = {
     "effective.json": ("test_effective.py",),
     "catalog.json": ("test_catalog.py",),
     "hooks.json": ("test_hooks.py",),
+    "templating.json": ("test_templating.py",),
 }
 
 
