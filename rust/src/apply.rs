@@ -27,13 +27,21 @@ use crate::validate::validate;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
 pub struct NonDefaultSetting {
-    /// `unpinned`, `setup-network`, `env-script`, `secret-read`, and the others AOS lists.
+    /// `unpinned`, `setup-network`, `env-script`, `secret-read`, and the others AOS lists, or a
+    /// host's own word.
     pub id: NonDefaultId,
     /// The variable, path, file or reference it is about; empty for `unpinned`.
     pub subject: String,
 }
 
 impl NonDefaultSetting {
+    /// A setting a host defines, by its own `id` (`read-only-not-enforced`, `skill-collision`):
+    /// shown as given wherever the id is, and the AOS id when `id` is a word AOS defines.
+    #[must_use]
+    pub fn host(id: &'static str, subject: impl Into<String>) -> Self {
+        Self::new(NonDefaultId::host(id), subject)
+    }
+
     /// A non-default setting `id` about `subject`, empty for `unpinned`: the constructor a host
     /// uses to report one of its own beside the ones [`effective`] finds.
     #[must_use]

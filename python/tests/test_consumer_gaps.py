@@ -209,3 +209,16 @@ def test_a_refusal_that_is_no_limit_names_none():
     with pytest.raises(Error) as caught:
         read_document(b"a = = 1\n")
     assert caught.value.setting is None
+
+
+# --- a host's own weakening
+
+
+def test_a_host_weakening_keeps_its_id_and_an_aos_word_is_the_aos_id():
+    from coqui_aos import NonDefaultId, NonDefaultSetting
+
+    mine = NonDefaultSetting.host("read-only-not-enforced", "workspace")
+    assert str(mine.id) == "read-only-not-enforced"
+    assert mine.subject == "workspace"
+    assert NonDefaultSetting.host("unpinned").id is NonDefaultId.UNPINNED
+    assert sorted([mine, NonDefaultSetting.host("hook", "a")])[0].id is NonDefaultId.HOOK

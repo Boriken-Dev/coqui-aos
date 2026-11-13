@@ -80,8 +80,14 @@ class NonDefaultSetting(NamedTuple):
     file or reference it is about; empty for ``unpinned``), never a value. Sorts by identifier word,
     then subject."""
 
-    id: NonDefaultId
+    id: "Union[NonDefaultId, str]"
     subject: str
+
+    @classmethod
+    def host(cls, id: str, subject: str = "") -> "NonDefaultSetting":
+        """A setting a host defines by its own ``id`` (``"read-only-not-enforced"``): the id as
+        given, or the ``NonDefaultId`` when AOS defines the word."""
+        return cls(NonDefaultId.named(id) or id, subject)
 
 
 class Environment:

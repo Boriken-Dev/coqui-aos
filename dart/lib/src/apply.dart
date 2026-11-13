@@ -18,7 +18,8 @@ import 'value.dart';
 /// A setting a reading turned out to use that is not the default: its id and what it is about,
 /// never a value.
 class NonDefaultSetting {
-  /// Creates the report. [id] is a word of `nonDefaultId`.
+  /// Creates the report. [id] is a word of `nonDefaultId`, or a host's own word
+  /// (`read-only-not-enforced`), which is shown as given.
   const NonDefaultSetting(this.id, this.subject);
 
   /// The setting's id.

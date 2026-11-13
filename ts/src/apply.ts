@@ -35,8 +35,14 @@ import type { Document, Value } from "./value.ts";
 
 /** A setting a reading turned out to use that is not the default: its id and what it is about, never a value. */
 export interface NonDefaultSetting {
-  readonly id: NonDefaultId;
+  /** An AOS id, or a host's own word. */
+  readonly id: NonDefaultId | (string & {});
   readonly subject: string;
+}
+
+/** A setting a host defines by its own `id` (`"read-only-not-enforced"`); shown as given. */
+export function hostSetting(id: string, subject = ""): NonDefaultSetting {
+  return { id, subject };
 }
 
 function setting(id: NonDefaultId, subject: string): NonDefaultSetting {

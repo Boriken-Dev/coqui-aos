@@ -145,6 +145,8 @@ pub fn preparation(change: Change, record: Option<&SetupRecord>, digest: Option<
 pub fn setup_phase(change: Change, recorded: Option<&str>, digest: Option<&str>) -> Option<Phase>
 pub fn Phase::named(name: &str) -> Option<Phase>      // exactly install, sync or remove; Phase::name is the way back
 pub fn NonDefaultSetting::new(id: NonDefaultId, subject: impl Into<String>) -> NonDefaultSetting   // a host reports its own beside effective's
+pub fn NonDefaultSetting::host(id: &'static str, subject: impl Into<String>) -> NonDefaultSetting  // a host's own id (`read-only-not-enforced`); the AOS id when AOS defines the word
+NonDefaultId::Host(&'static str)   // as_str, Display and Ord give the word as given; NonDefaultId::host(word) builds it
 pub fn substitute(text: &str, lookup: Lookup) -> Result<String, Error>;  pub fn substitute_with(text, lookup, settings: &Settings) -> Result<String, Error>
 ```
 

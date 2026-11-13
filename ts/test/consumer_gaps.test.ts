@@ -18,6 +18,7 @@ import { readDocument } from "../src/read.ts";
 import { substituteWith } from "../src/subst.ts";
 import { OverlayTree } from "../src/tree.ts";
 import type { Document } from "../src/value.ts";
+import { hostSetting } from "../src/apply.ts";
 import { toJson } from "./g2_support.ts";
 
 const bytes = (text: string): Uint8Array => new TextEncoder().encode(text);
@@ -161,4 +162,9 @@ test("a refusal that is no limit names none", () => {
     () => readDocument(bytes("a = = 1\n"), new Settings()),
     (error: unknown) => error instanceof AosError && error.setting === undefined,
   );
+});
+
+test("a host's own weakening keeps its id", () => {
+  const mine = hostSetting("read-only-not-enforced", "workspace");
+  assert.deepEqual(mine, { id: "read-only-not-enforced", subject: "workspace" });
 });

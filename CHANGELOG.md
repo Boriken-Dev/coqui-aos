@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The four things a host that wraps the readers worked around, in every language where they apply:
   - Rust: `coqui_aos::vectors::Runner`, behind a `test-support` feature, runs every conformance vector
     file against the crate, so a host's tests no longer copy the runner; and `NonDefaultSetting::new`
-    lets a host report non-default settings of its own beside `effective`'s.
+    lets a host report non-default settings of its own beside `effective`'s; a host's own id
+    (`read-only-not-enforced`) is `NonDefaultSetting::host` and `NonDefaultId::Host`, `NonDefaultSetting.host`
+    in Python, any `NonDefaultSetting.id` string in Dart, `hostSetting` in TypeScript.
   - A setup record is `{"digest": ..., "phase": ...}` as data: `Serialize` and `Deserialize` for
     `SetupRecord` and `Phase` behind a Rust `serde` feature, and `Phase::named`; `SetupRecord.to_dict`
     and `from_dict` in Python (which already had `Phase.named`); `toJson` and `fromJson` in Dart

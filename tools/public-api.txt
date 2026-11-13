@@ -242,6 +242,7 @@ pub coqui_aos::NonDefaultId::EnvPassthrough
 pub coqui_aos::NonDefaultId::EnvScript
 pub coqui_aos::NonDefaultId::EnvSensitive
 pub coqui_aos::NonDefaultId::Hook
+pub coqui_aos::NonDefaultId::Host(&'static str)
 pub coqui_aos::NonDefaultId::InsecureTransport
 pub coqui_aos::NonDefaultId::NetworkNotEnforced
 pub coqui_aos::NonDefaultId::NoTimeout
@@ -253,6 +254,7 @@ pub coqui_aos::NonDefaultId::UnlockedDependencies
 pub coqui_aos::NonDefaultId::Unpinned
 impl coqui_aos::NonDefaultId
 pub const fn coqui_aos::NonDefaultId::as_str(self) -> &'static str
+pub fn coqui_aos::NonDefaultId::host(&'static str) -> Self
 pub fn coqui_aos::NonDefaultId::named(&str) -> core::option::Option<Self>
 impl core::cmp::Ord for coqui_aos::NonDefaultId
 pub fn coqui_aos::NonDefaultId::cmp(&self, &Self) -> core::cmp::Ordering
@@ -579,6 +581,7 @@ pub coqui_aos::NonDefault::value: alloc::string::String
 pub coqui_aos::NonDefaultSetting::id: coqui_aos::NonDefaultId
 pub coqui_aos::NonDefaultSetting::subject: alloc::string::String
 impl coqui_aos::NonDefaultSetting
+pub fn coqui_aos::NonDefaultSetting::host(&'static str, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn coqui_aos::NonDefaultSetting::new(coqui_aos::NonDefaultId, impl core::convert::Into<alloc::string::String>) -> Self
 #[non_exhaustive] pub struct coqui_aos::OverlayRead
 pub coqui_aos::OverlayRead::context: alloc::vec::Vec<alloc::string::String>

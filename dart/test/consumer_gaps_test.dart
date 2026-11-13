@@ -282,4 +282,10 @@ void main() {
       }
     });
   });
+
+  test('a host weakening keeps its own id', () {
+    const mine = NonDefaultSetting('read-only-not-enforced', 'workspace');
+    expect(mine.id, 'read-only-not-enforced');
+    expect(mine.subject, 'workspace');
+  });
 }

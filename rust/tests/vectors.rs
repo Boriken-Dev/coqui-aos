@@ -126,3 +126,26 @@ fn a_skip_is_named_in_the_report() {
     assert_eq!(report.passed, 0);
     assert!(!report.skipped.is_empty());
 }
+
+#[test]
+fn a_host_defined_weakening_goes_through_the_runner() {
+    let host = vec![NonDefaultSetting::host(
+        "read-only-not-enforced",
+        "workspace",
+    )];
+    assert_eq!(host[0].id.as_str(), "read-only-not-enforced");
+    assert_eq!(host[0].id.to_string(), "read-only-not-enforced");
+    assert_eq!(host[0].subject, "workspace");
+    // A word AOS defines is that AOS id, not a second spelling of it.
+    assert_eq!(
+        NonDefaultSetting::host("unpinned", "").id,
+        NonDefaultId::Unpinned
+    );
+    let report = Runner::new(vectors())
+        .effective(with_host_settings(&host))
+        .host_non_defaults(host)
+        .run_file("effective.json")
+        .expect("a known file");
+    assert!(report.passed > 0);
+    report.assert_clean();
+}
