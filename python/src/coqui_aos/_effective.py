@@ -175,6 +175,8 @@ class Effective:
     dependencies: List[Dependency]
     needs: Needs
     non_defaults: List[NonDefaultSetting]
+    #: ``(id, subject)`` reports, sorted: ``env-script-not-allowed``.
+    reports: List[Tuple[str, str]] = dataclasses.field(default_factory=list)
 
 
 def _variant(runtime: Any, name: str, os: str) -> "Optional[Document]":
@@ -206,7 +208,8 @@ def effective(manifest: Document, facts: Facts) -> Effective:
     env.set(root_variable(facts.identity), facts.root)
     if facts.state is not None:
         env.set(state_variable(facts.identity), facts.state)
-    scripts = apply_overlay(env, manifest, facts, non_defaults)
+    reports: "List[Tuple[str, str]]" = []
+    scripts = apply_overlay(env, manifest, facts, non_defaults, reports)
     choice = default_script(manifest, "setup", "setup", facts.tree, os, facts.known_interpreters())
     # Declared variants come first; the default setup is the last one.
     network = False
@@ -315,6 +318,7 @@ def effective(manifest: Document, facts: Facts) -> Effective:
         dependencies=dependencies,
         needs=Needs(sorted(interpreters), sorted(commands)),
         non_defaults=sorted(set(non_defaults)),
+        reports=sorted(set(reports)),
     )
 
 

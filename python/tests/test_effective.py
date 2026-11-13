@@ -42,6 +42,9 @@ def facts_of(raw: "Dict[str, Any]") -> Facts:
         provider_values=raw.get("provider_values", {}),
         enforces_network=raw.get("enforces_network"),
         env_scripts_enabled=raw.get("env_scripts_enabled"),
+        gate_env_scripts="allowed" in raw,
+        digest=raw.get("digest"),
+        allowed=raw.get("allowed"),
         interpreters=raw.get("interpreters"),
         packages=raw.get("packages", {}),
     )
@@ -50,7 +53,7 @@ def facts_of(raw: "Dict[str, Any]") -> Facts:
 
 
 def result_data(result: Effective) -> "Dict[str, Any]":
-    return {
+    data: "Dict[str, Any]" = {
         "ungranted": result.ungranted,
         "supported": result.supported,
         "env": result.env.values(),
@@ -62,6 +65,9 @@ def result_data(result: Effective) -> "Dict[str, Any]":
         "needs": {"interpreters": result.needs.interpreters, "commands": result.needs.commands},
         "non_defaults": [[w.id.value, w.subject] for w in result.non_defaults],
     }
+    if result.reports:
+        data["reports"] = [list(report) for report in result.reports]
+    return data
 
 
 def record_of(raw: "Optional[Dict[str, Any]]") -> "Optional[SetupRecord]":
@@ -95,7 +101,7 @@ def test_effective(case):
 
 
 def test_every_effective_case_ran():
-    assert len(EFFECTIVE) == 117
+    assert len(EFFECTIVE) == 127
 
 
 def test_setup_phase_follows_the_change():

@@ -737,6 +737,7 @@ def fire_event(
     applies: "Optional[Iterable[str]]" = None,
     settings: Optional[Settings] = None,
     windows: bool = False,
+    context_used: int = 0,
 ) -> FiredEvent:
     """Every hook of one event, in the order given, combined to the tightest result.
 
@@ -744,7 +745,9 @@ def fire_event(
     ``block``, ``deny``, ``ask``, ``refuse``); ``None`` is all the event takes, and refuse. A
     hook that would start after the event's own bound has passed fails as ``event-timeout``.
     ``windows`` makes a variable's name compare without case, keeping the spelling it was
-    first given.
+    first given. ``context_used`` is what the session's context already holds, in bytes: a part
+    of a hook's context that would take the total past ``settings.context_bytes`` is not added,
+    whole, and is reported as ``hook-not-applied``; a later part that fits still is.
     """
     from ._names import is_sensitive_variable
 
@@ -782,7 +785,11 @@ def fire_event(
             fired.env.clear()
             break
         if out.context:
-            if "context" in can:
+            size = len(out.context.encode("utf-8"))
+            if "context" in can and not settings.allows("context_bytes", context_used + size):
+                fired.reports.append(HookReport("hook-not-applied", (source, event.value, "context")))
+            elif "context" in can:
+                context_used += size
                 fired.context.append((source, out.context))
             else:
                 fired.reports.append(HookReport("hook-not-applied", (source, event.value, "context")))

@@ -9,6 +9,8 @@ import pytest
 
 from coqui_aos import (
     Decision,
+    Environment,
+    Facts,
     HookError,
     HookEvent,
     HookFacts,
@@ -18,13 +20,17 @@ from coqui_aos import (
     OnFailure,
     OverlayTree,
     Settings,
+    composition_order,
     fire_event,
+    hook_environment,
     hook_matches,
+    hook_order,
     hook_payload,
     hook_plan,
     hook_result,
     read_hook_output,
     read_overlay,
+    resolve,
     to_data,
     validate,
 )
@@ -39,6 +45,7 @@ def settings_of(limits: "Dict[str, Any]") -> Settings:
         "event_timeout": "hook_event_timeout",
         "max_output": "hook_output_bytes",
         "max_payload": "hook_payload_bytes",
+        "context_bytes": "context_bytes",
     }
     return Settings().replace(**{names[key]: value for key, value in limits.items() if key in names})
 
@@ -141,6 +148,37 @@ def fired_json(fired: Any) -> "Dict[str, Any]":
     }
 
 
+def environment_case(case: "Dict[str, Any]") -> "Dict[str, str]":
+    raw = case["facts"]
+    overlays = case["overlays"]
+    windows = raw["os"] == "windows"
+    names = composition_order(overlays, resolve(overlays, case["requested"]).install_order)
+    active = [
+        (
+            overlays[name],
+            Facts(
+                os=raw["os"],
+                root=raw["roots"][name],
+                identity=name,
+                state=raw.get("states", {}).get(name),
+                grants=raw.get("grants", {}),
+                secrets=raw.get("secrets", {}),
+                tree=OverlayTree.from_texts(case.get("files", {}).get(name, {})),
+            ),
+        )
+        for name in names
+    ]
+    pre_env = {name: run_of(run) for name, run in raw.get("pre_env", {}).items()}
+    if case.get("scope", "overlay") != "overlay":
+        identity = None
+    else:
+        identity = case["identity"]
+    env = hook_environment(
+        HookEvent(case["event"]), active, Environment(raw.get("base_env", {}), windows), pre_env, identity
+    )
+    return env.values()
+
+
 @pytest.mark.parametrize("case", HOOKS, ids=ids(HOOKS))
 def test_hooks_vectors(case):
     kind = case["id"].split("-", 1)[0]
@@ -161,6 +199,10 @@ def test_hooks_vectors(case):
             got = {"failed": failure.failure.value}
     elif kind == "match":
         got = {"runs": hook_matches(HookEvent(case["event"]), case["match"], case["value"])}
+    elif kind == "order":
+        got = {"order": hook_order(case["overlays"], case["requested"], case["has"], case["scopes"])}
+    elif kind == "environment":
+        got = {"env": environment_case(case)}
     else:
         fired = fire_event(
             HookEvent(case["event"]),
@@ -168,13 +210,22 @@ def test_hooks_vectors(case):
             case.get("applies"),
             settings_of(case.get("limits", {})),
             case.get("os") == "windows",
+            case.get("context_used", 0),
         )
         got = fired_json(fired)
     assert json.loads(json.dumps(to_data(got))) == case["expect"]
 
 
 def test_every_hooks_case_is_a_known_kind():
-    assert {case["id"].split("-", 1)[0] for case in HOOKS} <= {"plan", "payload", "output", "match", "event"}
+    assert {case["id"].split("-", 1)[0] for case in HOOKS} <= {
+        "plan",
+        "payload",
+        "output",
+        "match",
+        "event",
+        "order",
+        "environment",
+    }
 
 
 # Output the vectors do not write.

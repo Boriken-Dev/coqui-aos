@@ -71,15 +71,16 @@ class OverlayTree                 # paths and the bytes read: from_texts, with_t
 ```python
 resolve(overlays: dict[str, Document], requested) -> Resolution;  composition_order(overlays, active) -> list[str]   # raise Cycle
 compose(overlays, requested, trees) -> Composition;  composed_environment(...) -> ComposedEnvironment   # env or error, hook reports
-effective(manifest: Document, facts: Facts) -> Effective;  Facts(os, root, identity, state, pinned, base_env, host_env, grants, secrets, ...)
-Environment(base, windows) -> get / set(name, value, secret) / unset / values() / is_secret;  apply_overlay(env, manifest, facts, non_defaults)
+hook_order(overlays, requested, has, scopes=()) -> list[(HookScope, str)];  hook_environment(event, active, base, pre_env, identity=None) -> Environment
+effective(manifest: Document, facts: Facts) -> Effective;  Facts(os, root, identity, state, pinned, base_env, host_env, grants, secrets, ..., gate_env_scripts, digest, allowed)
+Environment(base, windows) -> get / set(name, value, secret) / unset / values() / is_secret;  apply_overlay(env, manifest, facts, non_defaults, reports=None)
 substitute(text, lookup) -> str;  substitute_with(text, lookup, settings)
 rules_of / context_of / paths_of / env_files_of / skills_of / skill_entries / default_paths / default_on / context_ignored / harness_context_of
 dependencies_of(manifest, tree, os) -> list[Dependency]   # PartialLock;  check_requirements(text, locked)
 setup_phase(change, recorded, digest) -> Phase | None;  preparation(...) -> Preparation;  environments(overlays, active, trees, os, removed) -> Environments
 ```
 
-`effective` and `apply_overlay` also refuse (`invalid-reference`, naming the variable or path) an environment variable name that is no name and a path that leaves the overlay, whatever `validate` was asked. An `Environment` never lets a placeholder read a variable that holds a resolved secret. Substitution refuses `too-large`, `too-deep` and `too-complex` past `substitution_*` and never quotes a placeholder's variable or pattern. `effective` and `apply_overlay` raise `Error`; the reports (`unpinned`, `env-sensitive`, ...) are ids and subjects, never values.
+`effective` and `apply_overlay` also refuse (`invalid-reference`, naming the variable or path) an environment variable name that is no name and a path that leaves the overlay, whatever `validate` was asked. An `Environment` never lets a placeholder read a variable that holds a resolved secret. Substitution refuses `too-large`, `too-deep` and `too-complex` past `substitution_*` and never quotes a placeholder's variable or pattern. With `Facts.gate_env_scripts` an overlay whose `digest` is not its `allowed` one (the allowance of its hooks; a missing digest is no match) runs no env script, declared or default, and `Effective.reports` holds `("env-script-not-allowed", identity)` when it has one for the OS; the rest of it applies. `effective` and `apply_overlay` raise `Error`; the reports (`unpinned`, `env-sensitive`, ...) are ids and subjects, never values.
 
 ## Catalogs, icons, skills from elsewhere
 
@@ -100,10 +101,10 @@ class SkillSource(Protocol): fetch(source: Source) -> list[tuple[str, bytes]];  
 hooks_of(manifest, tree, os, interpreters) -> (list[Hook], list[str]);  hook_plan(manifest, tree, facts: HookFacts, settings=None) -> HookPlan
 hook_matches(event, select, value) -> bool;  hook_payload(event, known) -> dict
 read_hook_output(event, data, sets, settings=None) / hook_result(event, run: HookRun, settings=None) -> HookOutput   # raise HookError
-fire_event(event, runs, applies=None, settings=None, windows=False) -> FiredEvent
+fire_event(event, runs, applies=None, settings=None, windows=False, context_used=0) -> FiredEvent
 ```
 
-Running a hook is the caller's: it builds a `HookRun` from what the process did and the core checks it in a fixed order (started, payload, time, size, exit, output), combines the runs of one event to the tightest decision and reports what could not be applied. A hook is off until the user allows it at the overlay's digest. `repr` of a run, an output or an event shows counts, never output text or values; `HookPlan.activates` is false for a guard that is off.
+Running a hook is the caller's: it builds a `HookRun` from what the process did and the core checks it in a fixed order (started, payload, time, size, exit, output), combines the runs of one event to the tightest decision and reports what could not be applied. A hook is off until the user allows it at the overlay's digest. `repr` of a run, an output or an event shows counts, never output text or values; `HookPlan.activates` is false for a guard that is off. Context a hook adds counts in UTF-8 bytes, with `context_used`, against `Settings.context_bytes`: a part that would pass it is not added, whole, and is reported `hook-not-applied`, and a later part that fits still is. `hook_order` is the overlays that have a hook in composition order, then the user's, then the project's; `hook_environment` is the environment one hook runs with, an overlay's hook seeing its own declarations and `pre-env` output and no other overlay's.
 
 ## Gotchas
 
