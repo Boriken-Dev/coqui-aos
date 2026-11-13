@@ -1,5 +1,26 @@
 pub mod coqui_aos
 pub use coqui_aos::serde_json
+pub mod coqui_aos::vectors
+#[non_exhaustive] pub struct coqui_aos::vectors::Report
+pub coqui_aos::vectors::Report::failed: alloc::vec::Vec<alloc::string::String>
+pub coqui_aos::vectors::Report::file: alloc::string::String
+pub coqui_aos::vectors::Report::passed: usize
+pub coqui_aos::vectors::Report::skipped: alloc::vec::Vec<alloc::string::String>
+impl coqui_aos::vectors::Report
+pub fn coqui_aos::vectors::Report::assert_clean(&self)
+pub fn coqui_aos::vectors::Report::is_clean(&self) -> bool
+pub struct coqui_aos::vectors::Runner
+impl coqui_aos::vectors::Runner
+pub const coqui_aos::vectors::Runner::FILES: [&'static str; 11]
+pub fn coqui_aos::vectors::Runner::effective(self, impl core::ops::function::Fn(&coqui_aos::Document, &coqui_aos::Facts) -> core::result::Result<coqui_aos::Effective, coqui_aos::Error> + 'static) -> Self
+pub fn coqui_aos::vectors::Runner::host_non_defaults(self, alloc::vec::Vec<coqui_aos::NonDefaultSetting>) -> Self
+pub fn coqui_aos::vectors::Runner::new(impl core::convert::Into<std::path::PathBuf>) -> Self
+pub fn coqui_aos::vectors::Runner::run_all(&self) -> alloc::vec::Vec<coqui_aos::vectors::Report>
+pub fn coqui_aos::vectors::Runner::run_file(&self, &str) -> core::option::Option<coqui_aos::vectors::Report>
+pub fn coqui_aos::vectors::Runner::skip(self, impl core::ops::function::Fn(&str, &serde_json::value::Value) -> core::option::Option<&'static str> + 'static) -> Self
+pub fn coqui_aos::vectors::Runner::unrun(&self) -> alloc::vec::Vec<alloc::string::String>
+impl core::fmt::Debug for coqui_aos::vectors::Runner
+pub fn coqui_aos::vectors::Runner::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub enum coqui_aos::Case
 pub coqui_aos::Case::DoesNotParse
 pub coqui_aos::Case::Empty
@@ -251,6 +272,11 @@ pub coqui_aos::Phase::Remove
 pub coqui_aos::Phase::Sync
 impl coqui_aos::Phase
 pub const fn coqui_aos::Phase::name(self) -> &'static str
+pub fn coqui_aos::Phase::named(&str) -> core::option::Option<Self>
+impl serde_core::ser::Serialize for coqui_aos::Phase
+pub fn coqui_aos::Phase::serialize<S: serde_core::ser::Serializer>(&self, S) -> core::result::Result<<S as serde_core::ser::Serializer>::Ok, <S as serde_core::ser::Serializer>::Error>
+impl<'de> serde_core::de::Deserialize<'de> for coqui_aos::Phase
+pub fn coqui_aos::Phase::deserialize<D: serde_core::de::Deserializer<'de>>(D) -> core::result::Result<Self, <D as serde_core::de::Deserializer>::Error>
 #[non_exhaustive] pub enum coqui_aos::PlannedOrigin
 pub coqui_aos::PlannedOrigin::Ambiguous
 pub coqui_aos::PlannedOrigin::Bundled
@@ -380,11 +406,13 @@ pub coqui_aos::Environments::left: alloc::vec::Vec<coqui_aos::LeftEnvironment>
 pub coqui_aos::Error::class: coqui_aos::Class
 pub coqui_aos::Error::column: core::option::Option<usize>
 pub coqui_aos::Error::line: core::option::Option<usize>
+pub coqui_aos::Error::setting: core::option::Option<&'static str>
 pub coqui_aos::Error::subject: alloc::string::String
 impl coqui_aos::Error
 pub fn coqui_aos::Error::at(self, usize, usize) -> Self
 pub fn coqui_aos::Error::new(coqui_aos::Class, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn coqui_aos::Error::on_line(self, usize) -> Self
+pub fn coqui_aos::Error::over(self, &'static str) -> Self
 impl core::error::Error for coqui_aos::Error
 impl core::fmt::Display for coqui_aos::Error
 pub fn coqui_aos::Error::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -550,6 +578,8 @@ pub coqui_aos::NonDefault::value: alloc::string::String
 #[non_exhaustive] pub struct coqui_aos::NonDefaultSetting
 pub coqui_aos::NonDefaultSetting::id: coqui_aos::NonDefaultId
 pub coqui_aos::NonDefaultSetting::subject: alloc::string::String
+impl coqui_aos::NonDefaultSetting
+pub fn coqui_aos::NonDefaultSetting::new(coqui_aos::NonDefaultId, impl core::convert::Into<alloc::string::String>) -> Self
 #[non_exhaustive] pub struct coqui_aos::OverlayRead
 pub coqui_aos::OverlayRead::context: alloc::vec::Vec<alloc::string::String>
 pub coqui_aos::OverlayRead::context_ignored: alloc::vec::Vec<alloc::string::String>
@@ -652,6 +682,10 @@ pub coqui_aos::SetupRecord::digest: alloc::string::String
 pub coqui_aos::SetupRecord::phase: coqui_aos::Phase
 impl coqui_aos::SetupRecord
 pub fn coqui_aos::SetupRecord::new(impl core::convert::Into<alloc::string::String>, coqui_aos::Phase) -> Self
+impl serde_core::ser::Serialize for coqui_aos::SetupRecord
+pub fn coqui_aos::SetupRecord::serialize<S: serde_core::ser::Serializer>(&self, S) -> core::result::Result<<S as serde_core::ser::Serializer>::Ok, <S as serde_core::ser::Serializer>::Error>
+impl<'de> serde_core::de::Deserialize<'de> for coqui_aos::SetupRecord
+pub fn coqui_aos::SetupRecord::deserialize<D: serde_core::de::Deserializer<'de>>(D) -> core::result::Result<Self, <D as serde_core::de::Deserializer>::Error>
 #[non_exhaustive] pub struct coqui_aos::SetupRun
 pub coqui_aos::SetupRun::args: alloc::vec::Vec<alloc::string::String>
 pub coqui_aos::SetupRun::interpreter: alloc::string::String
@@ -756,6 +790,7 @@ pub fn coqui_aos::hook_order(&alloc::collections::btree::map::BTreeMap<alloc::st
 pub fn coqui_aos::hook_payload(coqui_aos::HookEvent, &serde_json::map::Map<alloc::string::String, serde_json::value::Value>) -> serde_json::map::Map<alloc::string::String, serde_json::value::Value>
 pub fn coqui_aos::hook_plan(&coqui_aos::Document, &coqui_aos::OverlayTree, &coqui_aos::HookFacts, &coqui_aos::Settings) -> core::result::Result<coqui_aos::HookPlan, coqui_aos::Error>
 pub fn coqui_aos::hook_result(coqui_aos::HookEvent, &coqui_aos::HookRun, &coqui_aos::Settings) -> core::result::Result<coqui_aos::HookOutput, coqui_aos::HookFailure>
+pub fn coqui_aos::hooks_declared(&coqui_aos::Document, &coqui_aos::OverlayTree) -> bool
 pub fn coqui_aos::hooks_of(&coqui_aos::Document, &coqui_aos::OverlayTree, &str, &[alloc::string::String]) -> (alloc::vec::Vec<coqui_aos::Hook>, alloc::vec::Vec<alloc::string::String>)
 pub fn coqui_aos::is_reserved_variable(&str) -> bool
 pub fn coqui_aos::is_sensitive_variable(&str) -> bool

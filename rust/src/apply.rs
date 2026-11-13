@@ -1178,8 +1178,6 @@ pub enum Change {
 
 /// A setup phase. With the `serde` feature it is written as its [`name`](Phase::name).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 #[non_exhaustive]
 pub enum Phase {
     /// The first preparation of an identity on an OS.
@@ -1216,7 +1214,6 @@ impl Phase {
 /// Station): its digest and phase. With the `serde` feature it is the object
 /// `{"digest": ..., "phase": ...}`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub struct SetupRecord {
     /// The digest prepared, `sha256:<hex>`.
@@ -1233,6 +1230,50 @@ impl SetupRecord {
             digest: digest.into(),
             phase,
         }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for Phase {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.name())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Phase {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let name = <alloc::string::String as serde::Deserialize>::deserialize(deserializer)?;
+        Self::named(&name)
+            .ok_or_else(|| serde::de::Error::unknown_variant(&name, &["install", "sync", "remove"]))
+    }
+}
+
+/// The object a record is written as and read from.
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename = "SetupRecord")]
+struct RecordObject<D> {
+    digest: D,
+    phase: Phase,
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for SetupRecord {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        RecordObject {
+            digest: self.digest.as_str(),
+            phase: self.phase,
+        }
+        .serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for SetupRecord {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let object = RecordObject::<String>::deserialize(deserializer)?;
+        Ok(Self::new(object.digest, object.phase))
     }
 }
 
