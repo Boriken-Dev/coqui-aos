@@ -11,7 +11,7 @@ pub fn coqui_aos::vectors::Report::assert_clean(&self)
 pub fn coqui_aos::vectors::Report::is_clean(&self) -> bool
 pub struct coqui_aos::vectors::Runner
 impl coqui_aos::vectors::Runner
-pub const coqui_aos::vectors::Runner::FILES: [&'static str; 11]
+pub const coqui_aos::vectors::Runner::FILES: [&'static str; 12]
 pub fn coqui_aos::vectors::Runner::effective(self, impl core::ops::function::Fn(&coqui_aos::Document, &coqui_aos::Facts) -> core::result::Result<coqui_aos::Effective, coqui_aos::Error> + 'static) -> Self
 pub fn coqui_aos::vectors::Runner::host_non_defaults(self, alloc::vec::Vec<coqui_aos::NonDefaultSetting>) -> Self
 pub fn coqui_aos::vectors::Runner::new(impl core::convert::Into<std::path::PathBuf>) -> Self
@@ -63,6 +63,7 @@ pub coqui_aos::Class::InvalidDigest
 pub coqui_aos::Class::InvalidEnvFile
 pub coqui_aos::Class::InvalidLabel
 pub coqui_aos::Class::InvalidName
+pub coqui_aos::Class::InvalidOption
 pub coqui_aos::Class::InvalidPattern
 pub coqui_aos::Class::InvalidReference
 pub coqui_aos::Class::InvalidRequirements
@@ -205,6 +206,8 @@ pub coqui_aos::IssueCode::McpUnknownServer
 pub coqui_aos::IssueCode::McpUrl
 pub coqui_aos::IssueCode::MissingFile
 pub coqui_aos::IssueCode::MissingSkill
+pub coqui_aos::IssueCode::OptionDefaultType
+pub coqui_aos::IssueCode::OptionSensitiveDefault
 pub coqui_aos::IssueCode::RefNotAllowed
 pub coqui_aos::IssueCode::ReservedName
 pub coqui_aos::IssueCode::ReservedVariable
@@ -743,6 +746,24 @@ impl coqui_aos::FileSystem for coqui_aos::StdFs
 pub fn coqui_aos::StdFs::list(&self, &std::path::Path) -> core::io::error::Result<alloc::vec::Vec<std::ffi::os_str::OsString>>
 pub fn coqui_aos::StdFs::metadata(&self, &std::path::Path) -> core::io::error::Result<coqui_aos::Metadata>
 pub fn coqui_aos::StdFs::read(&self, &std::path::Path, u64) -> core::io::error::Result<alloc::vec::Vec<u8>>
+pub struct coqui_aos::Template
+impl coqui_aos::Template
+pub fn coqui_aos::Template::get(&self, &str) -> core::option::Option<&str>
+#[non_exhaustive] pub struct coqui_aos::TemplateFacts
+pub coqui_aos::TemplateFacts::name: core::option::Option<alloc::string::String>
+pub coqui_aos::TemplateFacts::options: coqui_aos::Document
+pub coqui_aos::TemplateFacts::project: core::option::Option<alloc::string::String>
+pub coqui_aos::TemplateFacts::root: core::option::Option<alloc::string::String>
+pub coqui_aos::TemplateFacts::scope: core::option::Option<alloc::string::String>
+pub coqui_aos::TemplateFacts::state: core::option::Option<alloc::string::String>
+impl coqui_aos::TemplateFacts
+pub fn coqui_aos::TemplateFacts::name(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn coqui_aos::TemplateFacts::new() -> Self
+pub fn coqui_aos::TemplateFacts::options(self, coqui_aos::Document) -> Self
+pub fn coqui_aos::TemplateFacts::project(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn coqui_aos::TemplateFacts::root(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn coqui_aos::TemplateFacts::scope(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn coqui_aos::TemplateFacts::state(self, impl core::convert::Into<alloc::string::String>) -> Self
 #[non_exhaustive] pub struct coqui_aos::TreeDigest
 pub coqui_aos::TreeDigest::digest: coqui_aos::Digest
 pub coqui_aos::TreeDigest::files: alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::Digest>
@@ -775,6 +796,7 @@ pub fn coqui_aos::composition_order(&alloc::collections::btree::map::BTreeMap<al
 pub fn coqui_aos::context_file_text<'a>(&'a [u8], &coqui_aos::Settings) -> core::result::Result<&'a [u8], coqui_aos::Error>
 pub fn coqui_aos::context_ignored(&coqui_aos::Document, &coqui_aos::OverlayTree) -> alloc::vec::Vec<alloc::string::String>
 pub fn coqui_aos::context_of(&coqui_aos::Document, &coqui_aos::OverlayTree) -> alloc::vec::Vec<alloc::string::String>
+pub fn coqui_aos::context_text(&[u8], &coqui_aos::Template, &coqui_aos::Settings) -> core::result::Result<alloc::string::String, coqui_aos::Error>
 pub fn coqui_aos::current_os() -> &'static str
 pub fn coqui_aos::default_on(&coqui_aos::Document, &str) -> bool
 pub fn coqui_aos::default_paths(&coqui_aos::Document, &coqui_aos::OverlayTree) -> alloc::vec::Vec<serde_json::value::Value>
@@ -823,11 +845,14 @@ pub fn coqui_aos::rules_of(&coqui_aos::Document, &coqui_aos::OverlayTree) -> all
 pub fn coqui_aos::setup_phase(coqui_aos::Change, core::option::Option<&str>, core::option::Option<&str>) -> core::option::Option<coqui_aos::Phase>
 pub fn coqui_aos::skill_entries(&coqui_aos::Document, &coqui_aos::OverlayTree) -> alloc::vec::Vec<coqui_aos::SkillEntry>
 pub fn coqui_aos::skill_flags(&coqui_aos::Document, &coqui_aos::OverlayTree) -> alloc::vec::Vec<alloc::string::String>
+pub fn coqui_aos::skill_text(&[u8], &coqui_aos::Template, &coqui_aos::Settings) -> core::result::Result<alloc::string::String, coqui_aos::Error>
 pub fn coqui_aos::skills_of(&coqui_aos::Document, &coqui_aos::OverlayTree) -> alloc::vec::Vec<alloc::string::String>
 pub fn coqui_aos::split_front_matter<'a>(&'a [u8], &coqui_aos::Settings) -> coqui_aos::Split<'a>
 pub fn coqui_aos::state_variable(&str) -> alloc::string::String
 pub fn coqui_aos::substitute(&str, &dyn core::ops::function::Fn(&str) -> core::result::Result<core::option::Option<alloc::string::String>, coqui_aos::Error>) -> core::result::Result<alloc::string::String, coqui_aos::Error>
 pub fn coqui_aos::substitute_with(&str, &dyn core::ops::function::Fn(&str) -> core::result::Result<core::option::Option<alloc::string::String>, coqui_aos::Error>, &coqui_aos::Settings) -> core::result::Result<alloc::string::String, coqui_aos::Error>
+pub fn coqui_aos::template(&str, &coqui_aos::Template) -> alloc::string::String
+pub fn coqui_aos::template_values(&coqui_aos::Document, &coqui_aos::TemplateFacts) -> core::result::Result<coqui_aos::Template, coqui_aos::Error>
 pub fn coqui_aos::tree_digest(&dyn coqui_aos::FileSystem, &std::path::Path, &coqui_aos::Settings) -> core::result::Result<coqui_aos::TreeDigest, coqui_aos::Error>
 pub fn coqui_aos::valid_license(&str) -> bool
 pub fn coqui_aos::valid_overlay_name(&str) -> bool

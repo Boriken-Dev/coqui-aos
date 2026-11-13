@@ -46,6 +46,8 @@ pub enum Class {
     InvalidLabel,
     /// `invalid-name`.
     InvalidName,
+    /// `invalid-option`.
+    InvalidOption,
     /// `invalid-pattern`.
     InvalidPattern,
     /// `invalid-reference`.
@@ -151,6 +153,7 @@ impl Class {
             Self::InvalidEnvFile => "invalid-env-file",
             Self::InvalidLabel => "invalid-label",
             Self::InvalidName => "invalid-name",
+            Self::InvalidOption => "invalid-option",
             Self::InvalidPattern => "invalid-pattern",
             Self::InvalidReference => "invalid-reference",
             Self::InvalidRequirements => "invalid-requirements",
@@ -217,6 +220,7 @@ impl Class {
             "invalid-env-file" => Some(Self::InvalidEnvFile),
             "invalid-label" => Some(Self::InvalidLabel),
             "invalid-name" => Some(Self::InvalidName),
+            "invalid-option" => Some(Self::InvalidOption),
             "invalid-pattern" => Some(Self::InvalidPattern),
             "invalid-reference" => Some(Self::InvalidReference),
             "invalid-requirements" => Some(Self::InvalidRequirements),

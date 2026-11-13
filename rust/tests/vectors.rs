@@ -74,6 +74,11 @@ fn hooks() {
 }
 
 #[test]
+fn templating() {
+    run("templating.json");
+}
+
+#[test]
 fn skills_from_elsewhere() {
     run("skills.json");
 }

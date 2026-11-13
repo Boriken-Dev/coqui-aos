@@ -14,6 +14,7 @@ mod hooks;
 mod reading;
 mod skills;
 mod support;
+mod templating;
 
 use std::fmt;
 use std::path::PathBuf;
@@ -83,7 +84,7 @@ impl fmt::Debug for Runner {
 
 impl Runner {
     /// The vector files this crate runs.
-    pub const FILES: [&'static str; 11] = [
+    pub const FILES: [&'static str; 12] = [
         "catalog.json",
         "compose.json",
         "digest.json",
@@ -94,6 +95,7 @@ impl Runner {
         "reading.json",
         "skills.json",
         "source.json",
+        "templating.json",
         "validation.json",
     ];
 
@@ -179,6 +181,7 @@ impl Runner {
             "reading.json" => reading::reading(self),
             "skills.json" => skills::skills_from_elsewhere(self),
             "source.json" => reading::source(self),
+            "templating.json" => templating::templating(self),
             "validation.json" => reading::validation(self),
             _ => return None,
         })

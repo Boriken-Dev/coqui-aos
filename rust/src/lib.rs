@@ -27,6 +27,7 @@ mod read;
 mod skills;
 mod source;
 mod subst;
+mod template;
 mod validate;
 #[cfg(feature = "test-support")]
 pub mod vectors;
@@ -83,4 +84,5 @@ pub use skills::{
 };
 pub use source::{Source, SourceKind};
 pub use subst::{Lookup, substitute, substitute_with};
+pub use template::{Template, TemplateFacts, context_text, skill_text, template, template_values};
 pub use validate::{Issue, IssueCode, applies, named_files, skill_flags, valid_license, validate};
