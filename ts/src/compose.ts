@@ -348,3 +348,20 @@ export function environments(
   };
 }
 
+
+/**
+ * The order the hooks of one event run in, as `[scope, source]` pairs: every active overlay that has a hook
+ * (`has`) in composition order, then the user's own, then the project's, whichever order `scopes` (the scopes
+ * that have one) names them in; a scope's own hook has the source `""`. Throws `Cycle` when `requires` loops.
+ */
+export function hookOrder(
+  overlays: ReadonlyMap<string, Document>,
+  requested: readonly string[],
+  has: readonly string[],
+  scopes: readonly string[],
+): Array<[string, string]> {
+  const active = compositionOrder(overlays, resolve(overlays, requested).installOrder);
+  const order: Array<[string, string]> = active.filter((identity) => has.includes(identity)).map((identity) => ["overlay", identity]);
+  for (const scope of ["user", "project"]) if (scopes.includes(scope)) order.push([scope, ""]);
+  return order;
+}

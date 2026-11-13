@@ -10,8 +10,21 @@ import type { Document } from "./value.ts";
  * Variables in the order they were set, with the ones that came from a secret marked. On Windows
  * names compare without regard to ASCII case. A placeholder never reads a secret variable.
  */
+/** A path addition made to a variable: what it put first and last, and every component it covers. */
+export interface PathJoin {
+  readonly separator: string;
+  readonly prepend: readonly string[];
+  readonly seen: ReadonlySet<string>;
+  readonly append: readonly string[];
+}
+
+/** One set of an environment: the name, the value, whether it is a secret and the path addition it made. */
+export type EnvWrite = readonly [string, string, boolean, PathJoin | undefined];
+
 export class Environment {
   readonly windows: boolean;
+  /** While not undefined, every set is appended to it, so one overlay's writes can be made onto another environment with `replay`. */
+  log: EnvWrite[] | undefined = undefined;
   private entries = new Map<string, [string, string]>();
   private secret = new Set<string>();
   private settingsValue: Settings = DEFAULT_SETTINGS;
@@ -60,12 +73,30 @@ export class Environment {
 
   /** Sets a variable, keeping the name's first spelling; `secret` marks its value as one. */
   set(name: string, value: string, secret: boolean): void {
+    this.setJoined(name, value, secret, undefined);
+  }
+
+  /** `set` for a path addition, which `log` keeps with its `join`. */
+  setJoined(name: string, value: string, secret: boolean, join: PathJoin | undefined): void {
+    this.log?.push([name, value, secret, join]);
     const key = this.key(name);
     const held = this.entries.get(key);
     if (held === undefined) this.entries.set(key, [name, value]);
     else held[1] = value;
     if (secret) this.secret.add(key);
     else this.secret.delete(key);
+  }
+
+  /** Makes what another environment's `log` kept: a plain set as it was, a path addition onto this environment's own value. */
+  replay(writes: readonly EnvWrite[]): void {
+    for (const [name, value, secret, join] of writes) {
+      if (join === undefined) {
+        this.set(name, value, secret);
+        continue;
+      }
+      const kept = (this.get(name) ?? "").split(join.separator).filter((part) => part !== "" && !join.seen.has(part));
+      this.set(name, [...join.prepend, ...kept, ...join.append].join(join.separator), false);
+    }
   }
 
   unset(name: string): void {
@@ -110,6 +141,9 @@ export interface FactsFields {
   providerValues: Map<string, Map<string, string>>;
   enforcesNetwork: boolean | undefined;
   envScriptsEnabled: boolean | undefined;
+  gateEnvScripts: boolean;
+  digest: string | undefined;
+  allowed: string | undefined;
   interpreters: string[] | undefined;
   packages: Map<string, string>;
   tree: OverlayTree;
@@ -132,6 +166,12 @@ export class Facts implements FactsFields {
   providerValues = new Map<string, Map<string, string>>();
   enforcesNetwork: boolean | undefined = undefined;
   envScriptsEnabled: boolean | undefined = undefined;
+  /** Whether env scripts run only while `digest` is the `allowed` one, the allowance of the overlay's hooks; off, none is held back. */
+  gateEnvScripts = false;
+  /** The overlay's tree digest, when the consumer has computed it. */
+  digest: string | undefined = undefined;
+  /** The one digest at which the user allowed this overlay's hooks and env scripts. */
+  allowed: string | undefined = undefined;
   interpreters: string[] | undefined = undefined;
   packages = new Map<string, string>();
   tree: OverlayTree = OverlayTree.empty();

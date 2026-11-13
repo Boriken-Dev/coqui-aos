@@ -9,10 +9,10 @@ import { Digest, checkEntries, digestEntries } from "./digest.ts";
 import { AosError } from "./error.ts";
 import type { TreeEntry } from "./digest.ts";
 import { words } from "./kinds.ts";
-import type { Settings } from "./limits.ts";
+import { type Settings, allows } from "./limits.ts";
 import { asciiUpper, isReservedVariable, isSensitiveVariable, isVariableName, osMatches } from "./names.ts";
 import { readEnvScriptOutput } from "./read.ts";
-import { compareText, decodeUtf8 } from "./text.ts";
+import { compareText, decodeUtf8, encodeUtf8 } from "./text.ts";
 import type { OverlayTree } from "./tree.ts";
 import type { Document, Value } from "./value.ts";
 
@@ -300,7 +300,8 @@ export interface HookPlan {
   readonly nonDefaults: Array<readonly [string, string]>;
 }
 
-function sameDigest(a: string, b: string): boolean {
+/** Whether two digests in text are the same digest; one that does not parse is no digest. */
+export function sameDigest(a: string, b: string): boolean {
   try {
     return Digest.parse(a).toString() === Digest.parse(b).toString();
   } catch {
@@ -593,7 +594,9 @@ export class FiredEvent {
  * Combines the runs of one event: the tightest decision wins, each run is checked and a failure
  * that refuses (`on_failure`) becomes the event's refusal. `applies` lists what the consumer can
  * apply (`context`, `env`, `ask`, `block`, `deny`, ...); undefined means everything the event
- * allows. `windows` makes variable names compare without regard to ASCII case.
+ * allows. `windows` makes variable names compare without regard to ASCII case. `contextUsed` is what
+ * the session's context already holds, in bytes: a part of a hook's context that would take the total
+ * past `contextBytes` is not added, whole, and is reported `hook-not-applied`; a later part that fits still is.
  */
 export function fireEvent(
   event: HookEvent,
@@ -601,6 +604,7 @@ export function fireEvent(
   applies: readonly string[] | undefined,
   settings: Settings,
   windows: boolean,
+  contextUsed = 0,
 ): FiredEvent {
   const can = (output: string): boolean =>
     applies === undefined ? output === "refuse" || OUTPUTS[event].includes(output) : applies.includes(output);
@@ -649,8 +653,11 @@ export function fireEvent(
       break;
     }
     if (out.context !== undefined && out.context !== "") {
-      if (can("context")) fired.context.push([source, out.context]);
-      else fired.reports.push({ id: "hook-not-applied", about: [source, event, "context"] });
+      const total = contextUsed + encodeUtf8(out.context).length;
+      if (can("context") && allows(settings.contextBytes, total)) {
+        contextUsed = total;
+        fired.context.push([source, out.context]);
+      } else fired.reports.push({ id: "hook-not-applied", about: [source, event, "context"] });
     }
     if (out.env !== undefined && out.env.length > 0) {
       if (!can("env")) {

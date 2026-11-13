@@ -12,10 +12,10 @@ import {
   firstVariant,
   named,
 } from "./defaults.ts";
-import { Environment, Facts, textOf } from "./environment.ts";
+import { type EnvWrite, Environment, Facts, textOf } from "./environment.ts";
 import { AosError } from "./error.ts";
-import { type HookRun, fireEvent } from "./hooks.ts";
-import type { HookReport } from "./hooks.ts";
+import { type HookRun, fireEvent, sameDigest } from "./hooks.ts";
+import type { HookEvent, HookReport } from "./hooks.ts";
 import type { NonDefaultId } from "./kinds.ts";
 import {
   asciiUpper,
@@ -167,7 +167,12 @@ function applyPaths(
     }
     const kept = (env.get(variable) ?? "").split(separator).filter((part) => part !== "" && !seen.has(part));
     const secret = env.isSecret(variable);
-    env.set(variable, [...prepend, ...kept, ...append].join(separator), secret);
+    env.setJoined(variable, [...prepend, ...kept, ...append].join(separator), secret, {
+      separator,
+      prepend,
+      seen,
+      append,
+    });
   }
 }
 
@@ -219,6 +224,7 @@ function applyOverlay(
   manifest: Document,
   facts: Facts,
   nonDefaults: NonDefaultSetting[],
+  reports: Array<readonly [string, string]>,
 ): ScriptRun[] {
   requireApplicable(manifest);
   env.extra = [
@@ -227,7 +233,7 @@ function applyOverlay(
   ];
   if (facts.state !== undefined) env.extra.push(["AOS_OVERLAY_STATE", facts.state]);
   try {
-    return applyOverlayInner(env, manifest, facts, nonDefaults);
+    return applyOverlayInner(env, manifest, facts, nonDefaults, reports);
   } finally {
     env.extra = [];
   }
@@ -251,6 +257,7 @@ function applyOverlayInner(
   manifest: Document,
   facts: Facts,
   nonDefaults: NonDefaultSetting[],
+  reports: Array<readonly [string, string]>,
 ): ScriptRun[] {
   const { os, root, tree } = facts;
   const paths: Value[] = defaultPaths(manifest, tree);
@@ -317,6 +324,16 @@ function applyOverlayInner(
   const scripts: ScriptRun[] = [];
   if (facts.envScriptsEnabled !== false) {
     const choice = defaultScript(manifest, "env_scripts", "env", tree, os, facts.interpreters ?? [...INTERPRETERS]);
+    if (
+      facts.gateEnvScripts &&
+      !(facts.digest !== undefined && facts.allowed !== undefined && sameDigest(facts.digest, facts.allowed))
+    ) {
+      // Off until the user allows the digest: the overlay is otherwise applied.
+      if (choice.chosen !== undefined || choice.present.length > 0 || choice.others.some((script) => entryOn(script, os))) {
+        reports.push(["env-script-not-allowed", facts.identity]);
+      }
+      return scripts;
+    }
     if (choice.chosen === undefined) {
       for (const path of choice.present) nonDefaults.push(setting("script-not-run", path));
     }
@@ -368,6 +385,8 @@ export interface Effective {
   readonly dependencies: readonly Dependency[];
   readonly needs: Needs;
   readonly nonDefaults: readonly NonDefaultSetting[];
+  /** `[id, subject]` reports, sorted and without duplicates: `env-script-not-allowed`. */
+  readonly reports: ReadonlyArray<readonly [string, string]>;
 }
 
 function sortedUnique(items: Iterable<string>): string[] {
@@ -391,7 +410,8 @@ export function effective(manifest: Document, facts: Facts): Effective {
   const env = new Environment(facts.baseEnv, facts.windows).settings(facts.settings);
   env.set(rootVariable(facts.identity), facts.root, false);
   if (facts.state !== undefined) env.set(stateVariable(facts.identity), facts.state, false);
-  const scripts = applyOverlay(env, manifest, facts, nonDefaults);
+  const reports: Array<readonly [string, string]> = [];
+  const scripts = applyOverlay(env, manifest, facts, nonDefaults, reports);
   const interpretersKnown = facts.interpreters ?? [...INTERPRETERS];
   const choice = defaultScript(manifest, "setup", "setup", facts.tree, os, interpretersKnown);
   // Declared variants come first; the default setup is the last one.
@@ -507,6 +527,9 @@ export function effective(manifest: Document, facts: Facts): Effective {
     dependencies,
     needs: { interpreters: sortedUnique(interpreters), commands: sortedUnique(commands) },
     nonDefaults: [...unique.values()].sort((a, b) => compareText(a.id, b.id) || compareText(a.subject, b.subject)),
+    reports: [...new Map(reports.map((pair) => [`${pair[0]}\0${pair[1]}`, pair] as const)).values()].sort(
+      (a, b) => compareText(a[0], b[0]) || compareText(a[1], b[1]),
+    ),
   };
 }
 
@@ -555,11 +578,79 @@ export function composedEnvironment(
   }
   for (const [manifest, facts] of active) {
     try {
-      applyOverlay(env, manifest, facts, nonDefaults);
+      applyOverlay(env, manifest, facts, nonDefaults, []);
     } catch (error) {
       if (error instanceof AosError) return refused(error);
       throw error;
     }
   }
   return { env, error: undefined, hookReports, hookNonDefaults };
+}
+
+/**
+ * The environment a hook of `event` runs with. `active` and `base` are as `composedEnvironment` takes them.
+ * The hook of overlay `identity` gets what that overlay's own processes get: the base, every overlay's root
+ * (and state) variable, that overlay's own `pre-env` output and declarations with the values they had in the
+ * session's order of application, and `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_STATE` (when it
+ * has one) and `AOS_HOOK_EVENT`; nothing another overlay's declarations or `pre-env` output set. A `pre-env`
+ * hook gets the base, the root and the state variables only. With `identity` undefined, a user's or a
+ * project's own hook, it gets the base and `AOS_HOOK_EVENT`. Throws what an overlay's declarations throw.
+ */
+export function hookEnvironment(
+  event: HookEvent,
+  active: ReadonlyArray<readonly [Document, Facts]>,
+  base: Environment,
+  preEnv: ReadonlyMap<string, HookRun>,
+  identity: string | undefined,
+): Environment {
+  const withRoots = (): Environment => {
+    const env = base.clone();
+    for (const [, facts] of active) {
+      env.set(rootVariable(facts.identity), facts.root, false);
+      if (facts.state !== undefined) env.set(stateVariable(facts.identity), facts.state, false);
+    }
+    return env;
+  };
+  if (identity === undefined) {
+    const own = base.clone();
+    own.set("AOS_HOOK_EVENT", event, false);
+    return own;
+  }
+  const chosen = active.map(([, facts]) => facts).find((facts) => facts.identity === identity);
+  if (chosen === undefined) throw new AosError("unresolved-reference", identity);
+  let own = withRoots();
+  if (event !== "pre-env") {
+    const session = withRoots();
+    const owned = new Map(active.map(([, facts]) => [facts.identity, withRoots()] as const));
+    for (const [, facts] of active) {
+      const given = preEnv.get(facts.identity);
+      if (given === undefined) continue;
+      const run: HookRun = Object.assign(Object.create(Object.getPrototypeOf(given) as object) as HookRun, given, {
+        source: facts.identity,
+      });
+      const fired = fireEvent("pre-env", [run], undefined, facts.settings, session.windows);
+      for (const [name, value] of fired.env) {
+        for (const target of [session, owned.get(facts.identity)!]) {
+          if (value === undefined) target.unset(name);
+          else target.set(name, value, false);
+        }
+      }
+    }
+    for (const [manifest, facts] of active) {
+      const writes: EnvWrite[] = [];
+      session.log = writes;
+      try {
+        applyOverlay(session, manifest, facts, [], []);
+      } finally {
+        session.log = undefined;
+      }
+      owned.get(facts.identity)!.replay(writes);
+    }
+    own = owned.get(identity)!;
+  }
+  own.set("AOS_OVERLAY_ROOT", chosen.root, false);
+  own.set("AOS_OVERLAY_NAME", normalizeName(chosen.identity), false);
+  if (chosen.state !== undefined) own.set("AOS_OVERLAY_STATE", chosen.state, false);
+  own.set("AOS_HOOK_EVENT", event, false);
+  return own;
 }

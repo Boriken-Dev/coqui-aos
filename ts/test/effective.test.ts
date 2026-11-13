@@ -46,6 +46,7 @@ function run(item: Map<string, Json>): void {
       ["needs", mapOf([["interpreters", [...result.needs.interpreters]], ["commands", [...result.needs.commands]]])],
       ["non_defaults", result.nonDefaults.map((w) => [w.id, w.subject])],
     ]);
+    if (result.reports.length > 0) body.set("reports", result.reports.map((pair) => [...pair]));
     const change = raw.get("change");
     if (typeof change === "string") {
       const record = raw.get("record");

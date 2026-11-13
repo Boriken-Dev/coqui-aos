@@ -36,6 +36,9 @@ export function factsOf(raw: Map<string, Json>): Facts {
   facts.enforcesNetwork = typeof network === "boolean" ? network : undefined;
   const scripts = raw.get("env_scripts_enabled");
   facts.envScriptsEnabled = typeof scripts === "boolean" ? scripts : undefined;
+  facts.gateEnvScripts = raw.has("allowed");
+  facts.digest = text("digest");
+  facts.allowed = text("allowed");
   const interpreters = raw.get("interpreters");
   facts.interpreters = Array.isArray(interpreters) ? strings(interpreters) : undefined;
   facts.packages = stringMap(raw.get("packages"));

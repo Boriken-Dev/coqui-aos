@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { inspect } from "node:util";
 import { test } from "node:test";
+import { compositionOrder, hookOrder, resolve } from "../src/compose.ts";
+import { hookEnvironment } from "../src/apply.ts";
+import { Environment } from "../src/environment.ts";
 import {
   type Hook,
   type HookEvent,
@@ -16,10 +19,12 @@ import {
   hookRun,
 } from "../src/hooks.ts";
 import { Settings } from "../src/limits.ts";
+import { OverlayTree } from "../src/tree.ts";
 import { readOverlay } from "../src/overlay.ts";
 import { validate } from "../src/validate.ts";
 import type { Document, Value } from "../src/value.ts";
 import { valuesEqual } from "../src/value.ts";
+import { factsOf, stringMap } from "./env_support.ts";
 import { hookRunOf, toJson, treeOf } from "./g2_support.ts";
 import { type Json, num, obj, runFile, show, str, strings, utf8 } from "./support.ts";
 
@@ -37,6 +42,7 @@ function settingsFrom(limits: Json | undefined): Settings {
     ["event_timeout", "hookEventTimeout"],
     ["max_output", "hookOutputBytes"],
     ["max_payload", "hookPayloadBytes"],
+    ["context_bytes", "contextBytes"],
   ] as const) {
     const value = num(limits.get(key));
     if (value !== undefined) changes[field] = value;
@@ -134,6 +140,7 @@ function eventCase(item: Map<string, Json>): void {
     applies === undefined ? undefined : strings(applies),
     settingsFrom(item.get("limits")),
     item.get("os") === "windows",
+    num(item.get("context_used")) ?? 0,
   );
   same(
     new Map<string, Json>([
@@ -150,6 +157,49 @@ function eventCase(item: Map<string, Json>): void {
   );
 }
 
+function overlaysOf(item: Map<string, Json>): Map<string, Document> {
+  return new Map([...obj(item.get("overlays"))].map(([name, manifest]) => [name, (obj(manifest) as unknown as Document)] as const));
+}
+
+function orderCase(item: Map<string, Json>): void {
+  const order = hookOrder(overlaysOf(item), strings(item.get("requested")), strings(item.get("has")), strings(item.get("scopes")));
+  same(new Map<string, Json>([["order", order]]), item.get("expect"));
+}
+
+function environmentCase(item: Map<string, Json>): void {
+  const raw = obj(item.get("facts"));
+  const overlays = overlaysOf(item);
+  const names = compositionOrder(overlays, resolve(overlays, strings(item.get("requested"))).installOrder);
+  const shared = factsOf(raw);
+  const roots = obj(raw.get("roots"));
+  const states = raw.get("states");
+  const files = item.get("files");
+  const active = names.map((name) => {
+    const state = states instanceof Map ? states.get(name) : undefined;
+    const own = files instanceof Map ? files.get(name) : undefined;
+    return [
+      overlays.get(name)!,
+      shared.with({
+        identity: name,
+        root: str(roots.get(name)),
+        state: typeof state === "string" ? state : undefined,
+        tree: own === undefined ? OverlayTree.empty() : treeOf(own),
+      }),
+    ] as const;
+  });
+  const preEnv = new Map([...obj(raw.get("pre_env") ?? new Map())].map(([name, run]) => [name, hookRunOf(run)] as const));
+  const base = new Environment([...stringMap(raw.get("base_env"))], raw.get("os") === "windows");
+  const scope = item.get("scope");
+  const env = hookEnvironment(
+    eventOf(item),
+    active,
+    base,
+    preEnv,
+    scope === "user" || scope === "project" ? undefined : str(item.get("identity")),
+  );
+  same(new Map<string, Json>([["env", new Map(env.values())]]), item.get("expect"));
+}
+
 runFile("hooks.json", (item) => {
   const id = str(item.get("id"));
   if (id.startsWith("plan-")) return planCase(item);
@@ -158,6 +208,8 @@ runFile("hooks.json", (item) => {
   }
   if (id.startsWith("output-")) return outputCase(item);
   if (id.startsWith("event-")) return eventCase(item);
+  if (id.startsWith("order-")) return orderCase(item);
+  if (id.startsWith("environment-")) return environmentCase(item);
   const select = item.get("match");
   const got = hookMatches(eventOf(item), Array.isArray(select) ? strings(select) : undefined, str(item.get("value")));
   same(toJson({ runs: got }), item.get("expect"));

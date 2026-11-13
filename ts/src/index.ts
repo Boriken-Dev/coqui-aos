@@ -15,7 +15,7 @@ export * from "./fs.ts";
 export { DEFAULT_KEYS, INTERPRETERS, defaultOn, defaultPaths, pathsOf, rulesOf, contextOf, contextIgnored, harnessContextOf, bundledSkills, skillEntries, skillsOf, envFilesOf, PartialLock, checkRequirements, dependenciesOf, type SkillOrigin, type SkillEntry, type Dependency } from "./defaults.ts";
 export * from "./compose.ts";
 export { Environment, Facts, type FactsFields } from "./environment.ts";
-export { readDotenv, effective, composedEnvironment, type NonDefaultSetting, type ScriptRun, type SetupRun, type Needs, type Effective, type ComposedEnvironment } from "./apply.ts";
+export { readDotenv, effective, composedEnvironment, hookEnvironment, type NonDefaultSetting, type ScriptRun, type SetupRun, type Needs, type Effective, type ComposedEnvironment } from "./apply.ts";
 export * from "./prepare.ts";
 export * from "./subst.ts";
 export * from "./catalog.ts";
