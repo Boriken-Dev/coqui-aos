@@ -95,7 +95,10 @@ OverlayRead readOverlay(OverlayTree tree, Settings settings) {
   }
   if (named.contains('OVERLAY.md') && body.any((byte) => !_isBlank(byte))) {
     if (!allows(settings.contextBytes, body.length)) {
-      throw AosError('too-large', 'the body of OVERLAY.md').onLine(bodyLine);
+      throw AosError(
+        'too-large',
+        'the body of OVERLAY.md',
+      ).over('context_bytes').onLine(bodyLine);
     }
     try {
       decodeUtf8(body);

@@ -290,12 +290,13 @@ Object readYaml(String text, Limit depth) {
     }
     final deep = !allows(depth, nesting(text));
     final offset = error.span?.start.offset ?? 0;
-    throw _failure(
+    final refusal = _failure(
       deep ? 'too-deep' : 'parse-error',
       'not valid YAML',
       text,
       offset,
     );
+    throw deep ? refusal.over('manifest_depth') : refusal;
   }
   if (nodes.isEmpty) return <String, Object>{};
   final first = nodes.first;

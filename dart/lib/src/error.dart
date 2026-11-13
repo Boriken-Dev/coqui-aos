@@ -89,7 +89,19 @@ class AosError implements Exception {
 
   int? _line;
   int? _column;
+  String? _setting;
   late String _message;
+
+  /// For a refusal of a limit (`too-large`, `too-deep`, `too-complex`, `icon-too-large`,
+  /// `icon-dimensions`): the key of the setting that was passed, as a configuration writes it,
+  /// such as `tree_files`. Stable, unlike [subject]'s wording; null for any other refusal.
+  String? get setting => _setting;
+
+  /// This error naming the [setting] whose limit was passed; returns itself.
+  AosError over(String setting) {
+    _setting = setting;
+    return this;
+  }
 
   /// `class: subject at line N column M`.
   String get message => _message;

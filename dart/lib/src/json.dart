@@ -38,8 +38,10 @@ String wellFormed(String text) {
 }
 
 /// A `too-deep` refusal for a bound of [depth].
-AosError tooDeep(Limit depth) =>
-    _refusal('too-deep', 'nested deeper than ${limitText(depth)}');
+AosError tooDeep(Limit depth) => _refusal(
+  'too-deep',
+  'nested deeper than ${limitText(depth)}',
+).over('manifest_depth');
 
 sealed class _Frame {}
 

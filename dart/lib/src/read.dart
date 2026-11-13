@@ -123,7 +123,7 @@ Document readDocument(Uint8List data, Settings settings) {
     throw AosError(
       'too-large',
       'over ${limitText(settings.manifestBytes)} bytes',
-    );
+    ).over('manifest_bytes');
   }
   final bytes = startsWithBytes(data, _bom)
       ? Uint8List.sublistView(data, 3)

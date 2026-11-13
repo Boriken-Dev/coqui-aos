@@ -219,7 +219,7 @@ void checkEntries(List<(Object?, TreeEntry)> entries, Settings settings) {
     throw AosError(
       'too-large',
       'more than ${limitText(settings.treeFiles)} files and directories',
-    );
+    ).over('tree_files');
   }
   var total = 0;
   for (final (_, entry) in entries) {
@@ -228,7 +228,7 @@ void checkEntries(List<(Object?, TreeEntry)> entries, Settings settings) {
         throw AosError(
           'too-large',
           'a file larger than ${limitText(settings.fileBytes)} bytes',
-        );
+        ).over('file_bytes');
       }
       total += entry.bytes.length;
     }
@@ -237,7 +237,7 @@ void checkEntries(List<(Object?, TreeEntry)> entries, Settings settings) {
     throw AosError(
       'too-large',
       'more than ${limitText(settings.treeBytes)} bytes',
-    );
+    ).over('tree_bytes');
   }
 }
 
@@ -312,7 +312,7 @@ class _Walk {
       throw _refused(
         'too-large',
         'directories nested deeper than ${limitText(settings.treeDepth)}',
-      );
+      ).over('tree_depth');
     }
     final List<Object> listed;
     try {
@@ -352,7 +352,7 @@ class _Walk {
       throw _refused(
         'too-large',
         'more than ${limitText(settings.treeFiles)} files and directories',
-      );
+      ).over('tree_files');
     }
   }
 
@@ -394,14 +394,14 @@ class _Walk {
       throw _refused(
         'too-large',
         '$member is larger than ${limitText(settings.fileBytes)} bytes',
-      );
+      ).over('file_bytes');
     }
     _bytes += bytes.length;
     if (!allows(settings.treeBytes, _bytes)) {
       throw _refused(
         'too-large',
         'more than ${limitText(settings.treeBytes)} bytes',
-      );
+      ).over('tree_bytes');
     }
     found[member] = Digest.of(bytes);
     if (keep) contents[member] = bytes;

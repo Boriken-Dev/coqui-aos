@@ -260,7 +260,10 @@ FrontMatter readFrontMatter(Uint8List data, Settings settings) {
     case 'too-large':
       return FrontMatter(
         frontMatterCase: 'too-large',
-        error: AosError('too-large', 'front matter').onLine(1),
+        error: AosError(
+          'too-large',
+          'front matter',
+        ).over('manifest_bytes').onLine(1),
       );
     default:
       break;
@@ -306,7 +309,10 @@ FrontMatter readFrontMatter(Uint8List data, Settings settings) {
 Uint8List contextFileText(Uint8List data, Settings settings) {
   final split = splitFrontMatter(data, settings);
   if (split.splitCase == 'too-large') {
-    throw AosError('too-large', 'front matter').onLine(1);
+    throw AosError(
+      'too-large',
+      'front matter',
+    ).over('manifest_bytes').onLine(1);
   }
   return split.body(data);
 }

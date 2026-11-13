@@ -62,14 +62,17 @@ class _Run {
   void step(int cost) {
     steps += cost;
     if (!allows(limits.substitutionSteps, steps)) {
-      throw AosError('too-complex', 'a pattern');
+      throw AosError('too-complex', 'a pattern').over('substitution_steps');
     }
   }
 
   /// Refuses an output of [size] UTF-8 bytes past `substitutionBytes`.
   void fits(int size) {
     if (!allows(limits.substitutionBytes, size)) {
-      throw AosError('too-large', 'a substituted value');
+      throw AosError(
+        'too-large',
+        'a substituted value',
+      ).over('substitution_bytes');
     }
   }
 }
@@ -85,7 +88,7 @@ String substituteWith(String text, Lookup lookup, Settings settings) =>
 
 String _substituteCps(_Cps text, _Run run) {
   if (!allows(run.limits.substitutionDepth, run.depth)) {
-    throw AosError('too-deep', 'an expression');
+    throw AosError('too-deep', 'an expression').over('substitution_depth');
   }
   run.depth += 1;
   try {

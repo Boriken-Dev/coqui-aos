@@ -22,6 +22,27 @@ class SetupRecord {
 
   /// The phase that prepared it.
   final String phase;
+
+  /// The record as a consumer keeps it: `{"digest": ..., "phase": ...}`.
+  Map<String, String> toJson() => {'digest': digest, 'phase': phase};
+
+  /// What [toJson] wrote, or a [FormatException]: [json] is not an object with a `digest`
+  /// string and a `phase` that is exactly `install`, `sync` or `remove`.
+  factory SetupRecord.fromJson(Object? json) {
+    if (json is! Map) {
+      throw const FormatException('a setup record is an object');
+    }
+    final digest = json['digest'];
+    final name = json['phase'];
+    if (digest is! String || name is! String) {
+      throw const FormatException(
+        'a setup record has a digest and a phase, both text',
+      );
+    }
+    final phase = phaseWords.named(name);
+    if (phase == null) throw FormatException('not a setup phase', name);
+    return SetupRecord(digest: digest, phase: phase);
+  }
 }
 
 /// Which phase, if any, a [change] calls for, given the digest last [recorded] and the current

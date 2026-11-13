@@ -126,9 +126,16 @@ String? catalogFormat(String name) {
 Document readCatalogDocument(Uint8List data, String name, Settings settings) {
   final bounded = settings.copyWith({'manifestBytes': settings.catalogBytes});
   final format = catalogFormat(name);
-  if (format == null) return readDocument(data, bounded);
+  if (format == null) {
+    try {
+      return readDocument(data, bounded);
+    } on AosError catch (error) {
+      if (error.setting == 'manifest_bytes') error.over('catalog_bytes');
+      rethrow;
+    }
+  }
   if (!allows(bounded.manifestBytes, data.length)) {
-    throw AosError('too-large', 'a catalog');
+    throw AosError('too-large', 'a catalog').over('catalog_bytes');
   }
   final bytes = startsWithBytes(data, [0xef, 0xbb, 0xbf])
       ? Uint8List.sublistView(data, 3)
@@ -695,7 +702,7 @@ Icon readIcon(Uint8List data, String name, Settings settings) {
     throw AosError('icon-format', '');
   }
   if (!allows(settings.iconBytes, data.length)) {
-    throw AosError('icon-too-large', '');
+    throw AosError('icon-too-large', '').over('icon_bytes');
   }
   final String format;
   if (startsWithBytes(data, [0x89, ..._ascii('PNG'), 0x0d, 0x0a, 0x1a, 0x0a])) {
@@ -708,9 +715,11 @@ Icon readIcon(Uint8List data, String name, Settings settings) {
   if (format != extension) throw AosError('icon-mismatch', '');
   final (width, height) = format == 'png' ? _pngSize(data) : _webpSize(data);
   if (width == 0 || height == 0) throw AosError('icon-unreadable', '');
-  if (!allows(settings.iconWidth, width) ||
-      !allows(settings.iconHeight, height)) {
-    throw AosError('icon-dimensions', '');
+  if (!allows(settings.iconWidth, width)) {
+    throw AosError('icon-dimensions', '').over('icon_width');
+  }
+  if (!allows(settings.iconHeight, height)) {
+    throw AosError('icon-dimensions', '').over('icon_height');
   }
   return Icon(format: format, width: width, height: height);
 }
