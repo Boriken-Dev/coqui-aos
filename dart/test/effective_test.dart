@@ -45,6 +45,10 @@ void run(Case item) {
       'non_defaults': [
         for (final w in result.nonDefaults) [w.id, w.subject],
       ],
+      if (result.reports.isNotEmpty)
+        'reports': [
+          for (final (id, subject) in result.reports) [id, subject],
+        ],
     };
     final change = raw['change'];
     if (change is String) {

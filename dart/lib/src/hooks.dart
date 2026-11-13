@@ -15,6 +15,7 @@ import 'kinds.dart';
 import 'limits.dart';
 import 'names.dart';
 import 'read.dart';
+import 'same_digest.dart';
 import 'text.dart';
 import 'tree.dart';
 import 'value.dart';
@@ -391,14 +392,6 @@ class HookPlan {
   final List<(String, String)> nonDefaults;
 }
 
-bool _sameDigest(String a, String b) {
-  try {
-    return Digest.parse(a).toString() == Digest.parse(b).toString();
-  } on AosError {
-    return false;
-  }
-}
-
 int _comparePairs((String, String) a, (String, String) b) {
   final first = compareText(a.$1, b.$1);
   return first != 0 ? first : compareText(a.$2, b.$2);
@@ -434,7 +427,7 @@ HookPlan hookPlan(
   final allowed = facts.allowed;
   final on =
       facts.scope == 'user' ||
-      (digest != null && allowed != null && _sameDigest(digest, allowed));
+      (digest != null && allowed != null && sameDigest(digest, allowed));
   final fires = facts.fires ?? hookEvent.all;
   final nonDefaults = <(String, String)>[
     for (final path in found.notRun) ('script-not-run', path),
@@ -779,13 +772,18 @@ class FiredEvent {
 /// that refuses (`on_failure`) becomes the event's refusal. [applies] lists what the consumer
 /// can apply (`context`, `env`, `ask`, `block`, `deny`, ...); null means everything the event
 /// allows. [windows] makes variable names compare without regard to ASCII case.
+///
+/// [contextUsed] is what the session's context already holds, in bytes: a part of a hook's
+/// context that would take the total past `contextBytes` is not added, whole and never cut, and is
+/// reported as `hook-not-applied`; a later part that fits still is added.
 FiredEvent fireEvent(
   String event,
   List<HookRun> runs,
   List<String>? applies,
   Settings settings,
-  bool windows,
-) {
+  bool windows, [
+  int contextUsed = 0,
+]) {
   bool can(String output) => applies == null
       ? output == 'refuse' || _outputs[event]!.contains(output)
       : applies.contains(output);
@@ -841,7 +839,9 @@ FiredEvent fireEvent(
     }
     final context = output.context;
     if (context != null && context != '') {
-      if (can('context')) {
+      final total = contextUsed + encodeUtf8(context).length;
+      if (can('context') && allows(settings.contextBytes, total)) {
+        contextUsed = total;
         fired.context.add((source, context));
       } else {
         fired.reports.add(

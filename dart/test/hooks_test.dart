@@ -1,12 +1,17 @@
 import 'dart:convert';
 
+import 'package:coqui_aos/src/apply.dart';
+import 'package:coqui_aos/src/compose.dart';
+import 'package:coqui_aos/src/environment.dart';
 import 'package:coqui_aos/src/hooks.dart';
 import 'package:coqui_aos/src/limits.dart';
 import 'package:coqui_aos/src/overlay.dart';
+import 'package:coqui_aos/src/tree.dart';
 import 'package:coqui_aos/src/validate.dart';
 import 'package:coqui_aos/src/value.dart';
 import 'package:test/test.dart';
 
+import 'support/env_support.dart' show envData, factsOf, stringMap;
 import 'support/g2_support.dart';
 import 'support/records.dart';
 import 'support/support.dart';
@@ -25,6 +30,7 @@ Settings settingsFrom(Json limits) {
     ('event_timeout', 'hookEventTimeout'),
     ('max_output', 'hookOutputBytes'),
     ('max_payload', 'hookPayloadBytes'),
+    ('context_bytes', 'contextBytes'),
   ]) {
     final value = num_(limits[key]);
     if (value != null) changes[field] = value;
@@ -132,6 +138,7 @@ void eventCase(Case item) {
     applies == null ? null : strings(applies),
     settingsFrom(item['limits']),
     item['os'] == 'windows',
+    num_(item['context_used']) ?? 0,
   );
   same({
     'ran': fired.ran,
@@ -147,6 +154,72 @@ void eventCase(Case item) {
   }, item['expect']);
 }
 
+void orderCase(Case item) {
+  final overlays = <String, Document>{
+    for (final entry in obj(item['overlays']).entries)
+      entry.key: documentOf(entry.value),
+  };
+  final order = hookOrder(
+    overlays,
+    strings(item['requested']),
+    strings(item['has']),
+    strings(item['scopes']),
+  );
+  same({
+    'order': [
+      for (final (scope, source) in order) [scope, source],
+    ],
+  }, item['expect']);
+}
+
+void environmentCase(Case item) {
+  final raw = obj(item['facts']);
+  final overlays = <String, Document>{
+    for (final entry in obj(item['overlays']).entries)
+      entry.key: documentOf(entry.value),
+  };
+  final names = compositionOrder(
+    overlays,
+    resolve(overlays, strings(item['requested'])).installOrder,
+  );
+  final shared = factsOf(raw);
+  final roots = obj(raw['roots']);
+  final states = item['facts'] is Map<String, Object?> ? raw['states'] : null;
+  final files = item['files'];
+  final active = <(Document, Facts)>[
+    for (final name in names)
+      (
+        overlays[name]!,
+        shared.copyWith(
+          identity: name,
+          root: str(roots[name]),
+          state: states is Map<String, Object?> && states[name] is String
+              ? str(states[name])
+              : null,
+          tree: files is Map<String, Object?> && files[name] != null
+              ? treeOf(files[name])
+              : OverlayTree.empty(),
+        ),
+      ),
+  ];
+  final preEnv = <String, HookRun>{
+    for (final entry in obj(raw['pre_env'] ?? <String, Object?>{}).entries)
+      entry.key: hookRunOf(obj(entry.value)),
+  };
+  final base = Environment([
+    for (final e in stringMap(raw['base_env']).entries) (e.key, e.value),
+  ], raw['os'] == 'windows');
+  final scope = item['scope'];
+  final env = hookEnvironment(
+    eventOf(item),
+    active,
+    base,
+    preEnv,
+    scope == 'user' || scope == 'project' ? null : str(item['identity']),
+  );
+  same({'env': envData(env)}, item['expect']);
+}
+
 void main() {
   runFile('hooks.json', (item) {
     final id = str(item['id']);
@@ -159,6 +232,8 @@ void main() {
     }
     if (id.startsWith('output-')) return outputCase(item);
     if (id.startsWith('event-')) return eventCase(item);
+    if (id.startsWith('order-')) return orderCase(item);
+    if (id.startsWith('environment-')) return environmentCase(item);
     final select = item['match'];
     final got = hookMatches(
       eventOf(item),

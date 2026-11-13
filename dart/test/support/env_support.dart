@@ -47,6 +47,9 @@ Facts factsOf(Case raw) {
   facts.enforcesNetwork = network is bool ? network : null;
   final scripts = raw['env_scripts_enabled'];
   facts.envScriptsEnabled = scripts is bool ? scripts : null;
+  facts.gateEnvScripts = raw.containsKey('allowed');
+  facts.digest = text('digest');
+  facts.allowed = text('allowed');
   final interpreters = raw['interpreters'];
   facts.interpreters = interpreters is List<Object?>
       ? strings(interpreters)

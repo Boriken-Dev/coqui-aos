@@ -8,6 +8,29 @@ import 'subst.dart';
 import 'tree.dart';
 import 'value.dart';
 
+/// A path addition made to a variable: what it put first and last, and every component it
+/// covers.
+class PathJoin {
+  /// Creates the record.
+  const PathJoin(this.separator, this.prepend, this.seen, this.append);
+
+  /// The separator the variable's components are joined with.
+  final String separator;
+
+  /// What it put first.
+  final List<String> prepend;
+
+  /// Every component it covers, which a held value loses.
+  final Set<String> seen;
+
+  /// What it put last.
+  final List<String> append;
+}
+
+/// One set of an environment: the name, the value, whether it is a secret and the path addition
+/// it made, if it was one.
+typedef EnvWrite = (String, String, bool, PathJoin?);
+
 /// Variables in the order they were set, with the ones that came from a secret marked. On
 /// Windows names compare without regard to ASCII case. A placeholder never reads a secret
 /// variable.
@@ -33,6 +56,10 @@ class Environment {
   /// Variables only a placeholder sees (the overlay's own root, name and state); empty outside
   /// an application.
   List<(String, String)> extra = [];
+
+  /// While not null, every set is appended to it, so one overlay's writes can be made onto
+  /// another environment with [replay].
+  List<EnvWrite>? log;
 
   /// The settings that bound a substitution.
   Environment settings(Settings settings) {
@@ -72,7 +99,12 @@ class Environment {
   }
 
   /// Sets a variable, keeping the name's first spelling; [secret] marks its value as one.
-  void set(String name, String value, bool secret) {
+  void set(String name, String value, bool secret) =>
+      setJoined(name, value, secret, null);
+
+  /// [set] for a path addition, which [log] keeps with its [join].
+  void setJoined(String name, String value, bool secret, PathJoin? join) {
+    log?.add((name, value, secret, join));
     final key = _key(name);
     final held = _entries[key];
     if (held == null) {
@@ -84,6 +116,25 @@ class Environment {
       _secret.add(key);
     } else {
       _secret.remove(key);
+    }
+  }
+
+  /// Makes what another environment's [log] kept: a plain set as it was, a path addition onto
+  /// this environment's own value.
+  void replay(List<EnvWrite> writes) {
+    for (final (name, value, secret, join) in writes) {
+      if (join == null) {
+        set(name, value, secret);
+        continue;
+      }
+      final kept = (get(name) ?? '')
+          .split(join.separator)
+          .where((part) => part != '' && !join.seen.contains(part));
+      set(
+        name,
+        [...join.prepend, ...kept, ...join.append].join(join.separator),
+        false,
+      );
     }
   }
 
@@ -189,6 +240,9 @@ class Facts {
     Map<String, Map<String, String>>? providerValues,
     bool? enforcesNetwork,
     bool? envScriptsEnabled,
+    bool? gateEnvScripts,
+    String? digest,
+    String? allowed,
     List<String>? interpreters,
     Map<String, String>? packages,
     OverlayTree? tree,
@@ -208,12 +262,25 @@ class Facts {
       ..providerValues = providerValues ?? this.providerValues
       ..enforcesNetwork = enforcesNetwork ?? this.enforcesNetwork
       ..envScriptsEnabled = envScriptsEnabled ?? this.envScriptsEnabled
+      ..gateEnvScripts = gateEnvScripts ?? this.gateEnvScripts
+      ..digest = digest ?? this.digest
+      ..allowed = allowed ?? this.allowed
       ..interpreters = interpreters ?? this.interpreters
       ..packages = packages ?? this.packages
       ..tree = tree ?? this.tree
       ..settings = settings ?? this.settings;
     return copy;
   }
+
+  /// Whether env scripts run only while [digest] is the [allowed] one, the allowance of the
+  /// overlay's hooks; off, none is held back.
+  bool gateEnvScripts = false;
+
+  /// The overlay's tree digest, when the consumer has computed it.
+  String? digest;
+
+  /// The one digest at which the user allowed this overlay's hooks and env scripts.
+  String? allowed;
 
   /// Whether the operating system is Windows.
   bool get windows => os == 'windows';

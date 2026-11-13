@@ -9,6 +9,7 @@ import 'error.dart';
 import 'hooks.dart';
 import 'names.dart';
 import 'read.dart';
+import 'same_digest.dart';
 import 'text.dart';
 import 'tree.dart';
 import 'validate.dart';
@@ -178,9 +179,15 @@ void _applyPaths(
     }
     final kept = (env.get(variable) ?? '')
         .split(separator)
-        .where((part) => part != '' && !seen.contains(part));
+        .where((part) => part != '' && !seen.contains(part))
+        .toList();
     final secret = env.isSecret(variable);
-    env.set(variable, [...prepend, ...kept, ...append].join(separator), secret);
+    env.setJoined(
+      variable,
+      [...prepend, ...kept, ...append].join(separator),
+      secret,
+      PathJoin(separator, prepend, seen, append),
+    );
   }
 }
 
@@ -272,6 +279,7 @@ List<ScriptRun> _applyOverlay(
   Document manifest,
   Facts facts,
   List<NonDefaultSetting> nonDefaults,
+  List<(String, String)> reports,
 ) {
   _requireApplicable(manifest);
   env.extra = [
@@ -281,7 +289,7 @@ List<ScriptRun> _applyOverlay(
   final state = facts.state;
   if (state != null) env.extra.add(('AOS_OVERLAY_STATE', state));
   try {
-    return _applyOverlayInner(env, manifest, facts, nonDefaults);
+    return _applyOverlayInner(env, manifest, facts, nonDefaults, reports);
   } finally {
     env.extra = [];
   }
@@ -304,6 +312,7 @@ List<ScriptRun> _applyOverlayInner(
   Document manifest,
   Facts facts,
   List<NonDefaultSetting> nonDefaults,
+  List<(String, String)> reports,
 ) {
   final os = facts.os;
   final root = facts.root;
@@ -391,6 +400,18 @@ List<ScriptRun> _applyOverlayInner(
       os,
       facts.interpreters ?? interpreters,
     );
+    final digest = facts.digest;
+    final allowed = facts.allowed;
+    if (facts.gateEnvScripts &&
+        !(digest != null && allowed != null && sameDigest(digest, allowed))) {
+      // Off until the user allows the digest: the overlay is otherwise applied.
+      if (choice.chosen != null ||
+          choice.present.isNotEmpty ||
+          choice.others.any((script) => entryOn(script, os))) {
+        reports.add(('env-script-not-allowed', facts.identity));
+      }
+      return scripts;
+    }
     if (choice.chosen == null) {
       for (final path in choice.present) {
         nonDefaults.add(_setting('script-not-run', path));
@@ -453,6 +474,7 @@ class Effective {
     required this.dependencies,
     required this.needs,
     required this.nonDefaults,
+    this.reports = const [],
   });
 
   /// References the user has not granted, by name.
@@ -484,6 +506,9 @@ class Effective {
 
   /// The non-default settings in use, sorted and without duplicates.
   final List<NonDefaultSetting> nonDefaults;
+
+  /// `(id, subject)` reports, sorted and without duplicates: `env-script-not-allowed`.
+  final List<(String, String)> reports;
 }
 
 List<String> _sortedUnique(Iterable<String> items) =>
@@ -511,7 +536,8 @@ Effective effective(Document manifest, Facts facts) {
   env.set(rootVariable(facts.identity), facts.root, false);
   final state = facts.state;
   if (state != null) env.set(stateVariable(facts.identity), state, false);
-  final scripts = _applyOverlay(env, manifest, facts, nonDefaults);
+  final reports = <(String, String)>[];
+  final scripts = _applyOverlay(env, manifest, facts, nonDefaults, reports);
   final interpretersKnown = facts.interpreters ?? interpreters;
   final choice = defaultScript(
     manifest,
@@ -684,6 +710,11 @@ Effective effective(Document manifest, Facts facts) {
       commands: _sortedUnique(commands),
     ),
     nonDefaults: sorted,
+    reports: [...reports.toSet()]
+      ..sort((a, b) {
+        final byId = compareText(a.$1, b.$1);
+        return byId != 0 ? byId : compareText(a.$2, b.$2);
+      }),
   );
 }
 
@@ -767,7 +798,7 @@ ComposedEnvironment composedEnvironment(
   }
   for (final (manifest, facts) in active) {
     try {
-      _applyOverlay(env, manifest, facts, nonDefaults);
+      _applyOverlay(env, manifest, facts, nonDefaults, []);
     } on AosError catch (error) {
       return refused(error);
     }
@@ -778,4 +809,91 @@ ComposedEnvironment composedEnvironment(
     hookReports: hookReports,
     hookNonDefaults: hookNonDefaults,
   );
+}
+
+/// The environment a hook of [event] runs with.
+///
+/// [active] and [base] are as [composedEnvironment] takes them. The hook of overlay [identity]
+/// gets what that overlay's own processes get: the base, every overlay's root (and state)
+/// variable, that overlay's own `pre-env` output and declarations with the values they had in the
+/// session's order of application, and `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_STATE`
+/// (when it has one) and `AOS_HOOK_EVENT`; nothing another overlay's declarations or `pre-env`
+/// output set. A `pre-env` hook gets the base, the root and the state variables only. With a null
+/// [identity], a user's or a project's own hook, it gets the base and `AOS_HOOK_EVENT`.
+///
+/// Throws what an overlay's declarations throw when applied.
+Environment hookEnvironment(
+  String event,
+  List<(Document, Facts)> active,
+  Environment base,
+  Map<String, HookRun> preEnv,
+  String? identity,
+) {
+  Environment withRoots() {
+    final env = base.clone();
+    for (final (_, facts) in active) {
+      env.set(rootVariable(facts.identity), facts.root, false);
+      final state = facts.state;
+      if (state != null) env.set(stateVariable(facts.identity), state, false);
+    }
+    return env;
+  }
+
+  if (identity == null) {
+    return base.clone()..set('AOS_HOOK_EVENT', event, false);
+  }
+  final chosen = active
+      .map((item) => item.$2)
+      .firstWhere((facts) => facts.identity == identity);
+  var own = withRoots();
+  if (event != 'pre-env') {
+    final session = withRoots();
+    final owned = {
+      for (final (_, facts) in active) facts.identity: withRoots(),
+    };
+    for (final (_, facts) in active) {
+      final given = preEnv[facts.identity];
+      if (given == null) continue;
+      final run = HookRun(facts.identity, given.stdout)
+        ..onFailure = given.onFailure
+        ..seconds = given.seconds
+        ..notRun = given.notRun
+        ..payloadSize = given.payloadSize
+        ..timedOut = given.timedOut
+        ..exit = given.exit
+        ..sets = given.sets;
+      final fired = fireEvent(
+        'pre-env',
+        [run],
+        null,
+        facts.settings,
+        session.windows,
+      );
+      for (final (name, value) in fired.env) {
+        for (final target in [session, owned[facts.identity]!]) {
+          if (value == null) {
+            target.unset(name);
+          } else {
+            target.set(name, value, false);
+          }
+        }
+      }
+    }
+    for (final (manifest, facts) in active) {
+      final writes = <EnvWrite>[];
+      session.log = writes;
+      try {
+        _applyOverlay(session, manifest, facts, [], []);
+      } finally {
+        session.log = null;
+      }
+      owned[facts.identity]!.replay(writes);
+    }
+    own = owned[identity]!;
+  }
+  own.set('AOS_OVERLAY_ROOT', chosen.root, false);
+  own.set('AOS_OVERLAY_NAME', normalizeName(chosen.identity), false);
+  final state = chosen.state;
+  if (state != null) own.set('AOS_OVERLAY_STATE', state, false);
+  return own..set('AOS_HOOK_EVENT', event, false);
 }
