@@ -184,6 +184,9 @@ pub fn facts_of(raw: &Value) -> Facts {
         .collect();
     facts.enforces_network = raw["enforces_network"].as_bool();
     facts.env_scripts_enabled = raw["env_scripts_enabled"].as_bool();
+    facts.gate_env_scripts = raw.get("allowed").is_some();
+    facts.digest = text("digest");
+    facts.allowed = text("allowed");
     facts.interpreters = raw
         .get("interpreters")
         .filter(|value| value.is_array())

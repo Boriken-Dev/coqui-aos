@@ -356,6 +356,7 @@ pub coqui_aos::Effective::needs: coqui_aos::Needs
 pub coqui_aos::Effective::node: core::option::Option<coqui_aos::Document>
 pub coqui_aos::Effective::non_defaults: alloc::vec::Vec<coqui_aos::NonDefaultSetting>
 pub coqui_aos::Effective::python: core::option::Option<coqui_aos::Document>
+pub coqui_aos::Effective::reports: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
 pub coqui_aos::Effective::setup: core::option::Option<coqui_aos::SetupRun>
 pub coqui_aos::Effective::supported: bool
 pub coqui_aos::Effective::ungranted: alloc::vec::Vec<alloc::string::String>
@@ -388,9 +389,12 @@ impl core::error::Error for coqui_aos::Error
 impl core::fmt::Display for coqui_aos::Error
 pub fn coqui_aos::Error::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct coqui_aos::Facts
+pub coqui_aos::Facts::allowed: core::option::Option<alloc::string::String>
 pub coqui_aos::Facts::base_env: alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::string::String>
+pub coqui_aos::Facts::digest: core::option::Option<alloc::string::String>
 pub coqui_aos::Facts::enforces_network: core::option::Option<bool>
 pub coqui_aos::Facts::env_scripts_enabled: core::option::Option<bool>
+pub coqui_aos::Facts::gate_env_scripts: bool
 pub coqui_aos::Facts::grants: alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::vec::Vec<alloc::string::String>>
 pub coqui_aos::Facts::host_env: alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::string::String>
 pub coqui_aos::Facts::identity: alloc::string::String
@@ -744,8 +748,11 @@ pub fn coqui_aos::env_files_of(&coqui_aos::Document, &coqui_aos::OverlayTree) ->
 pub fn coqui_aos::environments(&alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::Document>, &[alloc::string::String], &alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::OverlayTree>, &str, &[alloc::string::String]) -> core::result::Result<coqui_aos::Environments, coqui_aos::Error>
 pub fn coqui_aos::fetch_planned(&coqui_aos::SkillPlan, &dyn coqui_aos::SkillSource, &coqui_aos::Settings) -> alloc::vec::Vec<coqui_aos::FetchedPlanned>
 pub fn coqui_aos::fire_event(coqui_aos::HookEvent, &[coqui_aos::HookRun], core::option::Option<&[&str]>, &coqui_aos::Settings, bool) -> coqui_aos::FiredEvent
+pub fn coqui_aos::fire_event_after(coqui_aos::HookEvent, &[coqui_aos::HookRun], core::option::Option<&[&str]>, &coqui_aos::Settings, bool, usize) -> coqui_aos::FiredEvent
 pub fn coqui_aos::harness_context_of(&coqui_aos::Document, &str, &coqui_aos::OverlayTree) -> alloc::vec::Vec<alloc::string::String>
+pub fn coqui_aos::hook_environment(coqui_aos::HookEvent, &[(&coqui_aos::Document, coqui_aos::Facts)], &coqui_aos::Environment, &alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::HookRun>, core::option::Option<&str>) -> core::result::Result<coqui_aos::Environment, coqui_aos::Error>
 pub fn coqui_aos::hook_matches(coqui_aos::HookEvent, core::option::Option<&[alloc::string::String]>, &str) -> bool
+pub fn coqui_aos::hook_order(&alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::Document>, &[alloc::string::String], &[alloc::string::String], &[coqui_aos::HookScope]) -> core::result::Result<alloc::vec::Vec<(coqui_aos::HookScope, alloc::string::String)>, coqui_aos::Cycle>
 pub fn coqui_aos::hook_payload(coqui_aos::HookEvent, &serde_json::map::Map<alloc::string::String, serde_json::value::Value>) -> serde_json::map::Map<alloc::string::String, serde_json::value::Value>
 pub fn coqui_aos::hook_plan(&coqui_aos::Document, &coqui_aos::OverlayTree, &coqui_aos::HookFacts, &coqui_aos::Settings) -> core::result::Result<coqui_aos::HookPlan, coqui_aos::Error>
 pub fn coqui_aos::hook_result(coqui_aos::HookEvent, &coqui_aos::HookRun, &coqui_aos::Settings) -> core::result::Result<coqui_aos::HookOutput, coqui_aos::HookFailure>

@@ -1,11 +1,15 @@
 //! `hooks.json`: which hooks an overlay has and whether they are on, what each event's hook is
-//! told, what of its output applies, and which calls a `match` selects.
+//! told, what of its output applies, which calls a `match` selects, the order the hooks of an event
+//! run in, and the environment each gets.
 
 mod support;
 
+use std::collections::BTreeMap;
+
 use coqui_aos::{
-    Hook, HookEvent, HookFacts, HookRun, HookScope, Limit, OnFailure, OverlayTree, Settings,
-    fire_event, hook_matches, hook_payload, hook_plan, hook_result, read_overlay, validate,
+    Environment, Facts, Hook, HookEvent, HookFacts, HookRun, HookScope, Limit, OnFailure,
+    OverlayTree, Settings, composition_order, fire_event_after, hook_environment, hook_matches,
+    hook_order, hook_payload, hook_plan, hook_result, read_overlay, resolve, validate,
 };
 use serde_json::{Map, Value, json};
 use support::{object, run, strings};
@@ -28,6 +32,9 @@ fn settings_of(limits: &Value) -> Settings {
     }
     if let Some(value) = limit("max_payload") {
         settings = settings.hook_payload_bytes(value);
+    }
+    if let Some(value) = limit("context_bytes") {
+        settings = settings.context_bytes(value);
     }
     settings
 }
@@ -170,12 +177,13 @@ fn event_case(case: &Value) -> Result<(), String> {
         .as_ref()
         .map(|list| list.iter().map(String::as_str).collect());
     let windows = case["os"].as_str() == Some("windows");
-    let fired = fire_event(
+    let fired = fire_event_after(
         event_of(case),
         &runs,
         applies.as_deref(),
         &settings_of(&case["limits"]),
         windows,
+        usize::try_from(case["context_used"].as_u64().unwrap_or(0)).expect("a size"),
     );
     let got = json!({
         "ran": fired.ran,
@@ -196,13 +204,110 @@ fn event_case(case: &Value) -> Result<(), String> {
         .ok_or(format!("{got}"))
 }
 
+fn overlays_of(case: &Value) -> BTreeMap<String, coqui_aos::Document> {
+    case["overlays"]
+        .as_object()
+        .expect("overlays")
+        .iter()
+        .map(|(name, manifest)| (name.clone(), object(manifest)))
+        .collect()
+}
+
+fn order_case(case: &Value) -> Result<(), String> {
+    let scopes: Vec<HookScope> = strings(&case["scopes"])
+        .iter()
+        .map(|name| match name.as_str() {
+            "user" => HookScope::User,
+            "project" => HookScope::Project,
+            other => panic!("scope {other}"),
+        })
+        .collect();
+    let order = hook_order(
+        &overlays_of(case),
+        &strings(&case["requested"]),
+        &strings(&case["has"]),
+        &scopes,
+    )
+    .map_err(|cycle| cycle.to_string())?;
+    let got = json!({"order": order.iter().map(|(scope, source)| {
+        let scope = match scope {
+            HookScope::User => "user",
+            HookScope::Project => "project",
+            _ => "overlay",
+        };
+        json!([scope, source])
+    }).collect::<Vec<_>>()});
+    (got == case["expect"])
+        .then_some(())
+        .ok_or(format!("{got}"))
+}
+
+fn environment_case(case: &Value) -> Result<(), String> {
+    let raw = &case["facts"];
+    let overlays = overlays_of(case);
+    let names = composition_order(
+        &overlays,
+        &resolve(&overlays, &strings(&case["requested"]))
+            .map_err(|cycle| cycle.to_string())?
+            .install_order,
+    );
+    let shared = support::facts_of(raw);
+    let active: Vec<(&coqui_aos::Document, Facts)> = names
+        .iter()
+        .map(|name| {
+            let mut own = shared.clone();
+            own.identity.clone_from(name);
+            own.root = raw["roots"][name].as_str().expect("a root").to_owned();
+            own.state = raw["states"][name].as_str().map(str::to_owned);
+            own.tree = case["files"][name]
+                .as_object()
+                .map(|files| {
+                    OverlayTree::from_texts(files.iter().map(|(path, text)| {
+                        (path.clone(), text.as_str().expect("text").to_owned())
+                    }))
+                })
+                .unwrap_or_default();
+            (&overlays[name], own)
+        })
+        .collect();
+    let base = Environment::new(
+        shared.base_env.clone(),
+        raw["os"].as_str() == Some("windows"),
+    );
+    let pre_env: BTreeMap<String, HookRun> = raw["pre_env"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .map(|(name, run)| (name.clone(), support::hook_run(run)))
+        .collect();
+    let identity = match case["scope"].as_str() {
+        Some("user" | "project") => None,
+        _ => Some(case["identity"].as_str().expect("an identity")),
+    };
+    let env = hook_environment(event_of(case), &active, &base, &pre_env, identity)
+        .map_err(|error| error.to_string())?;
+    let got = json!({"env": Value::Object(
+        env.values()
+            .iter()
+            .map(|(name, value)| (name.clone(), Value::String(value.clone())))
+            .collect(),
+    )});
+    (got == case["expect"])
+        .then_some(())
+        .ok_or(format!("{got}"))
+}
+
 #[test]
 fn hooks() {
     run(
         "hooks.json",
         |case| {
             let id = case["id"].as_str().expect("id");
-            if id.starts_with("plan-") {
+            if id.starts_with("order-") {
+                order_case(case)
+            } else if id.starts_with("environment-") {
+                environment_case(case)
+            } else if id.starts_with("plan-") {
                 plan_case(case)
             } else if id.starts_with("payload-") {
                 let got = Value::Object(hook_payload(event_of(case), &object(&case["known"])));

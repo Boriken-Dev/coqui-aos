@@ -453,6 +453,15 @@ fn effective_vectors() {
                         "needs": support::needs(&result.needs),
                         "non_defaults": result.non_defaults.iter().map(|w| json!([w.id.as_str(), w.subject])).collect::<Vec<_>>(),
                     });
+                    if !result.reports.is_empty() {
+                        got["reports"] = json!(
+                            result
+                                .reports
+                                .iter()
+                                .map(|(id, subject)| json!([id, subject]))
+                                .collect::<Vec<_>>()
+                        );
+                    }
                     if let Some(change) = raw.get("change") {
                         let change = match change.as_str().expect("change") {
                             "add" => Change::Add,
