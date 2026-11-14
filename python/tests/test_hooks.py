@@ -28,12 +28,14 @@ from coqui_aos import (
     hook_payload,
     hook_plan,
     hook_result,
+    process_environment,
     read_hook_output,
     read_overlay,
     resolve,
     to_data,
     validate,
 )
+from coqui_aos._hooks import _UNSET
 from support import cases, decode, ids, repeated
 
 HOOKS = cases("hooks.json")
@@ -130,13 +132,15 @@ def output_json(output: Any) -> "Dict[str, Any]":
         got["reason"] = output.reason
     if output.context is not None:
         got["context"] = output.context
+    if output.input is not None:
+        got["input"] = output.input
     if output.env is not None:
         got["env"] = dict(output.env)
     return got
 
 
 def fired_json(fired: Any) -> "Dict[str, Any]":
-    return {
+    got = {
         "ran": fired.ran,
         "decision": None if fired.decision is None else fired.decision.value,
         "by": fired.by,
@@ -146,6 +150,10 @@ def fired_json(fired: Any) -> "Dict[str, Any]":
         "reports": [[report.id, *report.about] for report in fired.reports],
         "non_defaults": [list(pair) for pair in fired.non_defaults],
     }
+    if fired.seen is not None:
+        got["seen"] = [list(pair) for pair in fired.seen]
+        got["input"] = fired.input
+    return got
 
 
 def environment_case(case: "Dict[str, Any]") -> "Dict[str, str]":
@@ -173,10 +181,12 @@ def environment_case(case: "Dict[str, Any]") -> "Dict[str, str]":
         identity = None
     else:
         identity = case["identity"]
-    env = hook_environment(
-        HookEvent(case["event"]), active, Environment(raw.get("base_env", {}), windows), pre_env, identity
-    )
-    return env.values()
+    base = Environment(raw.get("base_env", {}), windows)
+    if "process" in case:
+        return process_environment(case["process"], active, base, pre_env, identity).values()
+    return hook_environment(
+        HookEvent(case["event"]), active, base, pre_env, identity, raw.get("earlier", ())
+    ).values()
 
 
 @pytest.mark.parametrize("case", HOOKS, ids=ids(HOOKS))
@@ -201,7 +211,7 @@ def test_hooks_vectors(case):
         got = {"runs": hook_matches(HookEvent(case["event"]), case["match"], case["value"])}
     elif kind == "order":
         got = {"order": hook_order(case["overlays"], case["requested"], case["has"], case["scopes"])}
-    elif kind == "environment":
+    elif kind in ("environment", "process"):
         got = {"env": environment_case(case)}
     else:
         fired = fire_event(
@@ -211,6 +221,7 @@ def test_hooks_vectors(case):
             settings_of(case.get("limits", {})),
             case.get("os") == "windows",
             case.get("context_used", 0),
+            case["input"] if "input" in case else _UNSET,
         )
         got = fired_json(fired)
     assert json.loads(json.dumps(to_data(got))) == case["expect"]
@@ -225,6 +236,7 @@ def test_every_hooks_case_is_a_known_kind():
         "event",
         "order",
         "environment",
+        "process",
     }
 
 
@@ -321,10 +333,25 @@ def test_a_reserved_variable_is_refused_even_when_declared():
     assert failure_of(HookEvent.SESSION_START, run) is HookFailure.OUTPUT
 
 
-def test_a_decision_the_event_does_not_take_is_a_grant_attempt():
+def test_a_decision_the_event_does_not_take_is_an_output_failure():
     run = HookRun("o", stdout=b'{"decision": "ask"}')
-    assert failure_of(HookEvent.PROMPT, run) is HookFailure.GRANT
-    assert failure_of(HookEvent.PRE_TOOL, HookRun("o", stdout=b'{"decision": "allow"}')) is HookFailure.GRANT
+    assert failure_of(HookEvent.PROMPT, run) is HookFailure.OUTPUT
+    assert failure_of(HookEvent.PROMPT, HookRun("o", stdout=b'{"decision": "allow"}')) is HookFailure.OUTPUT
+    assert (
+        failure_of(HookEvent.PRE_TOOL, HookRun("o", stdout=b'{"decision": "approve"}')) is HookFailure.OUTPUT
+    )
+
+
+def test_an_allow_carries_a_rewritten_input_and_nothing_else_does():
+    data = b'{"decision": "allow", "input": {"command": "true"}}'
+    assert read_hook_output(HookEvent.PRE_TOOL, data).input == {"command": "true"}
+    assert read_hook_output(HookEvent.PRE_TOOL, b'{"decision": "allow"}').decision is Decision.ALLOW
+    for bad in (b'{"decision": "ask", "input": {}}', b'{"input": {}}', b'{"decision": "allow", "input": []}'):
+        assert failure_of(HookEvent.PRE_TOOL, HookRun("o", stdout=bad)) is HookFailure.OUTPUT
+
+
+def test_the_decisions_rank_deny_over_ask_over_allow():
+    assert Decision.ALLOW.rank < Decision.ASK.rank < Decision.DENY.rank == Decision.BLOCK.rank
 
 
 # What a repr shows.
