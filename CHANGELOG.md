@@ -34,6 +34,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking: hooks run like a harness's own**, from specification revision `ea41520`, in every language.
+  A `pre-tool` hook may print `decision = "allow"`, with an `input` object that replaces the call's: hooks
+  combine to the tightest (a deny beats an ask, an ask beats an allow), a later hook is given the
+  rewritten input, and only a combined allow applies a rewrite (an ask reports it `hook-not-applied`
+  `input`). The failure cause `grant` is gone and any other decision is an `output` failure. A
+  hook's environment is the session's: every overlay's declarations stacked in composition order, the top
+  layer winning, every `pre-env` output and what earlier hooks of the event set (`earlier`); a `pre-env`
+  hook sees the root and state variables and the `pre-env` output before it. `Decision::Allow`,
+  `HookOutput::input`, `FiredEvent::seen` and `input`, `fire_event_for_call` (Rust) and a `tool_input` argument
+  (Python, `toolInput` in Dart and TypeScript) carry the rewrite; `hook_environment` takes `earlier`, and
+  `process_environment` (`processEnvironment`) gives an overlay's setup, server, command or env script the
+  environment it runs with. The environments' write log and replay are gone.
 - The vectors are those of specification commit `d11c60b`, and the four implementations pass them:
   the bound on the context a hook adds counts UTF-8 bytes together with what the session holds, a
   part past it is not added (whole, never cut) and is reported `hook-not-applied`, and a later part
