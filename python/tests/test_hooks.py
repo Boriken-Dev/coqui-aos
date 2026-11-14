@@ -69,6 +69,7 @@ def run_of(value: "Dict[str, Any]") -> HookRun:
         timed_out=value.get("timed_out", False),
         exit=value.get("exit", 0),
         sets=tuple(value.get("sets", ())),
+        select=tuple(value["match"]) if value.get("match") is not None else None,
     )
 
 
@@ -222,6 +223,7 @@ def test_hooks_vectors(case):
             case.get("os") == "windows",
             case.get("context_used", 0),
             case["input"] if "input" in case else _UNSET,
+            case.get("kind"),
         )
         got = fired_json(fired)
     assert json.loads(json.dumps(to_data(got))) == case["expect"]
