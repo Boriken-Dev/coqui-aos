@@ -541,6 +541,8 @@ export class HookRun {
   stdout: Uint8Array;
   exit: number;
   sets: string[];
+  /** Its entry's `match`, or undefined for every call: on a call of kind `other` only a hook with none, or one naming `other`, may allow. */
+  select: string[] | undefined;
 
   constructor(source: string, stdout: Uint8Array = new Uint8Array()) {
     this.source = source;
@@ -552,6 +554,7 @@ export class HookRun {
     this.timedOut = false;
     this.exit = 0;
     this.sets = [];
+    this.select = undefined;
   }
 
   toJSON(): Record<string, unknown> {
@@ -630,7 +633,9 @@ export class FiredEvent {
  * `seen` then says what each hook was given (a hook's `input` replaces it for the hooks after it) and `input`
  * is what the call runs with, set only by a combined allow, since an ask or a deny beats a rewrite. An allow
  * whose `input` the consumer cannot apply (`input` is not in `applies`) is not applied at all; a rewrite that an
- * ask beat is reported `hook-not-applied`.
+ * ask beat is reported `hook-not-applied`. `toolKind` is the call's kind: on `other`, a run whose `select` is given
+ * and does not name `other` still runs and its deny and ask count, but its allow and input do not, and are reported
+ * `hook-not-applied` `allow`.
  */
 export function fireEvent(
   event: HookEvent,
@@ -640,6 +645,7 @@ export function fireEvent(
   windows: boolean,
   contextUsed = 0,
   toolInput?: Value,
+  toolKind?: string,
 ): FiredEvent {
   const can = (output: string): boolean =>
     applies === undefined ? output === "refuse" || OUTPUTS[event].includes(output) : applies.includes(output);
@@ -679,6 +685,11 @@ export function fireEvent(
     if (decided !== undefined && !can(decided)) {
       fired.reports.push({ id: "hook-not-applied", about: [source, event, decided] });
       decided = undefined;
+    }
+    if (decided === "allow" && toolKind === "other" && run.select !== undefined && !run.select.includes("other")) {
+      fired.reports.push({ id: "hook-not-applied", about: [source, event, "allow"] });
+      decided = undefined;
+      out.input = undefined;
     }
     if (decided === "allow" && out.input !== undefined) {
       if (can("input")) {

@@ -46,6 +46,7 @@ export function hookRunOf(value: Json | undefined): HookRun {
   run.timedOut = item.get("timed_out") === true;
   run.exit = Number(item.get("exit") ?? 0n);
   run.sets = strings(item.get("sets"));
+  run.select = item.get("match") === undefined ? undefined : strings(item.get("match"));
   return run;
 }
 

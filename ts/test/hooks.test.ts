@@ -143,6 +143,7 @@ function eventCase(item: Map<string, Json>): void {
     item.get("os") === "windows",
     num(item.get("context_used")) ?? 0,
     item.get("input") as unknown as Value | undefined,
+    item.get("kind") as string | undefined,
   );
   const got = new Map<string, Json>([
       ["ran", fired.ran],
