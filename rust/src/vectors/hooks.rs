@@ -188,6 +188,7 @@ fn event_case(case: &Value) -> Result<(), String> {
         windows,
         usize::try_from(case["context_used"].as_u64().unwrap_or(0)).expect("a size"),
         case.get("input"),
+        case["kind"].as_str(),
     );
     let mut got = json!({
         "ran": fired.ran,

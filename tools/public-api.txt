@@ -532,6 +532,7 @@ pub coqui_aos::HookRun::not_run: bool
 pub coqui_aos::HookRun::on_failure: core::option::Option<coqui_aos::OnFailure>
 pub coqui_aos::HookRun::payload_size: u64
 pub coqui_aos::HookRun::seconds: u64
+pub coqui_aos::HookRun::select: core::option::Option<alloc::vec::Vec<alloc::string::String>>
 pub coqui_aos::HookRun::sets: alloc::vec::Vec<alloc::string::String>
 pub coqui_aos::HookRun::source: alloc::string::String
 pub coqui_aos::HookRun::stdout: alloc::vec::Vec<u8>
@@ -816,7 +817,7 @@ pub fn coqui_aos::environments(&alloc::collections::btree::map::BTreeMap<alloc::
 pub fn coqui_aos::fetch_planned(&coqui_aos::SkillPlan, &dyn coqui_aos::SkillSource, &coqui_aos::Settings) -> alloc::vec::Vec<coqui_aos::FetchedPlanned>
 pub fn coqui_aos::fire_event(coqui_aos::HookEvent, &[coqui_aos::HookRun], core::option::Option<&[&str]>, &coqui_aos::Settings, bool) -> coqui_aos::FiredEvent
 pub fn coqui_aos::fire_event_after(coqui_aos::HookEvent, &[coqui_aos::HookRun], core::option::Option<&[&str]>, &coqui_aos::Settings, bool, usize) -> coqui_aos::FiredEvent
-pub fn coqui_aos::fire_event_for_call(coqui_aos::HookEvent, &[coqui_aos::HookRun], core::option::Option<&[&str]>, &coqui_aos::Settings, bool, usize, core::option::Option<&serde_json::value::Value>) -> coqui_aos::FiredEvent
+pub fn coqui_aos::fire_event_for_call(coqui_aos::HookEvent, &[coqui_aos::HookRun], core::option::Option<&[&str]>, &coqui_aos::Settings, bool, usize, core::option::Option<&serde_json::value::Value>, core::option::Option<&str>) -> coqui_aos::FiredEvent
 pub fn coqui_aos::harness_context_of(&coqui_aos::Document, &str, &coqui_aos::OverlayTree) -> alloc::vec::Vec<alloc::string::String>
 pub fn coqui_aos::hook_environment(coqui_aos::HookEvent, &[(&coqui_aos::Document, coqui_aos::Facts)], &coqui_aos::Environment, &alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::HookRun>, core::option::Option<&str>, &[coqui_aos::EnvSet]) -> core::result::Result<coqui_aos::Environment, coqui_aos::Error>
 pub fn coqui_aos::hook_matches(coqui_aos::HookEvent, core::option::Option<&[alloc::string::String]>, &str) -> bool

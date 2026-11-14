@@ -694,6 +694,9 @@ pub struct HookRun {
     pub exit: i32,
     /// The variables its entry declares.
     pub sets: Vec<String>,
+    /// Its entry's `match`, or `None` for every call: on a call of kind `other` only a hook with
+    /// none, or one naming `other`, may allow.
+    pub select: Option<Vec<String>>,
 }
 
 impl HookRun {
@@ -806,7 +809,16 @@ pub fn fire_event_after(
     windows: bool,
     context_used: usize,
 ) -> FiredEvent {
-    fire_event_for_call(event, runs, applies, settings, windows, context_used, None)
+    fire_event_for_call(
+        event,
+        runs,
+        applies,
+        settings,
+        windows,
+        context_used,
+        None,
+        None,
+    )
 }
 
 /// [`fire_event_after`] for a `pre-tool` call whose input, `tool_input`, a hook's allow may
@@ -817,7 +829,12 @@ pub fn fire_event_after(
 /// allow, since an ask or a deny beats a rewrite. An allow whose `input` the consumer cannot apply
 /// (`input` is not in `applies`) is not applied at all and is reported `hook-not-applied`; a
 /// rewrite that an ask beat is reported the same way.
+///
+/// `tool_kind` is the call's kind: on `other`, a run whose [`HookRun::select`] is given and does
+/// not name `other` still runs and its deny and ask count, but its allow and input do not, and
+/// are reported `hook-not-applied` `allow`.
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn fire_event_for_call(
     event: HookEvent,
     runs: &[HookRun],
@@ -826,6 +843,7 @@ pub fn fire_event_for_call(
     windows: bool,
     context_used: usize,
     tool_input: Option<&Value>,
+    tool_kind: Option<&str>,
 ) -> FiredEvent {
     let mut context_used = context_used;
     let mut current = tool_input.cloned();
@@ -867,7 +885,7 @@ pub fn fire_event_for_call(
             spent = spent.saturating_add(run.seconds);
             hook_result(event, run, settings)
         };
-        let out = match attempt {
+        let mut out = match attempt {
             Ok(out) => out,
             Err(cause) => {
                 fired.reports.push(failed(cause));
@@ -900,6 +918,24 @@ pub fn fire_event_for_call(
                 ],
             });
             decision = None;
+        }
+        if decision == Some(Decision::Allow)
+            && tool_kind == Some("other")
+            && run
+                .select
+                .as_ref()
+                .is_some_and(|select| !select.iter().any(|item| item == "other"))
+        {
+            fired.reports.push(HookReport {
+                id: "hook-not-applied",
+                about: vec![
+                    source.clone(),
+                    event.as_str().to_owned(),
+                    "allow".to_owned(),
+                ],
+            });
+            decision = None;
+            out.input = None;
         }
         if decision == Some(Decision::Allow)
             && let Some(input) = out.input
