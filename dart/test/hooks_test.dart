@@ -125,6 +125,7 @@ void outputCase(Case item) {
   if (output.decision != null) got['decision'] = output.decision;
   if (output.reason != null) got['reason'] = output.reason;
   if (output.context != null) got['context'] = output.context;
+  if (output.input != null) got['input'] = output.input;
   if (output.env != null) got['env'] = envJson(output.env!);
   same({'output': got}, expectation);
 }
@@ -139,6 +140,7 @@ void eventCase(Case item) {
     settingsFrom(item['limits']),
     item['os'] == 'windows',
     num_(item['context_used']) ?? 0,
+    item['input'],
   );
   same({
     'ran': fired.ran,
@@ -151,6 +153,12 @@ void eventCase(Case item) {
       for (final report in fired.reports) [report.id, ...report.about],
     ],
     'non_defaults': fired.nonDefaults.map(withRecords).toList(),
+    if (fired.seen != null) ...{
+      'seen': [
+        for (final (source, input) in fired.seen!) [source, input],
+      ],
+      'input': fired.input,
+    },
   }, item['expect']);
 }
 
@@ -210,13 +218,17 @@ void environmentCase(Case item) {
     for (final e in stringMap(raw['base_env']).entries) (e.key, e.value),
   ], raw['os'] == 'windows');
   final scope = item['scope'];
-  final env = hookEnvironment(
-    eventOf(item),
-    active,
-    base,
-    preEnv,
-    scope == 'user' || scope == 'project' ? null : str(item['identity']),
-  );
+  final identity = scope == 'user' || scope == 'project'
+      ? null
+      : str(item['identity']);
+  final process = item['process'];
+  final earlier = <EnvSet>[
+    for (final set in arr(raw['earlier'] ?? <Object?>[]))
+      [for (final e in obj(set).entries) (e.key, e.value as String?)],
+  ];
+  final env = process == null
+      ? hookEnvironment(eventOf(item), active, base, preEnv, identity, earlier)
+      : processEnvironment(str(process), active, base, preEnv, identity!);
   same({'env': envData(env)}, item['expect']);
 }
 
@@ -233,7 +245,9 @@ void main() {
     if (id.startsWith('output-')) return outputCase(item);
     if (id.startsWith('event-')) return eventCase(item);
     if (id.startsWith('order-')) return orderCase(item);
-    if (id.startsWith('environment-')) return environmentCase(item);
+    if (id.startsWith('environment-') || id.startsWith('process-')) {
+      return environmentCase(item);
+    }
     final select = item['match'];
     final got = hookMatches(
       eventOf(item),
@@ -307,6 +321,34 @@ void main() {
     expect(
       timeout(hookPlan(manifest, tree, facts, Settings({'hookTimeout': null}))),
       500,
+    );
+  });
+
+  test('an allow carries a rewritten input and nothing else does', () {
+    HookOutput read(String stdout, [String event = 'pre-tool']) => hookResult(
+      event,
+      hookRunOf(<String, Json>{'stdout': stdout}),
+      Settings(),
+    );
+    final allowed = read('{"decision": "allow", "input": {"command": "true"}}');
+    expect(allowed.decision, 'allow');
+    expect(allowed.input, {'command': 'true'});
+    for (final bad in [
+      '{"decision": "ask", "input": {}}',
+      '{"input": {}}',
+      '{"decision": "allow", "input": []}',
+      '{"decision": "approve"}',
+    ]) {
+      expect(
+        () => read(bad),
+        throwsA(
+          isA<HookFailed>().having((e) => e.failure, 'failure', 'output'),
+        ),
+      );
+    }
+    expect(
+      () => read('{"decision": "allow"}', 'prompt'),
+      throwsA(isA<HookFailed>().having((e) => e.failure, 'failure', 'output')),
     );
   });
 }

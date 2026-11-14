@@ -34,7 +34,7 @@ const hookEvent = Words([
 ]);
 
 /// What a hook's output decides for its event.
-const decision = Words(['block', 'deny', 'ask', 'refuse']);
+const decision = Words(['block', 'deny', 'ask', 'allow', 'refuse']);
 
 /// What a failed hook does to its event.
 const onFailure = Words(['report', 'refuse']);
@@ -49,7 +49,6 @@ const hookFailure = Words([
   'timeout',
   'too-large',
   'exit',
-  'grant',
   'output',
   'event-timeout',
 ]);
@@ -84,7 +83,7 @@ const Map<String, List<String>> _outputs = {
   'turn-end': [],
   'prompt': ['context', 'block', 'env'],
   'pre-compact': ['context', 'block'],
-  'pre-tool': ['context', 'deny', 'ask', 'env'],
+  'pre-tool': ['context', 'deny', 'ask', 'allow', 'input', 'env'],
   'post-tool': ['context'],
 };
 
@@ -119,7 +118,8 @@ List<String> payloadKeys(String event) => _payloadKeys[event]!;
 
 int _rank(String? decided) {
   if (decided == null) return 0;
-  return decided == 'ask' ? 1 : 2;
+  if (decided == 'allow') return 1;
+  return decided == 'ask' ? 2 : 3;
 }
 
 /// A hook as an overlay declares it.
@@ -509,7 +509,7 @@ Document hookPayload(String event, Map<String, Object> known) {
 /// [toJson].
 class HookOutput {
   /// Creates the output.
-  HookOutput({this.decision, this.reason, this.context, this.env});
+  HookOutput({this.decision, this.reason, this.context, this.input, this.env});
 
   /// A word of [decision], if one was given.
   String? decision;
@@ -520,6 +520,9 @@ class HookOutput {
   /// Context to add.
   String? context;
 
+  /// With an allow, the whole object that replaces the call's input.
+  Map<String, Object?>? input;
+
   /// Variables to set; a null value unsets one.
   List<(String, String?)>? env;
 
@@ -528,6 +531,7 @@ class HookOutput {
     'decision': decision,
     'reason': reason?.length,
     'context': context?.length,
+    'input': input?.length,
     'env': env?.map((e) => e.$1).toList(),
   };
 
@@ -596,17 +600,29 @@ HookOutput readHookOutput(
       out.decision = 'deny';
     } else if (decided == 'ask' && outputs.contains('ask')) {
       out.decision = 'ask';
+    } else if (decided == 'allow' && outputs.contains('allow')) {
+      out.decision = 'allow';
     } else {
-      throw HookFailed('grant');
+      throw HookFailed('output');
     }
   }
   for (final key in value.keys) {
     if (key != 'context' &&
         key != 'decision' &&
         key != 'reason' &&
+        key != 'input' &&
         key != 'env') {
       throw HookFailed('output');
     }
+  }
+  final rewritten = value['input'];
+  if (rewritten != null) {
+    if (rewritten is! Map<String, Object?> ||
+        !outputs.contains('input') ||
+        out.decision != 'allow') {
+      throw HookFailed('output');
+    }
+    out.input = rewritten;
   }
   final reason = value['reason'];
   if (reason != null) {
@@ -766,6 +782,13 @@ class FiredEvent {
   /// `(id, subject)`: `env-sensitive`.
   List<(String, String)> nonDefaults = [];
 
+  /// With a `toolInput`: `(source, input)` for what each hook that ran was given.
+  List<(String, Object?)>? seen;
+
+  /// With a `toolInput`: the input the call runs with, set only for a combined allow; null is the
+  /// one it was given.
+  Map<String, Object?>? input;
+
   /// The event without context or values.
   Map<String, Object?> toJson() => {
     'ran': ran,
@@ -788,6 +811,13 @@ class FiredEvent {
 /// [contextUsed] is what the session's context already holds, in bytes: a part of a hook's
 /// context that would take the total past `contextBytes` is not added, whole and never cut, and is
 /// reported as `hook-not-applied`; a later part that fits still is added.
+///
+/// [toolInput] is the call's input as the harness gave it, for a `pre-tool` event whose allow may
+/// rewrite it: [FiredEvent.seen] then says what each hook was given (a hook's `input` replaces it
+/// for the hooks after it) and [FiredEvent.input] is what the call runs with, set only by a
+/// combined allow, since an ask or a deny beats a rewrite. An allow whose `input` the consumer
+/// cannot apply (`input` is not in [applies]) is not applied at all; a rewrite that an ask beat is
+/// reported `hook-not-applied`.
 FiredEvent fireEvent(
   String event,
   List<HookRun> runs,
@@ -795,12 +825,16 @@ FiredEvent fireEvent(
   Settings settings,
   bool windows, [
   int contextUsed = 0,
+  Object? toolInput,
 ]) {
   bool can(String output) => applies == null
       ? output == 'refuse' || _outputs[event]!.contains(output)
       : applies.contains(output);
   num spent = 0;
   final fired = FiredEvent();
+  var current = toolInput;
+  String? rewriter;
+  if (toolInput != null) fired.seen = [];
   for (final run in runs) {
     final source = run.source;
     HookOutput? out;
@@ -810,6 +844,7 @@ FiredEvent fireEvent(
       failure = 'event-timeout';
     } else {
       fired.ran.add(source);
+      fired.seen?.add((source, current));
       spent += run.seconds;
       try {
         out = hookResult(event, run, settings);
@@ -838,12 +873,24 @@ FiredEvent fireEvent(
       );
       decided = null;
     }
+    final rewrite = output.input;
+    if (decided == 'allow' && rewrite != null) {
+      if (can('input')) {
+        if (toolInput != null) current = rewrite;
+        rewriter = source;
+      } else {
+        fired.reports.add(
+          HookReport('hook-not-applied', [source, event, 'input']),
+        );
+        decided = null;
+      }
+    }
     if (_rank(decided) > _rank(fired.decision)) {
       fired.decision = decided;
       fired.by = source;
       fired.reason = output.reason;
     }
-    if (_rank(decided) == 2) {
+    if (_rank(decided) == 3) {
       // The prompt, compaction, call or session does not happen: nothing else applies.
       fired.context = [];
       fired.env = [];
@@ -888,5 +935,14 @@ FiredEvent fireEvent(
     for (final (name, _) in fired.env)
       if (isSensitiveVariable(name)) ('env-sensitive', name),
   ]..sort(_comparePairs);
+  if (rewriter != null && fired.seen != null) {
+    if (fired.decision == 'allow') {
+      fired.input = current as Map<String, Object?>;
+    } else if (fired.decision == 'ask') {
+      fired.reports.add(
+        HookReport('hook-not-applied', [rewriter, event, 'input']),
+      );
+    }
+  }
   return fired;
 }

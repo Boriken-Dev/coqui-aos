@@ -8,29 +8,6 @@ import 'subst.dart';
 import 'tree.dart';
 import 'value.dart';
 
-/// A path addition made to a variable: what it put first and last, and every component it
-/// covers.
-class PathJoin {
-  /// Creates the record.
-  const PathJoin(this.separator, this.prepend, this.seen, this.append);
-
-  /// The separator the variable's components are joined with.
-  final String separator;
-
-  /// What it put first.
-  final List<String> prepend;
-
-  /// Every component it covers, which a held value loses.
-  final Set<String> seen;
-
-  /// What it put last.
-  final List<String> append;
-}
-
-/// One set of an environment: the name, the value, whether it is a secret and the path addition
-/// it made, if it was one.
-typedef EnvWrite = (String, String, bool, PathJoin?);
-
 /// Variables in the order they were set, with the ones that came from a secret marked. On
 /// Windows names compare without regard to ASCII case. A placeholder never reads a secret
 /// variable.
@@ -56,10 +33,6 @@ class Environment {
   /// Variables only a placeholder sees (the overlay's own root, name and state); empty outside
   /// an application.
   List<(String, String)> extra = [];
-
-  /// While not null, every set is appended to it, so one overlay's writes can be made onto
-  /// another environment with [replay].
-  List<EnvWrite>? log;
 
   /// The settings that bound a substitution.
   Environment settings(Settings settings) {
@@ -99,12 +72,7 @@ class Environment {
   }
 
   /// Sets a variable, keeping the name's first spelling; [secret] marks its value as one.
-  void set(String name, String value, bool secret) =>
-      setJoined(name, value, secret, null);
-
-  /// [set] for a path addition, which [log] keeps with its [join].
-  void setJoined(String name, String value, bool secret, PathJoin? join) {
-    log?.add((name, value, secret, join));
+  void set(String name, String value, bool secret) {
     final key = _key(name);
     final held = _entries[key];
     if (held == null) {
@@ -116,25 +84,6 @@ class Environment {
       _secret.add(key);
     } else {
       _secret.remove(key);
-    }
-  }
-
-  /// Makes what another environment's [log] kept: a plain set as it was, a path addition onto
-  /// this environment's own value.
-  void replay(List<EnvWrite> writes) {
-    for (final (name, value, secret, join) in writes) {
-      if (join == null) {
-        set(name, value, secret);
-        continue;
-      }
-      final kept = (get(name) ?? '')
-          .split(join.separator)
-          .where((part) => part != '' && !join.seen.contains(part));
-      set(
-        name,
-        [...join.prepend, ...kept, ...join.append].join(join.separator),
-        false,
-      );
     }
   }
 

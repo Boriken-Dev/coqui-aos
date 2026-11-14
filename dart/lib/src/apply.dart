@@ -7,6 +7,7 @@ import 'defaults.dart';
 import 'environment.dart';
 import 'error.dart';
 import 'hooks.dart';
+import 'kinds.dart';
 import 'names.dart';
 import 'read.dart';
 import 'same_digest.dart';
@@ -183,12 +184,7 @@ void _applyPaths(
         .where((part) => part != '' && !seen.contains(part))
         .toList();
     final secret = env.isSecret(variable);
-    env.setJoined(
-      variable,
-      [...prepend, ...kept, ...append].join(separator),
-      secret,
-      PathJoin(separator, prepend, seen, append),
-    );
+    env.set(variable, [...prepend, ...kept, ...append].join(separator), secret);
   }
 }
 
@@ -812,15 +808,90 @@ ComposedEnvironment composedEnvironment(
   );
 }
 
-/// The environment a hook of [event] runs with.
+/// What one earlier hook of an event set; a null value unsets the variable.
+typedef EnvSet = List<(String, String?)>;
+
+void _setAll(Environment env, EnvSet set) {
+  for (final (name, value) in set) {
+    if (value == null) {
+      env.unset(name);
+    } else {
+      env.set(name, value, false);
+    }
+  }
+}
+
+void _ownVariables(Environment env, Facts chosen) {
+  env.set('AOS_OVERLAY_ROOT', chosen.root, false);
+  env.set('AOS_OVERLAY_NAME', normalizeName(chosen.identity), false);
+  final state = chosen.state;
+  if (state != null) env.set('AOS_OVERLAY_STATE', state, false);
+}
+
+Facts _chosenFacts(List<(Document, Facts)> active, String identity) {
+  for (final (_, facts) in active) {
+    if (facts.identity == identity) return facts;
+  }
+  throw AosError('unresolved-reference', identity);
+}
+
+/// The session's environment at one point of the order of application: the base, every overlay's
+/// root and state variable, the `pre-env` output of the overlays before [until] (all when null),
+/// then, past `pre-env`, every overlay's declarations up to and including [through] (all when
+/// null) and what the [earlier] hooks set.
+Environment _sessionEnvironment(
+  String event,
+  List<(Document, Facts)> active,
+  Environment base,
+  Map<String, HookRun> preEnv,
+  String? until,
+  String? through,
+  List<EnvSet> earlier,
+) {
+  final env = base.clone();
+  for (final (_, facts) in active) {
+    env.set(rootVariable(facts.identity), facts.root, false);
+    final state = facts.state;
+    if (state != null) env.set(stateVariable(facts.identity), state, false);
+  }
+  for (final (_, facts) in active) {
+    if (facts.identity == until) break;
+    final given = preEnv[facts.identity];
+    if (given == null) continue;
+    final run = HookRun(facts.identity, given.stdout)
+      ..onFailure = given.onFailure
+      ..seconds = given.seconds
+      ..notRun = given.notRun
+      ..payloadSize = given.payloadSize
+      ..timedOut = given.timedOut
+      ..exit = given.exit
+      ..sets = given.sets;
+    _setAll(
+      env,
+      fireEvent('pre-env', [run], null, facts.settings, env.windows).env,
+    );
+  }
+  if (event == 'pre-env') return env;
+  for (final (manifest, facts) in active) {
+    _applyOverlay(env, manifest, facts, [], []);
+    if (facts.identity == through) break;
+  }
+  for (final set in earlier) {
+    _setAll(env, set);
+  }
+  return env;
+}
+
+/// The environment a hook of [event] runs with: the session's.
 ///
-/// [active] and [base] are as [composedEnvironment] takes them. The hook of overlay [identity]
-/// gets what that overlay's own processes get: the base, every overlay's root (and state)
-/// variable, that overlay's own `pre-env` output and declarations with the values they had in the
-/// session's order of application, and `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_STATE`
-/// (when it has one) and `AOS_HOOK_EVENT`; nothing another overlay's declarations or `pre-env`
-/// output set. A `pre-env` hook gets the base, the root and the state variables only. With a null
-/// [identity], a user's or a project's own hook, it gets the base and `AOS_HOOK_EVENT`.
+/// [active] and [base] are as [composedEnvironment] takes them. A hook gets the base, every
+/// overlay's root (and state) variable, what every overlay's `pre-env` hook set, every overlay's
+/// declarations in the order of application, and what the hooks of the event before it set
+/// ([earlier], one set for each, in run order). The hook of overlay [identity] also gets its
+/// `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_NAME` and `AOS_OVERLAY_STATE` (when it has one); every hook
+/// gets `AOS_HOOK_EVENT`. A `pre-env` hook runs before any declaration: it gets the base, the
+/// root and state variables and the output of the `pre-env` hooks before it in composition
+/// order, which for a user's or a project's own hook (a null [identity]) is every overlay's.
 ///
 /// Throws what an overlay's declarations throw when applied.
 Environment hookEnvironment(
@@ -828,73 +899,52 @@ Environment hookEnvironment(
   List<(Document, Facts)> active,
   Environment base,
   Map<String, HookRun> preEnv,
-  String? identity,
-) {
-  Environment withRoots() {
-    final env = base.clone();
-    for (final (_, facts) in active) {
-      env.set(rootVariable(facts.identity), facts.root, false);
-      final state = facts.state;
-      if (state != null) env.set(stateVariable(facts.identity), state, false);
-    }
-    return env;
-  }
+  String? identity, [
+  List<EnvSet> earlier = const [],
+]) {
+  final own = identity == null ? null : _chosenFacts(active, identity);
+  final env = _sessionEnvironment(
+    event,
+    active,
+    base,
+    preEnv,
+    event == 'pre-env' ? identity : null,
+    null,
+    earlier,
+  );
+  if (own != null) _ownVariables(env, own);
+  return env..set('AOS_HOOK_EVENT', event, false);
+}
 
-  if (identity == null) {
-    return base.clone()..set('AOS_HOOK_EVENT', event, false);
+/// The processes of an overlay: a word of [overlayProcesses].
+const overlayProcesses = Words(['setup', 'server', 'command', 'env-script']);
+
+/// The environment a [process] of the overlay [identity] runs with.
+///
+/// A `setup`, a `server` or a `command` gets the session's, whole; an `env-script` gets it as it
+/// stands when the script runs: every earlier overlay's declarations and its own, no later
+/// overlay's. Each also gets the overlay's `AOS_OVERLAY_*` variables. Arguments are as for
+/// [hookEnvironment].
+Environment processEnvironment(
+  String process,
+  List<(Document, Facts)> active,
+  Environment base,
+  Map<String, HookRun> preEnv,
+  String identity,
+) {
+  if (!overlayProcesses.contains(process)) {
+    throw ArgumentError.value(process, 'process');
   }
-  final chosen = active
-      .map((item) => item.$2)
-      .firstWhere((facts) => facts.identity == identity);
-  var own = withRoots();
-  if (event != 'pre-env') {
-    final session = withRoots();
-    final owned = {
-      for (final (_, facts) in active) facts.identity: withRoots(),
-    };
-    for (final (_, facts) in active) {
-      final given = preEnv[facts.identity];
-      if (given == null) continue;
-      final run = HookRun(facts.identity, given.stdout)
-        ..onFailure = given.onFailure
-        ..seconds = given.seconds
-        ..notRun = given.notRun
-        ..payloadSize = given.payloadSize
-        ..timedOut = given.timedOut
-        ..exit = given.exit
-        ..sets = given.sets;
-      final fired = fireEvent(
-        'pre-env',
-        [run],
-        null,
-        facts.settings,
-        session.windows,
-      );
-      for (final (name, value) in fired.env) {
-        for (final target in [session, owned[facts.identity]!]) {
-          if (value == null) {
-            target.unset(name);
-          } else {
-            target.set(name, value, false);
-          }
-        }
-      }
-    }
-    for (final (manifest, facts) in active) {
-      final writes = <EnvWrite>[];
-      session.log = writes;
-      try {
-        _applyOverlay(session, manifest, facts, [], []);
-      } finally {
-        session.log = null;
-      }
-      owned[facts.identity]!.replay(writes);
-    }
-    own = owned[identity]!;
-  }
-  own.set('AOS_OVERLAY_ROOT', chosen.root, false);
-  own.set('AOS_OVERLAY_NAME', normalizeName(chosen.identity), false);
-  final state = chosen.state;
-  if (state != null) own.set('AOS_OVERLAY_STATE', state, false);
-  return own..set('AOS_HOOK_EVENT', event, false);
+  final own = _chosenFacts(active, identity);
+  final env = _sessionEnvironment(
+    'session-start',
+    active,
+    base,
+    preEnv,
+    null,
+    process == 'env-script' ? identity : null,
+    [],
+  );
+  _ownVariables(env, own);
+  return env;
 }
