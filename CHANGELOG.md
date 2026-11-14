@@ -46,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (Python, `toolInput` in Dart and TypeScript) carry the rewrite; `hook_environment` takes `earlier`, and
   `process_environment` (`processEnvironment`) gives an overlay's setup, server, command or env script the
   environment it runs with. The environments' write log and replay are gone.
+- **Breaking: on a call of kind `other`, only a hook that names `other` or has no `match` may allow it**, from
+  specification revision `c2f6d88`, in every language. A hook scoped to other kinds still runs there and its
+  deny and ask still count, but its allow and any `input` do not, and are reported `hook-not-applied`
+  `allow`. `HookRun` gains `select` (its entry's `match`; none for every call), and `fire_event_for_call`
+  (Rust) takes a `tool_kind` argument (`tool_kind` in Python, `toolKind` in Dart and TypeScript).
 - The vectors are those of specification commit `d11c60b`, and the four implementations pass them:
   the bound on the context a hook adds counts UTF-8 bytes together with what the session holds, a
   part past it is not added (whole, never cut) and is reported `hook-not-applied`, and a later part

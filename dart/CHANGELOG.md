@@ -12,6 +12,9 @@ All notable changes to this package are documented in this file; the repository'
   environment, overlays stacked in composition order, with `earlier` for what earlier hooks of the event set,
   and `processEnvironment` is the same for an overlay's setup, server, command and env script. `Environment`
   no longer keeps a write log, `PathJoin` and `EnvWrite` are gone.
+- From specification revision c2f6d88, on a call of kind `other` only a hook that names `other` or has no
+  `match` may allow it: `HookRun` gains `select` and `fireEvent` a `toolKind`; another hook's allow and
+  `input` are not counted and are reported `hook-not-applied` `allow`, and its deny and ask still count.
 
 ## 0.0.0-alpha.0
 
