@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { inspect } from "node:util";
 import { test } from "node:test";
 import { compositionOrder, hookOrder, resolve } from "../src/compose.ts";
-import { hookEnvironment } from "../src/apply.ts";
+import { type OverlayProcess, hookEnvironment, processEnvironment } from "../src/apply.ts";
 import { Environment } from "../src/environment.ts";
 import {
   type Hook,
@@ -127,6 +127,7 @@ function outputCase(item: Map<string, Json>): void {
   if (output.decision !== undefined) got.set("decision", output.decision);
   if (output.reason !== undefined) got.set("reason", output.reason);
   if (output.context !== undefined) got.set("context", output.context);
+  if (output.input !== undefined) got.set("input", output.input as unknown as Json);
   if (output.env !== undefined) got.set("env", envJson(output.env));
   same(new Map<string, Json>([["output", got]]), expect);
 }
@@ -141,9 +142,9 @@ function eventCase(item: Map<string, Json>): void {
     settingsFrom(item.get("limits")),
     item.get("os") === "windows",
     num(item.get("context_used")) ?? 0,
+    item.get("input") as unknown as Value | undefined,
   );
-  same(
-    new Map<string, Json>([
+  const got = new Map<string, Json>([
       ["ran", fired.ran],
       ["decision", fired.decision ?? null],
       ["by", fired.by ?? null],
@@ -152,9 +153,12 @@ function eventCase(item: Map<string, Json>): void {
       ["env", envJson(fired.env)],
       ["reports", fired.reports.map((report) => [report.id, ...report.about])],
       ["non_defaults", fired.nonDefaults.map((pair) => [...pair])],
-    ]),
-    item.get("expect"),
-  );
+  ]);
+  if (fired.seen !== undefined) {
+    got.set("seen", fired.seen.map((pair) => [...pair]) as unknown as Json);
+    got.set("input", (fired.input ?? null) as unknown as Json);
+  }
+  same(got, item.get("expect"));
 }
 
 function overlaysOf(item: Map<string, Json>): Map<string, Document> {
@@ -190,13 +194,13 @@ function environmentCase(item: Map<string, Json>): void {
   const preEnv = new Map([...obj(raw.get("pre_env") ?? new Map())].map(([name, run]) => [name, hookRunOf(run)] as const));
   const base = new Environment([...stringMap(raw.get("base_env"))], raw.get("os") === "windows");
   const scope = item.get("scope");
-  const env = hookEnvironment(
-    eventOf(item),
-    active,
-    base,
-    preEnv,
-    scope === "user" || scope === "project" ? undefined : str(item.get("identity")),
-  );
+  const identity = scope === "user" || scope === "project" ? undefined : str(item.get("identity"));
+  const process = item.get("process");
+  const earlier = ((raw.get("earlier") ?? []) as Json[]).map((set) => [...obj(set)].map(([name, value]) => [name, value ?? undefined] as [string, string | undefined]));
+  const env =
+    process === undefined
+      ? hookEnvironment(eventOf(item), active, base, preEnv, identity, earlier)
+      : processEnvironment(str(process) as OverlayProcess, active, base, preEnv, identity!);
   same(new Map<string, Json>([["env", new Map(env.values())]]), item.get("expect"));
 }
 
@@ -209,7 +213,7 @@ runFile("hooks.json", (item) => {
   if (id.startsWith("output-")) return outputCase(item);
   if (id.startsWith("event-")) return eventCase(item);
   if (id.startsWith("order-")) return orderCase(item);
-  if (id.startsWith("environment-")) return environmentCase(item);
+  if (id.startsWith("environment-") || id.startsWith("process-")) return environmentCase(item);
   const select = item.get("match");
   const got = hookMatches(eventOf(item), Array.isArray(select) ? strings(select) : undefined, str(item.get("value")));
   same(toJson({ runs: got }), item.get("expect"));
@@ -245,4 +249,16 @@ test("a plan's hook timeout is held to the consumer's bound", () => {
   assert.equal(plan.hooks.find((hook) => hook.event === "cd")?.timeout, 60);
   const lifted = hookPlan(manifest, tree, hookFacts("linux", "a", { scope: "user" }), new Settings({ hookTimeout: null }));
   assert.equal(lifted.hooks.find((hook) => hook.event === "cd")?.timeout, 500);
+});
+
+test("an allow carries a rewritten input and nothing else does", () => {
+  const read = (stdout: string, event: HookEvent = "pre-tool") =>
+    hookResult(event, hookRunOf(new Map<string, Json>([["stdout", stdout]])), new Settings());
+  const allowed = read('{"decision": "allow", "input": {"command": "true"}}');
+  assert.equal(allowed.decision, "allow");
+  assert.equal((allowed.input as Map<string, Value>).get("command"), "true");
+  for (const bad of ['{"decision": "ask", "input": {}}', '{"input": {}}', '{"decision": "allow", "input": []}', '{"decision": "approve"}']) {
+    assert.throws(() => read(bad), { failure: "output" });
+  }
+  assert.throws(() => read('{"decision": "allow"}', "prompt"), { failure: "output" });
 });

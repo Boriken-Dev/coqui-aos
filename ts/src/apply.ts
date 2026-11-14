@@ -12,7 +12,7 @@ import {
   firstVariant,
   named,
 } from "./defaults.ts";
-import { type EnvWrite, Environment, Facts, textOf } from "./environment.ts";
+import { Environment, Facts, textOf } from "./environment.ts";
 import { AosError } from "./error.ts";
 import { type HookRun, fireEvent, sameDigest } from "./hooks.ts";
 import type { HookEvent, HookReport } from "./hooks.ts";
@@ -173,12 +173,7 @@ function applyPaths(
     }
     const kept = (env.get(variable) ?? "").split(separator).filter((part) => part !== "" && !seen.has(part));
     const secret = env.isSecret(variable);
-    env.setJoined(variable, [...prepend, ...kept, ...append].join(separator), secret, {
-      separator,
-      prepend,
-      seen,
-      append,
-    });
+    env.set(variable, [...prepend, ...kept, ...append].join(separator), secret);
   }
 }
 
@@ -593,14 +588,75 @@ export function composedEnvironment(
   return { env, error: undefined, hookReports, hookNonDefaults };
 }
 
+/** What one earlier hook of an event set; `undefined` unsets the variable. */
+export type EnvSet = ReadonlyArray<readonly [string, string | undefined]>;
+
+function setAll(env: Environment, set: EnvSet): void {
+  for (const [name, value] of set) {
+    if (value === undefined) env.unset(name);
+    else env.set(name, value, false);
+  }
+}
+
+function ownVariables(env: Environment, chosen: Facts): void {
+  env.set("AOS_OVERLAY_ROOT", chosen.root, false);
+  env.set("AOS_OVERLAY_NAME", normalizeName(chosen.identity), false);
+  if (chosen.state !== undefined) env.set("AOS_OVERLAY_STATE", chosen.state, false);
+}
+
+function chosenFacts(active: ReadonlyArray<readonly [Document, Facts]>, identity: string): Facts {
+  const chosen = active.map(([, facts]) => facts).find((facts) => facts.identity === identity);
+  if (chosen === undefined) throw new AosError("unresolved-reference", identity);
+  return chosen;
+}
+
 /**
- * The environment a hook of `event` runs with. `active` and `base` are as `composedEnvironment` takes them.
- * The hook of overlay `identity` gets what that overlay's own processes get: the base, every overlay's root
- * (and state) variable, that overlay's own `pre-env` output and declarations with the values they had in the
- * session's order of application, and `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_STATE` (when it
- * has one) and `AOS_HOOK_EVENT`; nothing another overlay's declarations or `pre-env` output set. A `pre-env`
- * hook gets the base, the root and the state variables only. With `identity` undefined, a user's or a
- * project's own hook, it gets the base and `AOS_HOOK_EVENT`. Throws what an overlay's declarations throw.
+ * The session's environment at one point of the order of application: the base, every overlay's root and
+ * state variable, the `pre-env` output of the overlays before `until` (all when undefined), then, past
+ * `pre-env`, every overlay's declarations up to and including `through` (all when undefined) and what the
+ * `earlier` hooks set.
+ */
+function sessionEnvironment(
+  event: HookEvent,
+  active: ReadonlyArray<readonly [Document, Facts]>,
+  base: Environment,
+  preEnv: ReadonlyMap<string, HookRun>,
+  until: string | undefined,
+  through: string | undefined,
+  earlier: readonly EnvSet[],
+): Environment {
+  const env = base.clone();
+  for (const [, facts] of active) {
+    env.set(rootVariable(facts.identity), facts.root, false);
+    if (facts.state !== undefined) env.set(stateVariable(facts.identity), facts.state, false);
+  }
+  for (const [, facts] of active) {
+    if (facts.identity === until) break;
+    const given = preEnv.get(facts.identity);
+    if (given === undefined) continue;
+    const run: HookRun = Object.assign(Object.create(Object.getPrototypeOf(given) as object) as HookRun, given, {
+      source: facts.identity,
+    });
+    setAll(env, fireEvent("pre-env", [run], undefined, facts.settings, env.windows).env);
+  }
+  if (event === "pre-env") return env;
+  for (const [manifest, facts] of active) {
+    applyOverlay(env, manifest, facts, [], []);
+    if (facts.identity === through) break;
+  }
+  for (const set of earlier) setAll(env, set);
+  return env;
+}
+
+/**
+ * The environment a hook of `event` runs with: the session's. `active` and `base` are as
+ * `composedEnvironment` takes them. A hook gets the base, every overlay's root (and state) variable, what
+ * every overlay's `pre-env` hook set, every overlay's declarations in the order of application, and what the
+ * hooks of the event before it set (`earlier`, one set for each, in run order). The hook of overlay `identity`
+ * also gets its `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_NAME` and `AOS_OVERLAY_STATE` (when it has one); every hook
+ * gets `AOS_HOOK_EVENT`. A `pre-env` hook runs before any declaration: it gets the base, the root and state
+ * variables and the output of the `pre-env` hooks before it in composition order, which for a user's or a
+ * project's own hook (`identity` undefined) is every overlay's. Throws what an overlay's declarations throw.
  */
 export function hookEnvironment(
   event: HookEvent,
@@ -608,55 +664,33 @@ export function hookEnvironment(
   base: Environment,
   preEnv: ReadonlyMap<string, HookRun>,
   identity: string | undefined,
+  earlier: readonly EnvSet[] = [],
 ): Environment {
-  const withRoots = (): Environment => {
-    const env = base.clone();
-    for (const [, facts] of active) {
-      env.set(rootVariable(facts.identity), facts.root, false);
-      if (facts.state !== undefined) env.set(stateVariable(facts.identity), facts.state, false);
-    }
-    return env;
-  };
-  if (identity === undefined) {
-    const own = base.clone();
-    own.set("AOS_HOOK_EVENT", event, false);
-    return own;
-  }
-  const chosen = active.map(([, facts]) => facts).find((facts) => facts.identity === identity);
-  if (chosen === undefined) throw new AosError("unresolved-reference", identity);
-  let own = withRoots();
-  if (event !== "pre-env") {
-    const session = withRoots();
-    const owned = new Map(active.map(([, facts]) => [facts.identity, withRoots()] as const));
-    for (const [, facts] of active) {
-      const given = preEnv.get(facts.identity);
-      if (given === undefined) continue;
-      const run: HookRun = Object.assign(Object.create(Object.getPrototypeOf(given) as object) as HookRun, given, {
-        source: facts.identity,
-      });
-      const fired = fireEvent("pre-env", [run], undefined, facts.settings, session.windows);
-      for (const [name, value] of fired.env) {
-        for (const target of [session, owned.get(facts.identity)!]) {
-          if (value === undefined) target.unset(name);
-          else target.set(name, value, false);
-        }
-      }
-    }
-    for (const [manifest, facts] of active) {
-      const writes: EnvWrite[] = [];
-      session.log = writes;
-      try {
-        applyOverlay(session, manifest, facts, [], []);
-      } finally {
-        session.log = undefined;
-      }
-      owned.get(facts.identity)!.replay(writes);
-    }
-    own = owned.get(identity)!;
-  }
-  own.set("AOS_OVERLAY_ROOT", chosen.root, false);
-  own.set("AOS_OVERLAY_NAME", normalizeName(chosen.identity), false);
-  if (chosen.state !== undefined) own.set("AOS_OVERLAY_STATE", chosen.state, false);
-  own.set("AOS_HOOK_EVENT", event, false);
-  return own;
+  const own = identity === undefined ? undefined : chosenFacts(active, identity);
+  const env = sessionEnvironment(event, active, base, preEnv, event === "pre-env" ? identity : undefined, undefined, earlier);
+  if (own !== undefined) ownVariables(env, own);
+  env.set("AOS_HOOK_EVENT", event, false);
+  return env;
+}
+
+/** A process one overlay runs. */
+export type OverlayProcess = "setup" | "server" | "command" | "env-script";
+
+/**
+ * The environment a process of overlay `identity` runs with. A `setup`, a `server` or a `command` gets the
+ * session's, whole; an `env-script` gets it as it stands when the script runs: every earlier overlay's
+ * declarations and its own, no later overlay's. Each also gets the overlay's `AOS_OVERLAY_*` variables.
+ * Arguments are as for `hookEnvironment`.
+ */
+export function processEnvironment(
+  process: OverlayProcess,
+  active: ReadonlyArray<readonly [Document, Facts]>,
+  base: Environment,
+  preEnv: ReadonlyMap<string, HookRun>,
+  identity: string,
+): Environment {
+  const own = chosenFacts(active, identity);
+  const env = sessionEnvironment("session-start", active, base, preEnv, undefined, process === "env-script" ? identity : undefined, []);
+  ownVariables(env, own);
+  return env;
 }

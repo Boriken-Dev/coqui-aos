@@ -31,7 +31,7 @@ export const HOOK_EVENTS = [
 export type HookEvent = (typeof HOOK_EVENTS)[number];
 export const hookEvent = words(HOOK_EVENTS);
 
-export const DECISIONS = ["block", "deny", "ask", "refuse"] as const;
+export const DECISIONS = ["block", "deny", "ask", "allow", "refuse"] as const;
 /** What a hook's output decides for its event. */
 export type Decision = (typeof DECISIONS)[number];
 export const decision = words(DECISIONS);
@@ -52,7 +52,6 @@ export const HOOK_FAILURES = [
   "timeout",
   "too-large",
   "exit",
-  "grant",
   "output",
   "event-timeout",
 ] as const;
@@ -91,7 +90,7 @@ const OUTPUTS: Record<HookEvent, readonly string[]> = {
   "turn-end": [],
   prompt: ["context", "block", "env"],
   "pre-compact": ["context", "block"],
-  "pre-tool": ["context", "deny", "ask", "env"],
+  "pre-tool": ["context", "deny", "ask", "allow", "input", "env"],
   "post-tool": ["context"],
 };
 
@@ -128,7 +127,8 @@ export function payloadKeys(event: HookEvent): readonly string[] {
 
 function rank(decided: Decision | undefined): number {
   if (decided === undefined) return 0;
-  return decided === "ask" ? 1 : 2;
+  if (decided === "allow") return 1;
+  return decided === "ask" ? 2 : 3;
 }
 
 /** A hook as an overlay declares it. */
@@ -397,13 +397,16 @@ export class HookOutput {
   decision: Decision | undefined;
   reason: string | undefined;
   context: string | undefined;
+  /** With an allow, the whole object that replaces the call's input. */
+  input: Document | undefined;
   /** Variables to set; `undefined` unsets one. */
   env: Array<[string, string | undefined]> | undefined;
 
-  constructor(parts: Partial<Pick<HookOutput, "decision" | "reason" | "context" | "env">> = {}) {
+  constructor(parts: Partial<Pick<HookOutput, "decision" | "reason" | "context" | "input" | "env">> = {}) {
     this.decision = parts.decision;
     this.reason = parts.reason;
     this.context = parts.context;
+    this.input = parts.input;
     this.env = parts.env;
   }
 
@@ -412,6 +415,7 @@ export class HookOutput {
       decision: this.decision,
       reason: this.reason?.length,
       context: this.context?.length,
+      input: this.input?.size,
       env: this.env?.map(([name]) => name),
     };
   }
@@ -477,10 +481,18 @@ export function readHookOutput(event: HookEvent, data: Uint8Array, sets: readonl
     if (decided === "block" && outputs.includes("block")) out.decision = "block";
     else if (decided === "deny" && outputs.includes("deny")) out.decision = "deny";
     else if (decided === "ask" && outputs.includes("ask")) out.decision = "ask";
-    else throw new HookFailed("grant");
+    else if (decided === "allow" && outputs.includes("allow")) out.decision = "allow";
+    else throw new HookFailed("output");
   }
   for (const key of value.keys()) {
-    if (key !== "context" && key !== "decision" && key !== "reason" && key !== "env") throw new HookFailed("output");
+    if (key !== "context" && key !== "decision" && key !== "reason" && key !== "input" && key !== "env") {
+      throw new HookFailed("output");
+    }
+  }
+  const rewritten = value.get("input");
+  if (rewritten !== undefined) {
+    if (!(rewritten instanceof Map) || !outputs.includes("input") || out.decision !== "allow") throw new HookFailed("output");
+    out.input = rewritten as unknown as Document;
   }
   const reason = value.get("reason");
   if (reason !== undefined) {
@@ -586,6 +598,10 @@ export class FiredEvent {
   reports: HookReport[] = [];
   /** `[id, subject]`: `env-sensitive`. */
   nonDefaults: Array<[string, string]> = [];
+  /** With a `toolInput`: `[source, input]` for what each hook that ran was given. */
+  seen: Array<[string, Value]> | undefined;
+  /** With a `toolInput`: the input the call runs with, set only for a combined allow; undefined is the one it was given. */
+  input: Document | undefined;
 
   toJSON(): Record<string, unknown> {
     return {
@@ -610,6 +626,11 @@ export class FiredEvent {
  * allows. `windows` makes variable names compare without regard to ASCII case. `contextUsed` is what
  * the session's context already holds, in bytes: a part of a hook's context that would take the total
  * past `contextBytes` is not added, whole, and is reported `hook-not-applied`; a later part that fits still is.
+ * `toolInput` is the call's input as the harness gave it, for a `pre-tool` event whose allow may rewrite it:
+ * `seen` then says what each hook was given (a hook's `input` replaces it for the hooks after it) and `input`
+ * is what the call runs with, set only by a combined allow, since an ask or a deny beats a rewrite. An allow
+ * whose `input` the consumer cannot apply (`input` is not in `applies`) is not applied at all; a rewrite that an
+ * ask beat is reported `hook-not-applied`.
  */
 export function fireEvent(
   event: HookEvent,
@@ -618,11 +639,15 @@ export function fireEvent(
   settings: Settings,
   windows: boolean,
   contextUsed = 0,
+  toolInput?: Value,
 ): FiredEvent {
   const can = (output: string): boolean =>
     applies === undefined ? output === "refuse" || OUTPUTS[event].includes(output) : applies.includes(output);
   let spent = 0;
   const fired = new FiredEvent();
+  let current = toolInput;
+  let rewriter: string | undefined;
+  if (toolInput !== undefined) fired.seen = [];
   for (const run of runs) {
     const source = run.source;
     let out: HookOutput;
@@ -630,6 +655,7 @@ export function fireEvent(
     if (settings.hookEventTimeout !== null && spent >= settings.hookEventTimeout) failure = "event-timeout";
     else {
       fired.ran.push(source);
+      fired.seen?.push([source, current!]);
       spent += run.seconds;
       try {
         out = hookResult(event, run, settings);
@@ -654,12 +680,21 @@ export function fireEvent(
       fired.reports.push({ id: "hook-not-applied", about: [source, event, decided] });
       decided = undefined;
     }
+    if (decided === "allow" && out.input !== undefined) {
+      if (can("input")) {
+        if (current !== undefined) current = out.input as unknown as Value;
+        rewriter = source;
+      } else {
+        fired.reports.push({ id: "hook-not-applied", about: [source, event, "input"] });
+        decided = undefined;
+      }
+    }
     if (rank(decided) > rank(fired.decision)) {
       fired.decision = decided;
       fired.by = source;
       fired.reason = out.reason;
     }
-    if (rank(decided) === 2) {
+    if (rank(decided) === 3) {
       // The prompt, compaction, call or session does not happen: nothing else applies.
       fired.context = [];
       fired.env = [];
@@ -691,5 +726,9 @@ export function fireEvent(
     .filter(([name]) => isSensitiveVariable(name))
     .map(([name]) => ["env-sensitive", name] as [string, string])
     .sort(comparePairs);
+  if (rewriter !== undefined && fired.seen !== undefined) {
+    if (fired.decision === "allow") fired.input = current as unknown as Document;
+    else if (fired.decision === "ask") fired.reports.push({ id: "hook-not-applied", about: [rewriter, event, "input"] });
+  }
   return fired;
 }
