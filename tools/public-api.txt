@@ -109,6 +109,7 @@ pub fn coqui_aos::Class::named(&str) -> core::option::Option<Self>
 impl core::fmt::Display for coqui_aos::Class
 pub fn coqui_aos::Class::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub enum coqui_aos::Decision
+pub coqui_aos::Decision::Allow
 pub coqui_aos::Decision::Ask
 pub coqui_aos::Decision::Block
 pub coqui_aos::Decision::Deny
@@ -169,7 +170,6 @@ pub const fn coqui_aos::HookEvent::payload_keys(self) -> &'static [&'static str]
 #[non_exhaustive] pub enum coqui_aos::HookFailure
 pub coqui_aos::HookFailure::EventTimeout
 pub coqui_aos::HookFailure::Exit
-pub coqui_aos::HookFailure::Grant
 pub coqui_aos::HookFailure::NotRun
 pub coqui_aos::HookFailure::Output
 pub coqui_aos::HookFailure::PayloadTooLarge
@@ -271,6 +271,11 @@ pub coqui_aos::OnFailure::Report
 impl coqui_aos::OnFailure
 pub const fn coqui_aos::OnFailure::as_str(self) -> &'static str
 pub fn coqui_aos::OnFailure::named(&str) -> core::option::Option<Self>
+#[non_exhaustive] pub enum coqui_aos::OverlayProcess
+pub coqui_aos::OverlayProcess::Command
+pub coqui_aos::OverlayProcess::EnvScript
+pub coqui_aos::OverlayProcess::Server
+pub coqui_aos::OverlayProcess::Setup
 #[non_exhaustive] pub enum coqui_aos::Phase
 pub coqui_aos::Phase::Install
 pub coqui_aos::Phase::Remove
@@ -465,10 +470,12 @@ pub coqui_aos::FiredEvent::by: core::option::Option<alloc::string::String>
 pub coqui_aos::FiredEvent::context: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
 pub coqui_aos::FiredEvent::decision: core::option::Option<coqui_aos::Decision>
 pub coqui_aos::FiredEvent::env: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
+pub coqui_aos::FiredEvent::input: core::option::Option<serde_json::value::Value>
 pub coqui_aos::FiredEvent::non_defaults: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
 pub coqui_aos::FiredEvent::ran: alloc::vec::Vec<alloc::string::String>
 pub coqui_aos::FiredEvent::reason: core::option::Option<alloc::string::String>
 pub coqui_aos::FiredEvent::reports: alloc::vec::Vec<coqui_aos::HookReport>
+pub coqui_aos::FiredEvent::seen: core::option::Option<alloc::vec::Vec<(alloc::string::String, serde_json::value::Value)>>
 impl core::fmt::Debug for coqui_aos::FiredEvent
 pub fn coqui_aos::FiredEvent::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct coqui_aos::FrontMatter
@@ -505,6 +512,7 @@ pub fn coqui_aos::HookFacts::new(impl core::convert::Into<alloc::string::String>
 pub coqui_aos::HookOutput::context: core::option::Option<alloc::string::String>
 pub coqui_aos::HookOutput::decision: core::option::Option<coqui_aos::Decision>
 pub coqui_aos::HookOutput::env: core::option::Option<alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>>
+pub coqui_aos::HookOutput::input: core::option::Option<serde_json::map::Map<alloc::string::String, serde_json::value::Value>>
 pub coqui_aos::HookOutput::reason: core::option::Option<alloc::string::String>
 impl core::fmt::Debug for coqui_aos::HookOutput
 pub fn coqui_aos::HookOutput::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -808,8 +816,9 @@ pub fn coqui_aos::environments(&alloc::collections::btree::map::BTreeMap<alloc::
 pub fn coqui_aos::fetch_planned(&coqui_aos::SkillPlan, &dyn coqui_aos::SkillSource, &coqui_aos::Settings) -> alloc::vec::Vec<coqui_aos::FetchedPlanned>
 pub fn coqui_aos::fire_event(coqui_aos::HookEvent, &[coqui_aos::HookRun], core::option::Option<&[&str]>, &coqui_aos::Settings, bool) -> coqui_aos::FiredEvent
 pub fn coqui_aos::fire_event_after(coqui_aos::HookEvent, &[coqui_aos::HookRun], core::option::Option<&[&str]>, &coqui_aos::Settings, bool, usize) -> coqui_aos::FiredEvent
+pub fn coqui_aos::fire_event_for_call(coqui_aos::HookEvent, &[coqui_aos::HookRun], core::option::Option<&[&str]>, &coqui_aos::Settings, bool, usize, core::option::Option<&serde_json::value::Value>) -> coqui_aos::FiredEvent
 pub fn coqui_aos::harness_context_of(&coqui_aos::Document, &str, &coqui_aos::OverlayTree) -> alloc::vec::Vec<alloc::string::String>
-pub fn coqui_aos::hook_environment(coqui_aos::HookEvent, &[(&coqui_aos::Document, coqui_aos::Facts)], &coqui_aos::Environment, &alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::HookRun>, core::option::Option<&str>) -> core::result::Result<coqui_aos::Environment, coqui_aos::Error>
+pub fn coqui_aos::hook_environment(coqui_aos::HookEvent, &[(&coqui_aos::Document, coqui_aos::Facts)], &coqui_aos::Environment, &alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::HookRun>, core::option::Option<&str>, &[coqui_aos::EnvSet]) -> core::result::Result<coqui_aos::Environment, coqui_aos::Error>
 pub fn coqui_aos::hook_matches(coqui_aos::HookEvent, core::option::Option<&[alloc::string::String]>, &str) -> bool
 pub fn coqui_aos::hook_order(&alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::Document>, &[alloc::string::String], &[alloc::string::String], &[coqui_aos::HookScope]) -> core::result::Result<alloc::vec::Vec<(coqui_aos::HookScope, alloc::string::String)>, coqui_aos::Cycle>
 pub fn coqui_aos::hook_payload(coqui_aos::HookEvent, &serde_json::map::Map<alloc::string::String, serde_json::value::Value>) -> serde_json::map::Map<alloc::string::String, serde_json::value::Value>
@@ -827,6 +836,7 @@ pub fn coqui_aos::os_matches(core::option::Option<&[alloc::string::String]>, &st
 pub fn coqui_aos::parse_dotenv(&[u8]) -> core::result::Result<alloc::vec::Vec<coqui_aos::DotenvLine>, coqui_aos::Error>
 pub fn coqui_aos::paths_of(&coqui_aos::Document, &coqui_aos::OverlayTree) -> alloc::vec::Vec<serde_json::value::Value>
 pub fn coqui_aos::preparation(coqui_aos::Change, core::option::Option<&coqui_aos::SetupRecord>, core::option::Option<&str>, core::option::Option<&coqui_aos::SetupRun>, &[coqui_aos::Dependency], core::option::Option<coqui_aos::FailStep>) -> coqui_aos::Preparation
+pub fn coqui_aos::process_environment(coqui_aos::OverlayProcess, &[(&coqui_aos::Document, coqui_aos::Facts)], &coqui_aos::Environment, &alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::HookRun>, &str) -> core::result::Result<coqui_aos::Environment, coqui_aos::Error>
 pub fn coqui_aos::read_catalog(&[u8], &str, core::option::Option<&str>, &coqui_aos::Settings) -> core::result::Result<coqui_aos::Catalog, coqui_aos::Error>
 pub fn coqui_aos::read_catalog_document(&[u8], &str, &coqui_aos::Settings) -> core::result::Result<coqui_aos::Document, coqui_aos::Error>
 pub fn coqui_aos::read_document(&[u8], &coqui_aos::Settings) -> core::result::Result<coqui_aos::Document, coqui_aos::Error>
@@ -859,5 +869,6 @@ pub fn coqui_aos::valid_overlay_name(&str) -> bool
 pub fn coqui_aos::valid_relative_path(&str) -> bool
 pub fn coqui_aos::validate(&coqui_aos::Document, core::option::Option<&coqui_aos::OverlayTree>) -> alloc::vec::Vec<coqui_aos::Issue>
 pub type coqui_aos::Document = serde_json::map::Map<alloc::string::String, serde_json::value::Value>
+pub type coqui_aos::EnvSet = alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
 pub type coqui_aos::Lookup<'a> = &'a dyn core::ops::function::Fn(&str) -> core::result::Result<core::option::Option<alloc::string::String>, coqui_aos::Error>
 pub type coqui_aos::ScriptOutput = alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>

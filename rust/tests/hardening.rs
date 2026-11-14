@@ -14,8 +14,8 @@ use coqui_aos::{
     substitute_with, tree_digest, validate,
 };
 use coqui_aos::{
-    Class, Error, HookEvent, HookRun, OnFailure, SkillSource, fetch_planned, fire_event,
-    read_fetched_skill, read_hook_output, resolve_skills,
+    Class, Decision, Error, HookEvent, HookFailure, HookRun, OnFailure, SkillSource, fetch_planned,
+    fire_event, read_fetched_skill, read_hook_output, resolve_skills,
 };
 use serde_json::{Value, json};
 
@@ -322,10 +322,10 @@ fn the_words_of_a_closed_set_read_back() {
     for word in ["overlay", "user", "project"] {
         assert_eq!(HookScope::named(word).expect("a word").as_str(), word);
     }
-    for word in ["block", "deny", "ask", "refuse"] {
+    for word in ["block", "deny", "ask", "allow", "refuse"] {
         assert_eq!(Decision::named(word).expect("a word").as_str(), word);
     }
-    for word in ["not-run", "timeout", "event-timeout", "grant"] {
+    for word in ["not-run", "timeout", "event-timeout", "output"] {
         assert_eq!(HookFailure::named(word).expect("a word").as_str(), word);
     }
     for word in ["minimal", "full"] {
@@ -570,4 +570,27 @@ fn an_environment_of_many_variables_sets_and_reads_in_linear_time() {
     assert_eq!(env.values().len(), 29_999);
     assert_eq!(env.values()[7], ("V8".to_owned(), "x".to_owned()));
     assert_eq!(env.values()[6], ("V7".to_owned(), "y".to_owned()));
+}
+
+#[test]
+fn an_allow_carries_a_rewritten_input_and_no_other_output_does() {
+    let read = |data: &[u8]| read_hook_output(HookEvent::PreTool, data, &[], &Settings::default());
+    let allowed = read(br#"{"decision": "allow", "input": {"command": "true"}}"#).expect("output");
+    assert_eq!(allowed.decision, Some(Decision::Allow));
+    assert_eq!(allowed.input, Some(manifest(json!({"command": "true"}))));
+    for bad in [
+        &br#"{"decision": "ask", "input": {}}"#[..],
+        br#"{"input": {}}"#,
+        br#"{"decision": "allow", "input": []}"#,
+        br#"{"decision": "approve"}"#,
+    ] {
+        assert_eq!(read(bad).expect_err("refused"), HookFailure::Output);
+    }
+    let allow = read_hook_output(
+        HookEvent::Prompt,
+        br#"{"decision": "allow"}"#,
+        &[],
+        &Settings::default(),
+    );
+    assert_eq!(allow.expect_err("refused"), HookFailure::Output);
 }
