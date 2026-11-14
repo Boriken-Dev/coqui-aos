@@ -141,6 +141,7 @@ void eventCase(Case item) {
     item['os'] == 'windows',
     num_(item['context_used']) ?? 0,
     item['input'],
+    item['kind'] as String?,
   );
   same({
     'ran': fired.ran,

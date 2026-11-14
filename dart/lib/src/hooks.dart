@@ -708,6 +708,10 @@ class HookRun {
   /// The variables it declared it may set.
   List<String> sets = [];
 
+  /// Its entry's `match`, or null for every call: on a call of kind `other` only a hook with none,
+  /// or one naming `other`, may allow.
+  List<String>? select;
+
   /// The run without its output: the source, status and output size.
   Map<String, Object?> toJson() => {
     'source': source,
@@ -818,6 +822,10 @@ class FiredEvent {
 /// combined allow, since an ask or a deny beats a rewrite. An allow whose `input` the consumer
 /// cannot apply (`input` is not in [applies]) is not applied at all; a rewrite that an ask beat is
 /// reported `hook-not-applied`.
+///
+/// [toolKind] is the call's kind: on `other`, a run whose [HookRun.select] is given and does not
+/// name `other` still runs and its deny and ask count, but its allow and input do not, and are
+/// reported `hook-not-applied` `allow`.
 FiredEvent fireEvent(
   String event,
   List<HookRun> runs,
@@ -826,6 +834,7 @@ FiredEvent fireEvent(
   bool windows, [
   int contextUsed = 0,
   Object? toolInput,
+  String? toolKind,
 ]) {
   bool can(String output) => applies == null
       ? output == 'refuse' || _outputs[event]!.contains(output)
@@ -873,7 +882,18 @@ FiredEvent fireEvent(
       );
       decided = null;
     }
-    final rewrite = output.input;
+    var rewrite = output.input;
+    final select = run.select;
+    if (decided == 'allow' &&
+        toolKind == 'other' &&
+        select != null &&
+        !select.contains('other')) {
+      fired.reports.add(
+        HookReport('hook-not-applied', [source, event, 'allow']),
+      );
+      decided = null;
+      rewrite = null;
+    }
     if (decided == 'allow' && rewrite != null) {
       if (can('input')) {
         if (toolInput != null) current = rewrite;

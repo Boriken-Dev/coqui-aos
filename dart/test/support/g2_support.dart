@@ -60,7 +60,8 @@ HookRun hookRunOf(Json value) {
     ..payloadSize = number('payload_size').toInt()
     ..timedOut = item['timed_out'] == true
     ..exit = number('exit').toInt()
-    ..sets = strings(item['sets']);
+    ..sets = strings(item['sets'])
+    ..select = item['match'] == null ? null : strings(item['match']);
 }
 
 /// Plain Dart as the vectors' JSON: whole numbers become `BigInt`s, a map keeps its order.
