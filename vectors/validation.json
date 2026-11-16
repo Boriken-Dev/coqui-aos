@@ -4769,6 +4769,78 @@
         "valid": false,
         "at": "/options"
       }
+    },
+    {
+      "id": "knowledge-serve",
+      "description": "The hint that an overlay's knowledge is meant to be served.",
+      "document": {
+        "knowledge": {
+          "serve": true
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "knowledge-serve-false",
+      "description": "False is the default, written out.",
+      "document": {
+        "knowledge": {
+          "serve": false
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "knowledge-empty",
+      "description": "An empty table hints nothing.",
+      "document": {
+        "knowledge": {}
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "knowledge-serve-string",
+      "description": "serve is a boolean.",
+      "document": {
+        "knowledge": {
+          "serve": "yes"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/knowledge/serve"
+      }
+    },
+    {
+      "id": "knowledge-unknown-key",
+      "description": "No other key: a table this specification defines refuses unknown keys.",
+      "document": {
+        "knowledge": {
+          "serve": true,
+          "template": true
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/knowledge"
+      }
+    },
+    {
+      "id": "knowledge-not-a-table",
+      "description": "knowledge is a table.",
+      "document": {
+        "knowledge": true
+      },
+      "expect": {
+        "valid": false,
+        "at": "/knowledge"
+      }
     }
   ]
 }

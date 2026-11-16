@@ -17,6 +17,8 @@ rules and the classes they serve are in
 | `effective.json` | One overlay's environment, setup, setup phases, runtime, needs and non-default settings on a given OS, with the defaults of `paths`, `env_files`, `env_scripts` and `setup`, and env scripts off until the digest is allowed |
 | `templating.json` | `${NAME}` in context and in a bundled skill's body: the five `AOS_` names, an unknown name and other forms left as written, `$${`, options with a default, with a configured value and with the wrong type, a sensitive option kept out, and a value never read again |
 | `catalog.json` | Catalogs in both forms, overlays and skills, sources resolved beside the catalog, refused entries and ignored fields, names several catalogs share, and icons |
+| `knowledge.json` | Knowledge served through MCP: the tools and their input schemas, argument validation, `kb_list` and `kb_read` over trees (what is knowledge, paths and links, lines, size bounds, written-out text, the overlay limit), templates (a plain file with `${...}` text left as it is, front matter that does not mark a template, `envsubst` and `mustache` with the facts, the caller's environment and context, an engine nobody defines, refusals), the MCP result, and the hint |
+| `knowledge_search.json` | The rules a `kb_search` answer follows: the entry per overlay, the declared mode, `top`, the path limit, the passage and its lines and text, written-out text, and the order of passages |
 | `hooks.json` | Hooks: which run at each event and with what, `hook.<ext>` chosen by runtime, off until allowed at one digest (a project's over every file beside its configuration), a guard that is off keeping its overlay inactive, events a consumer cannot fire or fires in part; each event's payload; which calls a `match` selects; a run's output, and every way it fails, an attempt to grant, an undeclared variable and a control character included; several hooks of one event combined within the event's bound, and what a consumer cannot apply on a harness |
 
 Error classes:
@@ -41,6 +43,10 @@ Error classes:
   `ref-not-allowed`, `leaves-repository`, `local-source`, `source-credentials`; for several catalogs `invalid-label`,
   and for a requested name `ambiguous`, `not-found`;
 - icons: `icon-format`, `icon-too-large`, `icon-mismatch`, `icon-unreadable`, `icon-dimensions`;
+- knowledge: `invalid-arguments`, `invalid-path`, `unknown-overlay`, `ambiguous`, `not-found`, `link`, `not-text`,
+  `too-large`, `unknown-template`, `invalid-option`, `template-error`, `line-range`; in a search entry `unavailable` and
+  `mode-unavailable`; the rules of an answer `overlays`, `mode`, `top`, `path-limit`, `not-knowledge`, `range`, `text`,
+  `inert` and `shape`;
 - hooks: a run fails with `event-timeout`, `not-run`, `payload-too-large`, `timeout`, `too-large`,
   `exit`, `grant` or `output`; reports are `hook-not-allowed`, `env-script-not-allowed`, `hook-unsupported`, `hook-partial`,
   `hook-failed`, `hook-not-applied` and `hook-ask-denied`, and the non-default setting `hook`; a `pre-env` refusal

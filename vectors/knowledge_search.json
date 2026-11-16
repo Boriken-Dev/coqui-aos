@@ -1,0 +1,4849 @@
+{
+  "description": "Searching knowledge: the rules a kb_search answer follows, never how it is ranked. 'check-' cases give the session's 'overlays' (as knowledge.json), the call's 'arguments', the declared 'modes', optional 'limits' and an answer 'response'; expect the sorted ids of the rules it breaks ('overlays', 'mode', 'top', 'path-limit', 'not-knowledge', 'range', 'text', 'inert', 'order', 'shape'), none when it conforms. 'order-' cases give 'passages' and expect their order by the answer's ordering rule.",
+  "spec": "spec/v0/knowledge.md#search",
+  "cases": [
+    {
+      "id": "check-conforms",
+      "description": "One overlay, one passage: the shape is the whole contract.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-no-passages",
+      "description": "An overlay with nothing to say gives an empty list, not an error.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": []
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-note",
+      "description": "A note is allowed on an entry.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ],
+            "note": "embeddings are not available; matched by words"
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-note-unsafe",
+      "description": "A note is served text: a control character in it is written out.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ],
+            "note": "a\u001bb"
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "inert"
+        ]
+      }
+    },
+    {
+      "id": "check-entry-error",
+      "description": "An overlay that cannot answer says so in its entry, and the call does not fail.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "error": {
+              "class": "unavailable",
+              "message": "the index is still being made"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-entry-error-unknown-class",
+      "description": "An entry's error is one of two classes.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "error": {
+              "class": "oops",
+              "message": "x"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "shape"
+        ]
+      }
+    },
+    {
+      "id": "check-entry-mode-unavailable",
+      "description": "A mode asked for by name and not available for an overlay.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "x",
+        "mode": "meaning"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "error": {
+              "class": "mode-unavailable",
+              "message": "no vectors"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-entry-mode-unavailable-on-auto",
+      "description": "'auto' is never unavailable: the server answers with a mode it has.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "error": {
+              "class": "mode-unavailable",
+              "message": "no vectors"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "mode"
+        ]
+      }
+    },
+    {
+      "id": "check-entry-error-and-passages",
+      "description": "An entry holds passages or an error, never both.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ],
+            "error": {
+              "class": "unavailable",
+              "message": "x"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "shape"
+        ]
+      }
+    },
+    {
+      "id": "check-two-overlays",
+      "description": "One entry per overlay in the order the session has them.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        },
+        {
+          "identity": "other",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/only-b.md",
+              "text": "only in b\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          },
+          {
+            "overlay": "other",
+            "mode": "words",
+            "passages": []
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-overlays-missing",
+      "description": "An entry is missing.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        },
+        {
+          "identity": "other",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/only-b.md",
+              "text": "only in b\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "overlays"
+        ]
+      }
+    },
+    {
+      "id": "check-overlays-order",
+      "description": "Entries out of order.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        },
+        {
+          "identity": "other",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/only-b.md",
+              "text": "only in b\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "other",
+            "mode": "words",
+            "passages": []
+          },
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": []
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "overlays"
+        ]
+      }
+    },
+    {
+      "id": "check-overlay-limit",
+      "description": "With 'overlay', only that overlay answers.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        },
+        {
+          "identity": "other",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/only-b.md",
+              "text": "only in b\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "x",
+        "overlay": "other"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "other",
+            "mode": "words",
+            "passages": []
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-overlay-limit-ignored",
+      "description": "An entry for an overlay the call excluded.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        },
+        {
+          "identity": "other",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/only-b.md",
+              "text": "only in b\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "x",
+        "overlay": "team-docs"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          },
+          {
+            "overlay": "other",
+            "mode": "words",
+            "passages": []
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "overlays"
+        ]
+      }
+    },
+    {
+      "id": "check-mode-asked",
+      "description": "A named mode is the one that answers.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "x",
+        "mode": "meaning"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "meaning",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-mode-replaced",
+      "description": "A named mode is never answered by another.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "x",
+        "mode": "meaning"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "mode"
+        ]
+      }
+    },
+    {
+      "id": "check-mode-auto-any",
+      "description": "'auto' may be answered by any declared mode, and the entry says which.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "llm",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-mode-undeclared",
+      "description": "A mode the server does not declare.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "meaning",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "mode"
+        ]
+      }
+    },
+    {
+      "id": "check-top",
+      "description": "More passages than 'top'.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "x",
+        "top": 1
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 3,
+                "text": "## Setup\nrun it"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 2,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "top"
+        ]
+      }
+    },
+    {
+      "id": "check-top-per-overlay",
+      "description": "'top' counts per overlay, not over the whole call.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        },
+        {
+          "identity": "other",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/only-b.md",
+              "text": "only in b\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "x",
+        "top": 2
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 3,
+                "text": "## Setup\nrun it"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 2,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          },
+          {
+            "overlay": "other",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/only-b.md",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1.0,
+                "text": "only in b"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-default-top",
+      "description": "Absent, 'top' is 5.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 6,
+                "text": "## Setup\nrun it"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 5,
+                "text": "## Setup\nrun it"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 4,
+                "text": "## Setup\nrun it"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 3,
+                "text": "## Setup\nrun it"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 2,
+                "text": "## Setup\nrun it"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "top"
+        ]
+      }
+    },
+    {
+      "id": "check-order-by-score",
+      "description": "Highest score first.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1,
+                "text": "## Setup\nrun it"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 2,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "order"
+        ]
+      }
+    },
+    {
+      "id": "check-order-ties-by-path",
+      "description": "Equal scores: path bytes.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1,
+                "text": "## Setup\nrun it"
+              },
+              {
+                "path": "kb/crlf.md",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1,
+                "text": "one"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "order"
+        ]
+      }
+    },
+    {
+      "id": "check-order-ties-by-path-ok",
+      "description": "Equal scores, in path order.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/crlf.md",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1,
+                "text": "one"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-order-ties-by-line",
+      "description": "Equal scores and path: first line.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1,
+                "text": "## Setup\nrun it"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1,
+                "text": "# Intro"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "order"
+        ]
+      }
+    },
+    {
+      "id": "check-order-ties-by-last-line",
+      "description": "Equal in all but the last line: the shorter first.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro",
+                "from_line": 1,
+                "to_line": 3,
+                "score": 1,
+                "text": "# Intro\n\nHello"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1,
+                "text": "# Intro"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "order"
+        ]
+      }
+    },
+    {
+      "id": "check-order-negative-scores",
+      "description": "A score may be negative; order is still highest first.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": -1,
+                "text": "## Setup\nrun it"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": -2,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-score-not-number",
+      "description": "A score is a number.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": "high",
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "shape"
+        ]
+      }
+    },
+    {
+      "id": "check-score-boolean",
+      "description": "A boolean is no number.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": true,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "shape"
+        ]
+      }
+    },
+    {
+      "id": "check-integer-score",
+      "description": "An integer score is a number.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 2,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-path-limit",
+      "description": "'path' limits to a file, or the files under a folder.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "x",
+        "path": "kb"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/crlf.md",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 2,
+                "text": "one"
+              },
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-path-limit-file",
+      "description": "A path naming a file.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "x",
+        "path": "kb/intro.md"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-path-limit-broken",
+      "description": "A passage outside the limit.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "x",
+        "path": "kb"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "rules/always.md",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1,
+                "text": "- **Be kind.**"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "path-limit"
+        ]
+      }
+    },
+    {
+      "id": "check-path-limit-prefix-not-folder",
+      "description": "'kb' is a folder, not a prefix of a name: 'kb/intro.md' is not under 'kb/int'.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "x",
+        "path": "kb/int"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "path-limit"
+        ]
+      }
+    },
+    {
+      "id": "check-path-limit-sibling-prefix",
+      "description": "And a folder 'kb' does not hold 'kbx/a'.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "x",
+        "path": "k"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "path-limit"
+        ]
+      }
+    },
+    {
+      "id": "check-not-knowledge",
+      "description": "A passage of a file the overlay does not serve.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "docs/other.md",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1,
+                "text": "not knowledge"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "not-knowledge"
+        ]
+      }
+    },
+    {
+      "id": "check-template-is-not-searched",
+      "description": "A template is never a passage's file: what it serves depends on the call.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/env.md",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1,
+                "text": "overlay"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "not-knowledge"
+        ]
+      }
+    },
+    {
+      "id": "check-range-start",
+      "description": "The first line is 1.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 0,
+                "to_line": 1,
+                "score": 1.5,
+                "text": "# Intro"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "range"
+        ]
+      }
+    },
+    {
+      "id": "check-range-order",
+      "description": "The last line is not before the first.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 3,
+                "to_line": 2,
+                "score": 1.5,
+                "text": "Hello"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "range"
+        ]
+      }
+    },
+    {
+      "id": "check-range-past-end",
+      "description": "A line past the file's last.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 6,
+                "to_line": 7,
+                "score": 1.5,
+                "text": "run it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "range"
+        ]
+      }
+    },
+    {
+      "id": "check-range-inclusive",
+      "description": "The last line is inclusive: line 6 alone.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 6,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "run it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-text-of-range",
+      "description": "The text lies in its lines.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro",
+                "from_line": 1,
+                "to_line": 3,
+                "score": 1.5,
+                "text": "# Intro\n\nHello"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-text-part-of-a-line",
+      "description": "A line that is long may be cut: the text is part of it.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/crlf.md",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1,
+                "text": "on"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-text-elsewhere",
+      "description": "A text that is not in its lines.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "something else"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "text"
+        ]
+      }
+    },
+    {
+      "id": "check-text-empty",
+      "description": "A passage has text.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": ""
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "text"
+        ]
+      }
+    },
+    {
+      "id": "check-text-crlf",
+      "description": "CR is no part of the lines the text is checked against.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/crlf.md",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 2,
+                "score": 1,
+                "text": "one\ntwo"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-text-hostile-written-out",
+      "description": "Passage text is served as kb_read serves it: controls written out.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/hostile.md",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1,
+                "text": "ok<U+001B>[31mred<U+001B>[0m\ttab"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-text-hostile-raw",
+      "description": "Raw, an escape character in a passage.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/hostile.md",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1,
+                "text": "ok\u001b[31mred\u001b[0m\ttab"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "inert",
+          "text"
+        ]
+      }
+    },
+    {
+      "id": "check-heading-hostile",
+      "description": "A heading is written out too.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro\u202e",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "inert"
+        ]
+      }
+    },
+    {
+      "id": "check-heading-empty",
+      "description": "A heading may be empty.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/crlf.md",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1,
+                "text": "one"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-extra-key",
+      "description": "A passage has these keys and no other.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it",
+                "extra": 1
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "shape"
+        ]
+      }
+    },
+    {
+      "id": "check-missing-key",
+      "description": "And all of them.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "shape"
+        ]
+      }
+    },
+    {
+      "id": "check-extra-entry-key",
+      "description": "An entry has overlay, mode, passages and perhaps a note.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ],
+            "extra": 1
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "shape"
+        ]
+      }
+    },
+    {
+      "id": "check-extra-top-key",
+      "description": "The answer is {\"results\"} alone.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/intro.md",
+                "heading": "Intro > Setup",
+                "from_line": 5,
+                "to_line": 6,
+                "score": 1.5,
+                "text": "## Setup\nrun it"
+              }
+            ]
+          }
+        ],
+        "query": "x"
+      },
+      "expect": {
+        "violations": [
+          "shape"
+        ]
+      }
+    },
+    {
+      "id": "check-not-an-object",
+      "description": "The answer is an object.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": [
+        {
+          "overlay": "team-docs",
+          "mode": "words",
+          "passages": [
+            {
+              "path": "kb/intro.md",
+              "heading": "Intro > Setup",
+              "from_line": 5,
+              "to_line": 6,
+              "score": 1.5,
+              "text": "## Setup\nrun it"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "violations": [
+          "shape"
+        ]
+      }
+    },
+    {
+      "id": "check-results-not-list",
+      "description": "'results' is a list.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "---\ntemplate: envsubst\ntitle: Env\n---\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": {
+          "overlay": "team-docs",
+          "mode": "words",
+          "passages": [
+            {
+              "path": "kb/intro.md",
+              "heading": "Intro > Setup",
+              "from_line": 5,
+              "to_line": 6,
+              "score": 1.5,
+              "text": "## Setup\nrun it"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "violations": [
+          "shape"
+        ]
+      }
+    },
+    {
+      "id": "order-by-score",
+      "description": "Highest score first.",
+      "passages": [
+        {
+          "path": "b",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 1
+        },
+        {
+          "path": "a",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 3
+        },
+        {
+          "path": "c",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 2
+        }
+      ],
+      "expect": {
+        "order": [
+          {
+            "path": "a",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 3
+          },
+          {
+            "path": "c",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 2
+          },
+          {
+            "path": "b",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "order-tie-path",
+      "description": "Equal scores: path, compared as bytes.",
+      "passages": [
+        {
+          "path": "kb/é.md",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 1
+        },
+        {
+          "path": "kb/z.md",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 1
+        },
+        {
+          "path": "kb/Z.md",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 1
+        }
+      ],
+      "expect": {
+        "order": [
+          {
+            "path": "kb/Z.md",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 1
+          },
+          {
+            "path": "kb/z.md",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 1
+          },
+          {
+            "path": "kb/é.md",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "order-tie-path-utf16",
+      "description": "Bytes, not UTF-16 units: U+FB01 (EF AC 81) comes before U+1F600 (F0 9F 98 80), though UTF-16 puts U+1F600 first.",
+      "passages": [
+        {
+          "path": "kb/😀.md",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 1
+        },
+        {
+          "path": "kb/ﬁ.md",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 1
+        }
+      ],
+      "expect": {
+        "order": [
+          {
+            "path": "kb/ﬁ.md",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 1
+          },
+          {
+            "path": "kb/😀.md",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "order-tie-lines",
+      "description": "Equal score and path: first line, then last line.",
+      "passages": [
+        {
+          "path": "a",
+          "from_line": 5,
+          "to_line": 9,
+          "score": 1
+        },
+        {
+          "path": "a",
+          "from_line": 1,
+          "to_line": 9,
+          "score": 1
+        },
+        {
+          "path": "a",
+          "from_line": 1,
+          "to_line": 2,
+          "score": 1
+        }
+      ],
+      "expect": {
+        "order": [
+          {
+            "path": "a",
+            "from_line": 1,
+            "to_line": 2,
+            "score": 1
+          },
+          {
+            "path": "a",
+            "from_line": 1,
+            "to_line": 9,
+            "score": 1
+          },
+          {
+            "path": "a",
+            "from_line": 5,
+            "to_line": 9,
+            "score": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "order-negative",
+      "description": "Scores below zero.",
+      "passages": [
+        {
+          "path": "a",
+          "from_line": 1,
+          "to_line": 1,
+          "score": -3
+        },
+        {
+          "path": "b",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 0
+        },
+        {
+          "path": "c",
+          "from_line": 1,
+          "to_line": 1,
+          "score": -0.5
+        }
+      ],
+      "expect": {
+        "order": [
+          {
+            "path": "b",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 0
+          },
+          {
+            "path": "c",
+            "from_line": 1,
+            "to_line": 1,
+            "score": -0.5
+          },
+          {
+            "path": "a",
+            "from_line": 1,
+            "to_line": 1,
+            "score": -3
+          }
+        ]
+      }
+    },
+    {
+      "id": "order-identical-keep-order",
+      "description": "Passages equal in every key keep the order given.",
+      "passages": [
+        {
+          "path": "a",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 1,
+          "heading": "first"
+        },
+        {
+          "path": "a",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 1,
+          "heading": "second"
+        }
+      ],
+      "expect": {
+        "order": [
+          {
+            "path": "a",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 1,
+            "heading": "first"
+          },
+          {
+            "path": "a",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 1,
+            "heading": "second"
+          }
+        ]
+      }
+    },
+    {
+      "id": "order-score-types",
+      "description": "An integer and a float of one value are equal.",
+      "passages": [
+        {
+          "path": "b",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 1
+        },
+        {
+          "path": "a",
+          "from_line": 1,
+          "to_line": 1,
+          "score": 1.0
+        }
+      ],
+      "expect": {
+        "order": [
+          {
+            "path": "a",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 1.0
+          },
+          {
+            "path": "b",
+            "from_line": 1,
+            "to_line": 1,
+            "score": 1
+          }
+        ]
+      }
+    }
+  ]
+}
