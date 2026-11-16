@@ -23,6 +23,8 @@ RUNNERS = {
     "catalog.json": ("test_catalog.py",),
     "hooks.json": ("test_hooks.py",),
     "templating.json": ("test_templating.py",),
+    "knowledge.json": ("test_knowledge.py",),
+    "knowledge_search.json": ("test_knowledge.py",),
 }
 
 

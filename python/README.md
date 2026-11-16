@@ -23,7 +23,8 @@ declares, reads catalogs, plans skills from elsewhere and checks hooks a caller 
 pip install "coqui-aos @ git+https://github.com/Boriken-Dev/coqui-aos#subdirectory=python"
 ```
 
-Not published to PyPI yet.
+Not published to PyPI yet. The `templates` extra (`coqui-aos[templates]`) adds `tplx`, which renders the
+Mustache templates of served knowledge; everything else needs nothing beyond the dependencies above.
 
 ## Quick start
 
@@ -40,6 +41,21 @@ except Error as error:
     print(error)
 
 assert Source.parse("git+https://example.org/o.git@v1#overlays/docs").path == "overlays/docs"
+```
+
+An overlay's knowledge is served to an agent over MCP by relative path. The core does the pure
+part, a request in and a result out, so a consumer serves it over its own MCP; `kb_read` renders a
+file that names a template engine (`envsubst` or `mustache`) for the call, so a consumer never
+applies either itself:
+
+```python
+from coqui_aos import CallerFacts, KnowledgeOverlay, TreeEntry, kb_read
+
+overlay = KnowledgeOverlay(
+    "team-docs", {}, {"kb/intro.md": TreeEntry.file(b"# Intro\n\nHello\n")}
+)
+result = kb_read([overlay], "kb/intro.md", from_line=3, caller=CallerFacts(role="reviewer"))
+assert result["structuredContent"]["text"] == "Hello"
 ```
 
 The public API, with every signature and gotcha, is in

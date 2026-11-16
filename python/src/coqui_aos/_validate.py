@@ -404,6 +404,8 @@ class _Check:
                 self.harness(value, at)
             elif key == "hooks":
                 self.hooks(value, at)
+            elif key == "knowledge":
+                self.knowledge(value, at)
             elif key == "about":
                 self.about(value, at)
 
@@ -766,6 +768,14 @@ class _Check:
                     self.boolean(item, there)
                 elif key in ("model", "effort"):
                     self.string(item, there, bool)
+
+    def knowledge(self, value: Any, at: str) -> None:
+        """The hint that the overlay's knowledge is meant to be served: ``serve``, a boolean."""
+        if not isinstance(value, dict) or any(key != "serve" for key in value):
+            self.fail(Class.SCHEMA, at)
+            return
+        if "serve" in value:
+            self.boolean(value["serve"], _join(at, "serve"))
 
     def about(self, value: Any, at: str) -> None:
         known = ("summary", "icon", "homepage", "repository", "license", "authors", "tags")

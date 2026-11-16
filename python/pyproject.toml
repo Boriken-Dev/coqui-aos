@@ -34,7 +34,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["black", "build", "pytest"]
+# Mustache templates in a served knowledge file are rendered by tplx, in its sandbox.
+templates = ["tplx[mustache]>=0.2.1,<0.3"]
+dev = ["black", "build", "pytest", "tplx[mustache]>=0.2.1,<0.3"]
 
 [project.urls]
 Homepage = "https://github.com/Boriken-Dev/coqui-aos/"

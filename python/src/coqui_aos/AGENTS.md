@@ -2,7 +2,7 @@
 
 Header-file-style reference for the `coqui_aos` package: the public names, what they return and raise, and the gotchas, so it can be used without reading the source. It ships inside the package and is self-contained. Development documentation lives with the source at <https://github.com/Boriken-Dev/coqui-aos>.
 
-Python 3.9 and later, pure Python. Version `0.0.0a0`, not published; the API may change in any release before 1.0. Runtime dependencies: `ruamel.yaml` (YAML parser events, so a tag, anchor, alias, merge key or directive is refused before anything is expanded) and, below Python 3.11, `tomli` (TOML). Both are pure Python. Edition: AOS v0, `0.1.0-draft`.
+Python 3.9 and later, pure Python. Version `0.0.0a0`, not published; the API may change in any release before 1.0. Runtime dependencies: `ruamel.yaml` (YAML parser events, so a tag, anchor, alias, merge key or directive is refused before anything is expanded) and, below Python 3.11, `tomli` (TOML). Both are pure Python. The optional `templates` extra (`pip install coqui-aos[templates]`) adds `tplx`, which renders Mustache templates of served knowledge. Edition: AOS v0, `0.1.0-draft`.
 
 Imports: everything is at the package root (`from coqui_aos import read_document, Error, Class`). The library prints nothing, logs nothing, reads no environment variable, starts no thread or process and touches no file except through the `FileSystem` it is given (`read_tree`, `tree_digest`). Reading a manifest is static.
 
@@ -67,6 +67,29 @@ skill_text(data: bytes, values, settings=None) -> str     # front matter as writ
 ```
 
 `${NAME}` is replaced in the context a consumer assembles and in the body of a bundled skill it serves, never in an installed file, and only for `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_STATE`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_SCOPE`, `AOS_PROJECT_ROOT` and the overlay's `options` that have a value; a name with no value, an unknown name, one with an operator and a sensitive option are left as written, `$${` is `${`, and a value is never read again. A skill's front matter is served as written. A configured value of the wrong type is `invalid-option`, never converted. The bound on the context counts the text after replacing: the caller checks it.
+
+## Knowledge served through MCP
+
+```python
+KnowledgeOverlay(identity, manifest, tree: Mapping[str, TreeEntry], served=False, facts=TemplateFacts())   # frozen dataclass
+KnowledgeOverlay.from_filesystem(fs, root, identity, manifest, *, served=False, facts=None, settings=None)   # walks without following a link; reads only files that are knowledge
+CallerFacts(role=None, profile=None, env={}, env_allow=())      # the call's facts for a template; sensitive variables never pass
+KnowledgeSettings(max_file_bytes=1 MiB, max_read_bytes=64 KiB, max_rendered_bytes=1 MiB, max_query_characters=1000, max_top=100,
+                  max_context_bytes=16 KiB, max_context_depth=8, max_template_depth=32)   # .replace(**), .non_defaults(); None lifts a limit
+
+kb_read(overlays, path, *, from_line=None, to_line=None, overlay=None, context=None, caller=None, settings=None) -> dict   # MCP result
+kb_list(overlays, *, overlay=None, modes=(), settings=None) -> dict                                                       # MCP result
+knowledge_tools(modes, settings=None) -> list[dict]             # tools/list: kb_list, kb_read and, if a mode is declared, kb_search
+knowledge_arguments(tool, arguments, modes, settings=None) -> dict   # defaults applied; KnowledgeError "invalid-arguments"
+knowledge_call(tool, overlays, arguments, modes=(), settings=None, caller=None) -> {"result": ...} | {"error": {"class", "message"}}
+knowledge_result(outcome) -> {"content": [{"type": "text", "text"}], "structuredContent": ..., "isError": bool}
+knowledge_set(overlay, settings=None) -> KnowledgeSet(files={path: KnowledgeFile(text, engine, size, raw)}, skipped=[(path, reason)])
+knowledge_plan(manifest, files, user=None) -> KnowledgePlan(served, left_out)   # the [knowledge] serve hint; the user's choice wins
+search_order(passages) -> list;  search_check(overlays, arguments, response, modes, settings=None) -> list[str]   # rule ids a kb_search answer breaks
+inert(text) -> str;  knowledge_lines(text) -> list[str];  mustache(text, data, settings=None) -> str   # needs the `templates` extra; imports tplx only when called
+```
+
+`kb_read` is the one call a consumer makes for a read: a file whose front matter has `template: envsubst` or `template: mustache` is rendered for that call from the overlay's facts, `caller` (role, profile, the allowed and non-sensitive environment variables and their values) and the call's `context`; any other file is served byte for byte, its front matter included. `kb_list`, `kb_read` and `knowledge_call` never raise for a refused call: the result has `isError` true and `{"error": {"class", "message"}}`. `KnowledgeError(code, message)` is raised by `knowledge_arguments` and `mustache`. The core does no search: a consumer that declares a mode answers `kb_search` itself and checks its answer with `search_check`; `kb_search` never returns a passage of a template. Served text is data: each control character but tab and line feed, and each character that hides or reorders text, reaches the agent as `<U+XXXX>`, and the consumer must not splice it into text of its own. A `mustache` template is rendered by `tplx` in its sandbox, which the `templates` extra installs; without it a read of such a file is `template-error`, never the raw text, and `envsubst` needs nothing. The installed `tplx` differs from the specification's Mustache subset in places (it HTML-escapes `{{x}}`, writes a boolean as `True`, takes an empty string and 0 as false, and accepts partial-like, delimiter and malformed tags): a text that relies on those is not served as the specification says until `tplx` meets them. The `[knowledge]` manifest table (`serve`, a boolean, no other key) is validated.
 
 ## The filesystem
 

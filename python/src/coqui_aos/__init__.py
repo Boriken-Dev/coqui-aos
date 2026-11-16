@@ -21,6 +21,7 @@ from ._front_matter import *  # noqa: F403
 from ._fs import *  # noqa: F403
 from ._hooks import *  # noqa: F403
 from ._icon import *  # noqa: F403
+from ._knowledge import *  # noqa: F403
 from ._names import *  # noqa: F403
 from ._settings import *  # noqa: F403
 from ._skills import *  # noqa: F403
