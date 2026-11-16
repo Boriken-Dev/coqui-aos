@@ -71,12 +71,12 @@ pub use hooks::{
 };
 pub use kinds::{FailStep, Format, LeftState, ManifestFile, NonDefaultId, Runtime, Step};
 pub use knowledge::{
-    CallerFacts, Engine, ErrorClass, KnowledgeEntry, KnowledgeError, KnowledgeOverlay,
+    CallerFacts, Engine, ErrorClass, FileFormat, KnowledgeEntry, KnowledgeError, KnowledgeOverlay,
     KnowledgePlan, KnowledgeSession, KnowledgeSet, KnowledgeSettings, KnowledgeTree, MAX_INTEGER,
     Passage, ReadRequest, SearchAnswer, SearchBackend, SearchFailure, SearchMode, SearchRequest,
     ServedFile, Skip, SkipReason, ToolCall, ToolName, ToolResult, inert, kb_list, kb_read,
     kb_tool_result, knowledge_arguments, knowledge_call, knowledge_lines, knowledge_plan,
-    knowledge_tools, mustache, search_check, search_order,
+    knowledge_tools, mustache, search_check, search_order, served_texts,
 };
 pub use limits::{Limit, NonDefault, Settings};
 pub use names::{

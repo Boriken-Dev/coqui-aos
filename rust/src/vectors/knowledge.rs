@@ -6,10 +6,10 @@ use serde_json::{Map, Value, json};
 use super::support::decode;
 use super::{Report, Runner};
 use crate::{
-    CallerFacts, ErrorClass, KnowledgeEntry, KnowledgeError, KnowledgeOverlay, KnowledgeSettings,
-    KnowledgeTree, Limit, OverlayTree, SearchMode, TemplateFacts, kb_tool_result,
-    knowledge_arguments, knowledge_call, knowledge_plan, knowledge_tools, search_check,
-    search_order,
+    CallerFacts, Engine, ErrorClass, KnowledgeEntry, KnowledgeError, KnowledgeOverlay,
+    KnowledgeSettings, KnowledgeTree, Limit, OverlayTree, SearchMode, TemplateFacts,
+    kb_tool_result, knowledge_arguments, knowledge_call, knowledge_plan, knowledge_tools,
+    search_check, search_order,
 };
 
 fn settings_of(case: &Value) -> KnowledgeSettings {
@@ -18,7 +18,8 @@ fn settings_of(case: &Value) -> KnowledgeSettings {
         return settings;
     };
     for (key, value) in limits {
-        let limit = Limit::at(value.as_u64().expect("a limit"));
+        // A null lifts the limit.
+        let limit = value.as_u64().map_or(Limit::UNBOUNDED, Limit::at);
         settings = match key.as_str() {
             "max_file_bytes" => settings.max_file_bytes(limit),
             "max_read_bytes" => settings.max_read_bytes(limit),
@@ -28,10 +29,21 @@ fn settings_of(case: &Value) -> KnowledgeSettings {
             "max_context_bytes" => settings.max_context_bytes(limit),
             "max_context_depth" => settings.max_context_depth(limit),
             "max_template_depth" => settings.max_template_depth(limit),
+            "max_include_depth" => settings.max_include_depth(limit),
             other => panic!("a limit this runner does not know: {other}"),
         };
     }
     settings
+}
+
+fn engines_of(case: &Value) -> Vec<Engine> {
+    match case.get("engines").and_then(Value::as_array) {
+        None => Engine::ALL.to_vec(),
+        Some(names) => Engine::ALL
+            .into_iter()
+            .filter(|engine| names.iter().any(|name| name == engine.as_str()))
+            .collect(),
+    }
 }
 
 fn modes_of(case: &Value) -> Vec<SearchMode> {
@@ -182,6 +194,7 @@ fn check(case: &Value) -> Result<(), String> {
         &overlays,
         &case["arguments"],
         &modes_of(case),
+        &engines_of(case),
         &settings,
         &caller_of(case),
     );
@@ -214,6 +227,8 @@ fn check_search(case: &Value) -> Result<(), String> {
         &case["response"],
         &modes_of(case),
         &settings_of(case),
+        &caller_of(case),
+        &engines_of(case),
     )
     .map_err(|error| error.to_string())?;
     same(&json!({"violations": broken}), expect)

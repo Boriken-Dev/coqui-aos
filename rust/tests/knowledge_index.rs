@@ -2,8 +2,8 @@
 
 use coqui_aos::index::{Corpus, Index, IndexSearch, Options, Settings};
 use coqui_aos::{
-    CallerFacts, KnowledgeOverlay, KnowledgeSession, KnowledgeSettings, KnowledgeTree, SearchMode,
-    ToolCall, search_check,
+    CallerFacts, Engine, KnowledgeOverlay, KnowledgeSession, KnowledgeSettings, KnowledgeTree,
+    SearchMode, ToolCall, search_check,
 };
 use serde_json::json;
 
@@ -14,22 +14,20 @@ fn overlay() -> KnowledgeOverlay {
             "# Rust\r\n\r\nCargo builds crates.\r\n\r\n## Testing\r\n\r\nRun cargo test.\r\n",
         )
         .with_text("flows/ship.md", "Ship it with cargo publish.\n")
-        .with_text(
-            "kb/t.md",
-            "---\ntemplate: envsubst\n---\ncargo ${AOS_OVERLAY_NAME}\n",
-        );
+        .with_text("kb/t.md", "#!envsubst\ncargo ${AOS_OVERLAY_NAME}\n");
     KnowledgeOverlay::new("team", serde_json::Map::new(), tree)
 }
 
 #[test]
-fn a_session_searches_the_index_and_never_returns_a_template() {
+fn a_session_searches_the_index_of_the_served_text() {
     let overlay = overlay();
     let settings = KnowledgeSettings::default();
     let dir = tempfile::tempdir().unwrap();
-    let corpus = Corpus::from_overlay(&overlay, &settings);
+    let caller = CallerFacts::new();
+    let corpus = Corpus::from_overlay(&overlay, &settings, &caller, &Engine::ALL);
     assert_eq!(
         corpus.paths().collect::<Vec<_>>(),
-        ["flows/ship.md", "kb/rust.md"]
+        ["flows/ship.md", "kb/rust.md", "kb/t.md"]
     );
     let index_dir = dir.path().join("index");
     Index::create(
@@ -42,7 +40,6 @@ fn a_session_searches_the_index_and_never_returns_a_template() {
     .unwrap();
     let backend = IndexSearch::new().index("team", Index::open(&index_dir).unwrap());
     let overlays = [overlay];
-    let caller = CallerFacts::new();
     let session = KnowledgeSession::new(&overlays, &settings, &caller).search(&backend);
     let arguments = json!({"query": "cargo"});
     let result = session.call(&ToolCall::new("kb_search", arguments.clone()));
@@ -55,16 +52,15 @@ fn a_session_searches_the_index_and_never_returns_a_template() {
         .iter()
         .map(|passage| passage["path"].as_str().unwrap())
         .collect();
-    assert!(
-        !paths.is_empty() && !paths.contains(&"kb/t.md"),
-        "{paths:?}"
-    );
+    assert!(paths.contains(&"kb/t.md"), "{paths:?}");
     let broken = search_check(
         &overlays,
         &arguments,
         &result.structured,
         &[SearchMode::Words],
         &settings,
+        &caller,
+        &Engine::ALL,
     )
     .unwrap();
     assert!(broken.is_empty(), "{broken:?}");

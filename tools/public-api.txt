@@ -24,7 +24,7 @@ pub struct coqui_aos::index::Corpus
 pub coqui_aos::index::Corpus::skipped: alloc::vec::Vec<alloc::string::String>
 impl coqui_aos::index::Corpus
 pub fn coqui_aos::index::Corpus::from_dir(&std::path::Path) -> core::result::Result<Self, coqui_aos::index::Error>
-pub fn coqui_aos::index::Corpus::from_overlay(&coqui_aos::KnowledgeOverlay, &coqui_aos::KnowledgeSettings) -> Self
+pub fn coqui_aos::index::Corpus::from_overlay(&coqui_aos::KnowledgeOverlay, &coqui_aos::KnowledgeSettings, &coqui_aos::CallerFacts, &[coqui_aos::Engine]) -> Self
 pub fn coqui_aos::index::Corpus::insert(&mut self, &str, alloc::vec::Vec<u8>) -> core::result::Result<(), coqui_aos::index::Error>
 pub fn coqui_aos::index::Corpus::is_empty(&self) -> bool
 pub fn coqui_aos::index::Corpus::len(&self) -> usize
@@ -238,6 +238,7 @@ pub fn coqui_aos::Decision::named(&str) -> core::option::Option<Self>
 pub coqui_aos::Engine::Envsubst
 pub coqui_aos::Engine::Mustache
 impl coqui_aos::Engine
+pub const coqui_aos::Engine::ALL: [Self; 2]
 pub const fn coqui_aos::Engine::as_str(self) -> &'static str
 #[non_exhaustive] pub enum coqui_aos::EntryRefusal
 pub coqui_aos::EntryRefusal::DuplicateName
@@ -254,6 +255,7 @@ pub const fn coqui_aos::EntryRefusal::as_str(self) -> &'static str
 pub fn coqui_aos::EntryRefusal::named(&str) -> core::option::Option<Self>
 #[non_exhaustive] pub enum coqui_aos::ErrorClass
 pub coqui_aos::ErrorClass::Ambiguous
+pub coqui_aos::ErrorClass::IncludeError
 pub coqui_aos::ErrorClass::InvalidArguments
 pub coqui_aos::ErrorClass::InvalidOption
 pub coqui_aos::ErrorClass::InvalidPath
@@ -266,7 +268,6 @@ pub coqui_aos::ErrorClass::TemplateError
 pub coqui_aos::ErrorClass::TooLarge
 pub coqui_aos::ErrorClass::Unavailable
 pub coqui_aos::ErrorClass::UnknownOverlay
-pub coqui_aos::ErrorClass::UnknownTemplate
 impl coqui_aos::ErrorClass
 pub const fn coqui_aos::ErrorClass::as_str(self) -> &'static str
 pub fn coqui_aos::ErrorClass::parse(&str) -> core::option::Option<Self>
@@ -280,6 +281,10 @@ pub const fn coqui_aos::FailStep::as_str(self) -> &'static str
 pub fn coqui_aos::FailStep::named(&str) -> core::option::Option<Self>
 impl core::fmt::Display for coqui_aos::FailStep
 pub fn coqui_aos::FailStep::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum coqui_aos::FileFormat
+pub coqui_aos::FileFormat::AsWritten
+pub coqui_aos::FileFormat::Engine(alloc::string::String)
+pub coqui_aos::FileFormat::Expanded
 #[non_exhaustive] pub enum coqui_aos::FileKind
 pub coqui_aos::FileKind::Directory
 pub coqui_aos::FileKind::File
@@ -467,7 +472,7 @@ pub coqui_aos::SkillOrigin::Source
 #[non_exhaustive] pub enum coqui_aos::SkipReason
 pub coqui_aos::SkipReason::Name
 pub coqui_aos::SkipReason::NotText
-pub coqui_aos::SkipReason::Template
+pub coqui_aos::SkipReason::Render
 pub coqui_aos::SkipReason::TooLarge
 impl coqui_aos::SkipReason
 pub const fn coqui_aos::SkipReason::as_str(self) -> &'static str
@@ -759,6 +764,7 @@ pub coqui_aos::KnowledgePlan::served: bool
 #[non_exhaustive] pub struct coqui_aos::KnowledgeSession<'a>
 impl<'a> coqui_aos::KnowledgeSession<'a>
 pub fn coqui_aos::KnowledgeSession<'a>::call(&self, &coqui_aos::ToolCall) -> coqui_aos::ToolResult
+pub fn coqui_aos::KnowledgeSession<'a>::engines(self, &'a [coqui_aos::Engine]) -> Self
 pub fn coqui_aos::KnowledgeSession<'a>::new(&'a [coqui_aos::KnowledgeOverlay], &'a coqui_aos::KnowledgeSettings, &'a coqui_aos::CallerFacts) -> Self
 pub fn coqui_aos::KnowledgeSession<'a>::search(self, &'a dyn coqui_aos::SearchBackend) -> Self
 pub fn coqui_aos::KnowledgeSession<'a>::tools(&self) -> alloc::vec::Vec<serde_json::value::Value>
@@ -773,6 +779,7 @@ pub fn coqui_aos::KnowledgeSet<'_>::skip_of(&self, &str) -> core::option::Option
 pub coqui_aos::KnowledgeSettings::max_context_bytes: coqui_aos::Limit
 pub coqui_aos::KnowledgeSettings::max_context_depth: coqui_aos::Limit
 pub coqui_aos::KnowledgeSettings::max_file_bytes: coqui_aos::Limit
+pub coqui_aos::KnowledgeSettings::max_include_depth: coqui_aos::Limit
 pub coqui_aos::KnowledgeSettings::max_query_characters: coqui_aos::Limit
 pub coqui_aos::KnowledgeSettings::max_read_bytes: coqui_aos::Limit
 pub coqui_aos::KnowledgeSettings::max_rendered_bytes: coqui_aos::Limit
@@ -782,6 +789,7 @@ impl coqui_aos::KnowledgeSettings
 pub fn coqui_aos::KnowledgeSettings::max_context_bytes(self, coqui_aos::Limit) -> Self
 pub fn coqui_aos::KnowledgeSettings::max_context_depth(self, coqui_aos::Limit) -> Self
 pub fn coqui_aos::KnowledgeSettings::max_file_bytes(self, coqui_aos::Limit) -> Self
+pub fn coqui_aos::KnowledgeSettings::max_include_depth(self, coqui_aos::Limit) -> Self
 pub fn coqui_aos::KnowledgeSettings::max_query_characters(self, coqui_aos::Limit) -> Self
 pub fn coqui_aos::KnowledgeSettings::max_read_bytes(self, coqui_aos::Limit) -> Self
 pub fn coqui_aos::KnowledgeSettings::max_rendered_bytes(self, coqui_aos::Limit) -> Self
@@ -940,8 +948,8 @@ pub coqui_aos::SearchRequest::path: core::option::Option<alloc::string::String>
 pub coqui_aos::SearchRequest::query: alloc::string::String
 pub coqui_aos::SearchRequest::top: usize
 #[non_exhaustive] pub struct coqui_aos::ServedFile<'a>
-pub coqui_aos::ServedFile::engine: core::option::Option<coqui_aos::Engine>
-pub coqui_aos::ServedFile::raw: &'a [u8]
+pub coqui_aos::ServedFile::format: coqui_aos::FileFormat
+pub coqui_aos::ServedFile::rest: &'a str
 pub coqui_aos::ServedFile::text: &'a str
 #[non_exhaustive] pub struct coqui_aos::Settings
 pub coqui_aos::Settings::catalog_bytes: coqui_aos::Limit
@@ -1150,7 +1158,7 @@ pub fn coqui_aos::kb_list(&[coqui_aos::KnowledgeOverlay], core::option::Option<&
 pub fn coqui_aos::kb_read(&[coqui_aos::KnowledgeOverlay], &coqui_aos::ReadRequest, &coqui_aos::CallerFacts, &coqui_aos::KnowledgeSettings) -> coqui_aos::ToolResult
 pub fn coqui_aos::kb_tool_result(core::result::Result<serde_json::value::Value, coqui_aos::KnowledgeError>) -> coqui_aos::ToolResult
 pub fn coqui_aos::knowledge_arguments(&str, &serde_json::value::Value, &[coqui_aos::SearchMode], &coqui_aos::KnowledgeSettings) -> core::result::Result<serde_json::map::Map<alloc::string::String, serde_json::value::Value>, coqui_aos::KnowledgeError>
-pub fn coqui_aos::knowledge_call(&str, &[coqui_aos::KnowledgeOverlay], &serde_json::value::Value, &[coqui_aos::SearchMode], &coqui_aos::KnowledgeSettings, &coqui_aos::CallerFacts) -> core::result::Result<serde_json::value::Value, coqui_aos::KnowledgeError>
+pub fn coqui_aos::knowledge_call(&str, &[coqui_aos::KnowledgeOverlay], &serde_json::value::Value, &[coqui_aos::SearchMode], &[coqui_aos::Engine], &coqui_aos::KnowledgeSettings, &coqui_aos::CallerFacts) -> core::result::Result<serde_json::value::Value, coqui_aos::KnowledgeError>
 pub fn coqui_aos::knowledge_lines(&str) -> alloc::vec::Vec<&str>
 pub fn coqui_aos::knowledge_plan(&coqui_aos::Document, &coqui_aos::OverlayTree, core::option::Option<bool>) -> coqui_aos::KnowledgePlan
 pub fn coqui_aos::knowledge_tools(&[coqui_aos::SearchMode], &coqui_aos::KnowledgeSettings) -> alloc::vec::Vec<serde_json::value::Value>
@@ -1178,8 +1186,9 @@ pub fn coqui_aos::resolve(&alloc::collections::btree::map::BTreeMap<alloc::strin
 pub fn coqui_aos::resolve_skills(&alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::Document>, &[alloc::string::String], &alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::OverlayTree>, &[(&str, &coqui_aos::Catalog)], &[&str], bool, &coqui_aos::Settings) -> core::result::Result<coqui_aos::SkillPlan, coqui_aos::Error>
 pub fn coqui_aos::root_variable(&str) -> alloc::string::String
 pub fn coqui_aos::rules_of(&coqui_aos::Document, &coqui_aos::OverlayTree) -> alloc::vec::Vec<alloc::string::String>
-pub fn coqui_aos::search_check(&[coqui_aos::KnowledgeOverlay], &serde_json::value::Value, &serde_json::value::Value, &[coqui_aos::SearchMode], &coqui_aos::KnowledgeSettings) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, coqui_aos::KnowledgeError>
+pub fn coqui_aos::search_check(&[coqui_aos::KnowledgeOverlay], &serde_json::value::Value, &serde_json::value::Value, &[coqui_aos::SearchMode], &coqui_aos::KnowledgeSettings, &coqui_aos::CallerFacts, &[coqui_aos::Engine]) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, coqui_aos::KnowledgeError>
 pub fn coqui_aos::search_order(&[serde_json::value::Value]) -> alloc::vec::Vec<serde_json::value::Value>
+pub fn coqui_aos::served_texts(&coqui_aos::KnowledgeOverlay, &coqui_aos::KnowledgeSettings, &coqui_aos::CallerFacts, &[coqui_aos::Engine]) -> alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::string::String>
 pub fn coqui_aos::setup_phase(coqui_aos::Change, core::option::Option<&str>, core::option::Option<&str>) -> core::option::Option<coqui_aos::Phase>
 pub fn coqui_aos::skill_entries(&coqui_aos::Document, &coqui_aos::OverlayTree) -> alloc::vec::Vec<coqui_aos::SkillEntry>
 pub fn coqui_aos::skill_flags(&coqui_aos::Document, &coqui_aos::OverlayTree) -> alloc::vec::Vec<alloc::string::String>

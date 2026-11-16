@@ -1,17 +1,19 @@
 //! `kb_search`: the modes a server declares, what a backend answers, what the handler checks and
 //! orders of it, and the checks a conformance run applies to an answer.
 
+use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 
 use serde_json::{Map, Value, json};
 
-use super::read::{choose, path_problem};
+use super::read::{CallerFacts, choose, path_problem};
+use super::serve_text::{Call, served_lines};
 use super::settings::KnowledgeSettings;
-use super::text::{inert, knowledge_lines};
+use super::text::inert;
 use super::tools::knowledge_arguments;
-use super::tree::KnowledgeOverlay;
+use super::tree::{Engine, KnowledgeOverlay};
 use super::{ErrorClass, KnowledgeError};
 
 /// How a query is matched.
@@ -175,12 +177,33 @@ fn compare(left: &Passage, right: &Passage) -> Ordering {
         .then_with(|| left.to_line.cmp(&right.to_line))
 }
 
+/// The lines of the served text of each file of `overlay` that can be served with no context.
+fn served_of(
+    overlay: &KnowledgeOverlay,
+    settings: &KnowledgeSettings,
+    caller: &CallerFacts,
+    engines: &[Engine],
+) -> BTreeMap<String, Vec<String>> {
+    let set = overlay.set(settings);
+    let empty = Map::new();
+    served_lines(&Call {
+        overlay,
+        set: &set,
+        context: &empty,
+        caller,
+        settings,
+        engines,
+    })
+}
+
 /// The answer of a `kb_search` whose arguments were checked.
 pub(crate) fn search(
     overlays: &[KnowledgeOverlay],
     arguments: &Map<String, Value>,
     backend: &dyn SearchBackend,
     settings: &KnowledgeSettings,
+    caller: &CallerFacts,
+    engines: &[Engine],
 ) -> Result<Value, KnowledgeError> {
     let prefix = arguments.get("path").and_then(Value::as_str);
     if let Some(prefix) = prefix
@@ -206,7 +229,8 @@ pub(crate) fn search(
     let mut results = Vec::new();
     for overlay in choose(overlays, wanted)? {
         let answer = backend.search(overlay, &request);
-        results.push(entry(overlay, answer, &request, &declared, settings));
+        let served = served_of(overlay, settings, caller, engines);
+        results.push(entry(overlay, answer, &request, &declared, &served));
     }
     Ok(json!({"results": results}))
 }
@@ -216,7 +240,7 @@ fn entry(
     answer: Result<SearchAnswer, SearchFailure>,
     request: &SearchRequest,
     declared: &[SearchMode],
-    settings: &KnowledgeSettings,
+    served: &BTreeMap<String, Vec<String>>,
 ) -> Value {
     let failed = |class: ErrorClass, message: &str| {
         json!({
@@ -234,20 +258,17 @@ fn entry(
             "the backend answered by a mode that was not asked for or declared",
         );
     }
-    let set = overlay.set(settings);
     let mut passages: Vec<Passage> = answer
         .passages
         .into_iter()
         .filter(|passage| {
-            let Some(file) = set.files.get(passage.path.as_str()) else {
+            let Some(total) = served.get(passage.path.as_str()).map(Vec::len) else {
                 return false;
             };
-            let total = knowledge_lines(file.text).len();
-            file.engine.is_none()
-                && request
-                    .path
-                    .as_deref()
-                    .is_none_or(|prefix| within(&passage.path, prefix))
+            request
+                .path
+                .as_deref()
+                .is_none_or(|prefix| within(&passage.path, prefix))
                 && 1 <= passage.from_line
                 && passage.from_line <= passage.to_line
                 && passage.to_line <= total
@@ -335,6 +356,8 @@ pub fn search_check(
     response: &Value,
     modes: &[SearchMode],
     settings: &KnowledgeSettings,
+    caller: &CallerFacts,
+    engines: &[Engine],
 ) -> Result<Vec<String>, KnowledgeError> {
     let args = knowledge_arguments("kb_search", arguments, modes, settings)?;
     let mut broken: alloc::collections::BTreeSet<&'static str> =
@@ -369,6 +392,8 @@ pub fn search_check(
             prefix,
             modes,
             settings,
+            caller,
+            engines,
             &mut broken,
         );
     }
@@ -384,6 +409,8 @@ fn check_entry(
     prefix: Option<&str>,
     modes: &[SearchMode],
     settings: &KnowledgeSettings,
+    caller: &CallerFacts,
+    engines: &[Engine],
     broken: &mut alloc::collections::BTreeSet<&'static str>,
 ) {
     let Some(map) = entry.as_object() else {
@@ -428,9 +455,9 @@ fn check_entry(
     if passages.len() as u64 > top {
         broken.insert("top");
     }
-    let held = overlay.set(settings);
+    let served = served_of(overlay, settings, caller, engines);
     for passage in passages {
-        check_passage(passage, &held, prefix, broken);
+        check_passage(passage, &served, prefix, broken);
     }
     let keyed = passages.iter().all(|passage| {
         is_plain_number(passage.get("score"))
@@ -449,7 +476,7 @@ fn check_entry(
 
 fn check_passage(
     passage: &Value,
-    held: &super::tree::KnowledgeSet<'_>,
+    served: &BTreeMap<String, Vec<String>>,
     prefix: Option<&str>,
     broken: &mut alloc::collections::BTreeSet<&'static str>,
 ) {
@@ -472,11 +499,10 @@ fn check_passage(
     if prefix.is_some_and(|prefix| !within(path, prefix)) {
         broken.insert("path-limit");
     }
-    let Some(file) = held.files.get(path).filter(|file| file.engine.is_none()) else {
+    let Some(lines) = served.get(path) else {
         broken.insert("not-knowledge");
         return;
     };
-    let lines = knowledge_lines(file.text);
     let (first, last) = (passage["from_line"].as_i64(), passage["to_line"].as_i64());
     let (Some(first), Some(last)) = (first, last) else {
         broken.insert("range");

@@ -7,10 +7,11 @@ use serde_json::{Map, Value, json};
 
 use super::read::{CallerFacts, choose, read};
 use super::search::{SearchBackend, SearchMode, search};
+use super::serve_text::{Call, served_text};
 use super::settings::KnowledgeSettings;
 use super::text::{inert, knowledge_lines};
 use super::tools::{ToolName, knowledge_arguments, knowledge_tools};
-use super::tree::KnowledgeOverlay;
+use super::tree::{Engine, FileFormat, KnowledgeOverlay, SkipReason};
 use super::{ErrorClass, KnowledgeError};
 
 /// A call of a tool, as the consumer's MCP server received it.
@@ -86,26 +87,47 @@ fn list(
     arguments: &Map<String, Value>,
     modes: &[SearchMode],
     settings: &KnowledgeSettings,
+    caller: &CallerFacts,
+    engines: &[Engine],
 ) -> Result<Value, KnowledgeError> {
     let mut listed = Vec::new();
+    let empty = Map::new();
     for overlay in choose(overlays, arguments.get("overlay").and_then(Value::as_str))? {
         let set = overlay.set(settings);
-        let files: Vec<Value> = set
-            .files
-            .iter()
-            .map(|(path, file)| match file.engine {
-                Some(engine) => json!({"path": path, "template": engine.as_str()}),
-                None => json!({
-                    "path": path,
-                    "lines": knowledge_lines(file.text).len(),
-                    "bytes": file.raw.len(),
-                }),
-            })
-            .collect();
-        let skipped: Vec<Value> = set
+        let call = Call {
+            overlay,
+            set: &set,
+            context: &empty,
+            caller,
+            settings,
+            engines,
+        };
+        let mut files = Vec::new();
+        let mut skipped: Vec<(String, SkipReason)> = set
             .skipped
             .iter()
-            .map(|skip| json!({"path": inert(&skip.path), "reason": skip.reason.as_str()}))
+            .map(|skip| (skip.path.clone(), skip.reason))
+            .collect();
+        for (path, file) in &set.files {
+            let Ok(text) = served_text(&call, path) else {
+                skipped.push(((*path).to_owned(), SkipReason::Render));
+                continue;
+            };
+            let mut entry = json!({
+                "path": path,
+                "lines": knowledge_lines(&text).len(),
+                "bytes": text.len(),
+            });
+            if let FileFormat::Engine(name) = &file.format {
+                entry["template"] = json!(name);
+                entry["rendered"] = json!(engines.iter().any(|engine| engine.as_str() == name));
+            }
+            files.push(entry);
+        }
+        skipped.sort_by(|left, right| left.0.as_bytes().cmp(right.0.as_bytes()));
+        let skipped: Vec<Value> = skipped
+            .iter()
+            .map(|(path, reason)| json!({"path": inert(path), "reason": reason.as_str()}))
             .collect();
         listed.push(json!({
             "overlay": overlay.identity,
@@ -114,7 +136,12 @@ fn list(
             "skipped": skipped,
         }));
     }
-    let mut result = json!({"overlays": listed});
+    let names: Vec<&str> = Engine::ALL
+        .into_iter()
+        .filter(|engine| engines.contains(engine))
+        .map(Engine::as_str)
+        .collect();
+    let mut result = json!({"overlays": listed, "engines": names});
     let declared: Vec<&str> = SearchMode::ALL
         .into_iter()
         .filter(|mode| modes.contains(mode))
@@ -128,7 +155,7 @@ fn list(
 
 /// What a server answers a call of `kb_list` or `kb_read` over `overlays`, the session's active
 /// overlays in composition order; `modes` are the search modes it declares, which only `kb_list`
-/// reports. `kb_search` is the [`KnowledgeSession`]'s.
+/// reports; `engines` are the template engines it renders with. `kb_search` is the [`KnowledgeSession`]'s.
 ///
 /// # Errors
 ///
@@ -138,13 +165,14 @@ pub fn knowledge_call(
     overlays: &[KnowledgeOverlay],
     arguments: &Value,
     modes: &[SearchMode],
+    engines: &[Engine],
     settings: &KnowledgeSettings,
     caller: &CallerFacts,
 ) -> Result<Value, KnowledgeError> {
     let arguments = knowledge_arguments(tool, arguments, modes, settings)?;
     match ToolName::parse(tool) {
-        Some(ToolName::List) => list(overlays, &arguments, modes, settings),
-        Some(ToolName::Read) => read(overlays, &arguments, settings, caller),
+        Some(ToolName::List) => list(overlays, &arguments, modes, settings, caller, engines),
+        Some(ToolName::Read) => read(overlays, &arguments, settings, caller, engines),
         _ => Err(KnowledgeError::new(
             ErrorClass::InvalidArguments,
             alloc::format!("no tool is named {tool}"),
@@ -239,6 +267,7 @@ pub fn kb_read(
         overlays,
         &request.arguments(),
         &[],
+        &Engine::ALL,
         settings,
         caller,
     ))
@@ -259,6 +288,7 @@ pub fn kb_list(
         overlays,
         &arguments,
         modes,
+        &Engine::ALL,
         settings,
         &CallerFacts::new(),
     ))
@@ -273,6 +303,7 @@ pub struct KnowledgeSession<'a> {
     settings: &'a KnowledgeSettings,
     caller: &'a CallerFacts,
     backend: Option<&'a dyn SearchBackend>,
+    engines: &'a [Engine],
 }
 
 impl core::fmt::Debug for KnowledgeSession<'_> {
@@ -298,6 +329,7 @@ impl<'a> KnowledgeSession<'a> {
             settings,
             caller,
             backend: None,
+            engines: &Engine::ALL,
         }
     }
 
@@ -305,6 +337,13 @@ impl<'a> KnowledgeSession<'a> {
     #[must_use]
     pub fn search(mut self, backend: &'a dyn SearchBackend) -> Self {
         self.backend = Some(backend);
+        self
+    }
+
+    /// Renders only these engines; the rest are served with their context, unrendered.
+    #[must_use]
+    pub fn engines(mut self, engines: &'a [Engine]) -> Self {
+        self.engines = engines;
         self
     }
 
@@ -330,13 +369,21 @@ impl<'a> KnowledgeSession<'a> {
             && !modes.is_empty()
         {
             let arguments = knowledge_arguments(&call.name, &call.arguments, modes, self.settings)?;
-            return search(self.overlays, &arguments, backend, self.settings);
+            return search(
+                self.overlays,
+                &arguments,
+                backend,
+                self.settings,
+                self.caller,
+                self.engines,
+            );
         }
         knowledge_call(
             &call.name,
             self.overlays,
             &call.arguments,
             modes,
+            self.engines,
             self.settings,
             self.caller,
         )

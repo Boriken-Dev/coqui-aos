@@ -10,7 +10,7 @@ use globset::{Glob, GlobBuilder, GlobSet, GlobSetBuilder};
 use sha2::{Digest as _, Sha256};
 
 use super::Error;
-use crate::{KnowledgeOverlay, KnowledgeSettings};
+use crate::{CallerFacts, Engine, KnowledgeOverlay, KnowledgeSettings, served_texts};
 
 /// The largest file read from a folder; a bigger one is left out and named in [`Corpus::skipped`].
 const MAX_FILE: u64 = 8 * 1024 * 1024;
@@ -46,16 +46,20 @@ impl Corpus {
         Ok(())
     }
 
-    /// The files of an overlay's knowledge that are served and plain: a template is left out, since what it
-    /// serves changes with each call.
+    /// The served text of each file of an overlay's knowledge, as `kb_read` gives it with no `context`:
+    /// what a search indexes, so a passage's lines are the lines `kb_read` numbers. A template is read
+    /// with the facts of `caller`, so an index of one is as old as those facts.
     #[must_use]
-    pub fn from_overlay(overlay: &KnowledgeOverlay, settings: &KnowledgeSettings) -> Self {
+    pub fn from_overlay(
+        overlay: &KnowledgeOverlay,
+        settings: &KnowledgeSettings,
+        caller: &CallerFacts,
+        engines: &[Engine],
+    ) -> Self {
         let mut corpus = Self::new();
-        for (path, file) in &overlay.set(settings).files {
-            if file.engine.is_none() && !file.text.contains('\0') {
-                corpus
-                    .files
-                    .insert((*path).to_owned(), file.text.to_owned());
+        for (path, text) in served_texts(overlay, settings, caller, engines) {
+            if !text.contains('\0') {
+                corpus.files.insert(path, text);
             }
         }
         corpus

@@ -889,20 +889,26 @@ fn a_corpus_comes_from_an_overlay_or_a_folder_and_leaves_out_what_is_not_text() 
         .with_text("kb/a.md", "hello")
         .with_text("flows/b.md", "flow")
         .with_text("docs/c.md", "no")
-        .with_text(
-            "kb/t.md",
-            "---\ntemplate: envsubst\n---\n${AOS_OVERLAY_NAME}\n",
-        )
+        .with_text("kb/t.md", "#!envsubst\nname ${AOS_OVERLAY_NAME}\n")
+        .with_text("kb/r.md", "#!raw\n${AOS_OVERLAY_NAME}\n")
         .with(
             "kb/bin.dat",
             crate::KnowledgeEntry::File(vec![0xff, 0xfe, 0x00]),
         );
     let overlay = KnowledgeOverlay::new("team", Default::default(), tree);
-    let corpus = Corpus::from_overlay(&overlay, &KnowledgeSettings::default());
+    let corpus = Corpus::from_overlay(
+        &overlay,
+        &KnowledgeSettings::default(),
+        &crate::CallerFacts::new(),
+        &crate::Engine::ALL,
+    );
+    // The served text is indexed: a template as rendered, a raw file without its first line.
     assert_eq!(
         corpus.paths().collect::<Vec<_>>(),
-        ["flows/b.md", "kb/a.md"]
+        ["flows/b.md", "kb/a.md", "kb/r.md", "kb/t.md"]
     );
+    assert_eq!(corpus.text("kb/t.md"), Some("name team\n"));
+    assert_eq!(corpus.text("kb/r.md"), Some("${AOS_OVERLAY_NAME}\n"));
 
     let scratch = Scratch::new();
     fs::create_dir_all(scratch.0.join("root/kb")).unwrap();

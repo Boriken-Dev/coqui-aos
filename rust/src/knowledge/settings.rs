@@ -49,6 +49,10 @@ pub struct KnowledgeSettings {
     #[schema(title = "Deepest template")]
     #[map(default = KnowledgeSettings::default().max_template_depth)]
     pub max_template_depth: Limit,
+    /// `@path` includes one in another.
+    #[schema(title = "Deepest include")]
+    #[map(default = KnowledgeSettings::default().max_include_depth)]
+    pub max_include_depth: Limit,
 }
 
 impl Default for KnowledgeSettings {
@@ -62,6 +66,7 @@ impl Default for KnowledgeSettings {
             max_context_bytes: Limit::at(16 * KIB),
             max_context_depth: Limit::at(8),
             max_template_depth: Limit::at(32),
+            max_include_depth: Limit::at(5),
         }
     }
 }
@@ -88,7 +93,8 @@ impl KnowledgeSettings {
         max_top,
         max_context_bytes,
         max_context_depth,
-        max_template_depth
+        max_template_depth,
+        max_include_depth
     );
 
     /// Every setting that differs from its default, in the schema's key order.

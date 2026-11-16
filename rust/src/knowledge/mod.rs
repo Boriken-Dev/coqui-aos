@@ -11,6 +11,7 @@ mod plan;
 mod read;
 mod search;
 mod serve;
+mod serve_text;
 mod settings;
 mod text;
 mod tools;
@@ -27,12 +28,13 @@ pub use serve::{
     KnowledgeSession, ReadRequest, ToolCall, ToolResult, kb_list, kb_read, kb_tool_result,
     knowledge_call,
 };
+pub use serve_text::served_texts;
 pub use settings::{KnowledgeSettings, MAX_INTEGER};
 pub use text::{inert, knowledge_lines};
 pub use tools::{ToolName, knowledge_arguments, knowledge_tools};
 pub use tree::{
-    Engine, KnowledgeEntry, KnowledgeOverlay, KnowledgeSet, KnowledgeTree, ServedFile, Skip,
-    SkipReason,
+    Engine, FileFormat, KnowledgeEntry, KnowledgeOverlay, KnowledgeSet, KnowledgeTree, ServedFile,
+    Skip, SkipReason,
 };
 
 use alloc::string::String;
@@ -58,8 +60,8 @@ pub enum ErrorClass {
     NotText,
     /// The file or its rendered text is past its bound.
     TooLarge,
-    /// The front matter names an engine no edition defines.
-    UnknownTemplate,
+    /// An `@path` that names a served file and cannot be included.
+    IncludeError,
     /// A configured option is not of its declared type.
     InvalidOption,
     /// A Mustache body the subset refuses.
@@ -85,7 +87,7 @@ impl ErrorClass {
             Self::Link,
             Self::NotText,
             Self::TooLarge,
-            Self::UnknownTemplate,
+            Self::IncludeError,
             Self::InvalidOption,
             Self::TemplateError,
             Self::LineRange,
@@ -108,7 +110,7 @@ impl ErrorClass {
             Self::Link => "link",
             Self::NotText => "not-text",
             Self::TooLarge => "too-large",
-            Self::UnknownTemplate => "unknown-template",
+            Self::IncludeError => "include-error",
             Self::InvalidOption => "invalid-option",
             Self::TemplateError => "template-error",
             Self::LineRange => "line-range",

@@ -131,12 +131,49 @@ fn parse_line(line: &str) -> Result<Vec<Item>, KnowledgeError> {
     Ok(items)
 }
 
+/// Whether a comment tag in `text` is not closed.
+fn open_comment(text: &str) -> bool {
+    let mut at = 0;
+    loop {
+        let Some(found) = text[at..].find("{{").map(|found| found + at) else {
+            return false;
+        };
+        if text[found..].starts_with("{{{") {
+            let Some(end) = text[found + 3..].find("}}}") else {
+                return false;
+            };
+            at = found + 3 + end + 3;
+            continue;
+        }
+        let Some(end) = text[found + 2..].find("}}") else {
+            return text[found..].starts_with("{{!");
+        };
+        at = found + 2 + end + 2;
+    }
+}
+
+/// The lines of `text`, a line that ends inside a comment joined to the next.
+fn logical_lines(text: &str) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut buffer = String::new();
+    for line in text.split_inclusive('\n') {
+        buffer.push_str(line);
+        if !open_comment(&buffer) {
+            lines.push(core::mem::take(&mut buffer));
+        }
+    }
+    if !buffer.is_empty() {
+        lines.push(buffer);
+    }
+    lines
+}
+
 fn parse(text: &str, settings: &KnowledgeSettings) -> Result<Vec<Node>, KnowledgeError> {
     // Each open section: its kind, name and the nodes before it.
     let mut open: Vec<(bool, String, Vec<Node>)> = Vec::new();
     let mut current: Vec<Node> = Vec::new();
-    for line in text.split_inclusive('\n') {
-        for item in parse_line(line)? {
+    for line in logical_lines(text) {
+        for item in parse_line(&line)? {
             let inverted = matches!(item, Item::Inverted(_));
             match item {
                 Item::Text(text) => current.push(Node::Text(text)),

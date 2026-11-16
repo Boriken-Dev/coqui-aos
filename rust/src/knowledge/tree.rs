@@ -5,13 +5,10 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use std::path::Path;
 
-use serde_json::Value;
-
 use super::settings::KnowledgeSettings;
 use super::text::needs_writing_out;
 use crate::defaults::{declared, named};
 use crate::error::{Class, Error};
-use crate::front_matter::{Case, read_front_matter};
 use crate::fs::{FileKind, FileSystem, name_bytes};
 use crate::limits::Settings;
 use crate::names::{EXCLUDED_COMPONENTS, valid_relative_path};
@@ -38,7 +35,7 @@ pub enum KnowledgeEntry {
     Special,
 }
 
-/// A template engine this edition defines.
+/// A template engine this edition defines, which a server may render.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Engine {
@@ -49,7 +46,10 @@ pub enum Engine {
 }
 
 impl Engine {
-    /// The name a front matter writes.
+    /// Every engine this crate renders, in the order `kb_list` names them.
+    pub const ALL: [Self; 2] = [Self::Envsubst, Self::Mustache];
+
+    /// The name a first line writes.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -57,6 +57,19 @@ impl Engine {
             Self::Mustache => "mustache",
         }
     }
+}
+
+/// How a served file is read.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum FileFormat {
+    /// `${NAME}` replaced and `@path` included: a markdown file that names no format, `aos` or
+    /// `agentic`.
+    Expanded,
+    /// Byte for byte: a file that is not markdown, or names `markdown`, `md` or `raw`.
+    AsWritten,
+    /// A template of the engine this name gives, which a server may not render.
+    Engine(String),
 }
 
 /// Why a file of the knowledge is not served.
@@ -69,8 +82,8 @@ pub enum SkipReason {
     TooLarge,
     /// Its bytes are not UTF-8.
     NotText,
-    /// Its front matter names a template engine no edition defines.
-    Template,
+    /// Its served text cannot be made without a `context`.
+    Render,
 }
 
 impl SkipReason {
@@ -81,7 +94,7 @@ impl SkipReason {
             Self::Name => "name",
             Self::TooLarge => "too-large",
             Self::NotText => "not-text",
-            Self::Template => "template",
+            Self::Render => "render",
         }
     }
 }
@@ -97,15 +110,15 @@ pub struct Skip {
 }
 
 /// A served file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ServedFile<'a> {
-    /// Its text.
+    /// Its stored text.
     pub text: &'a str,
-    /// Its bytes.
-    pub raw: &'a [u8],
-    /// The engine its front matter names; none for a plain file.
-    pub engine: Option<Engine>,
+    /// The text after its first line when that line names a format, else all of it.
+    pub rest: &'a str,
+    /// How it is read.
+    pub format: FileFormat,
 }
 
 /// An overlay's served files and its skipped ones, both in the order of their paths as UTF-8 bytes.
@@ -331,22 +344,8 @@ impl KnowledgeOverlay {
             } else if !settings.max_file_bytes.allows(data.len()) {
                 set.skipped.push(skip(path, SkipReason::TooLarge));
             } else if let Ok(text) = core::str::from_utf8(data) {
-                let engine = match detect(data, &self.reading) {
-                    Detected::Plain => None,
-                    Detected::Engine(engine) => Some(engine),
-                    Detected::Unknown => {
-                        set.skipped.push(skip(path, SkipReason::Template));
-                        continue;
-                    }
-                };
-                set.files.insert(
-                    path,
-                    ServedFile {
-                        text,
-                        raw: data,
-                        engine,
-                    },
-                );
+                let (format, rest) = detect(path, text);
+                set.files.insert(path, ServedFile { text, rest, format });
             } else {
                 set.skipped.push(skip(path, SkipReason::NotText));
             }
@@ -397,26 +396,33 @@ impl KnowledgeOverlay {
     }
 }
 
-/// What a file's head says about how it is served.
-enum Detected {
-    /// Served byte for byte.
-    Plain,
-    /// Rendered by this engine for each call.
-    Engine(Engine),
-    /// Names an engine this edition does not define.
-    Unknown,
+/// The name a first line gives its format, or none: `#!` and its last word, after any slash or
+/// backslash, leading dots dropped and ASCII capitals lower-cased.
+fn format_name(text: &str) -> Option<String> {
+    let line = text.strip_prefix("#!")?;
+    let line = line.split('\n').next().unwrap_or("");
+    let word = line
+        .split([' ', '\t', '\u{c}', '\r'])
+        .rfind(|word| !word.is_empty())?;
+    let word = word.rsplit(['/', '\\']).next().unwrap_or("");
+    let word = word.trim_start_matches('.');
+    (!word.is_empty()).then(|| word.to_ascii_lowercase())
 }
 
-/// The one place a file is told from a template: the `template` key of its front matter.
-fn detect(data: &[u8], reading: &Settings) -> Detected {
-    let found = read_front_matter(data, reading);
-    if found.case != Case::Mapping {
-        return Detected::Plain;
+/// The one place a file is told from a template: only a markdown file reads its first line.
+fn detect<'a>(path: &str, text: &'a str) -> (FileFormat, &'a str) {
+    let lower = path.to_ascii_lowercase();
+    if !(lower.ends_with(".md") || lower.ends_with(".markdown")) {
+        return (FileFormat::AsWritten, text);
     }
-    match found.data.as_ref().and_then(|data| data.get("template")) {
-        None => Detected::Plain,
-        Some(Value::String(name)) if name == "envsubst" => Detected::Engine(Engine::Envsubst),
-        Some(Value::String(name)) if name == "mustache" => Detected::Engine(Engine::Mustache),
-        Some(_) => Detected::Unknown,
-    }
+    let Some(name) = format_name(text) else {
+        return (FileFormat::Expanded, text);
+    };
+    let rest = text.find('\n').map_or("", |end| &text[end + 1..]);
+    let format = match name.as_str() {
+        "markdown" | "md" | "raw" => FileFormat::AsWritten,
+        "aos" | "agentic" => FileFormat::Expanded,
+        _ => FileFormat::Engine(name),
+    };
+    (format, rest)
 }

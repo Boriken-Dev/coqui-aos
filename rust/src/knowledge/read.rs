@@ -1,19 +1,17 @@
-//! `kb_read`: which file, its text rendered when it is a template, and which lines of it.
+//! `kb_read`: which file, its served text, and which lines of it.
 
 use alloc::collections::BTreeMap;
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::vec::Vec;
 
 use serde_json::{Map, Value, json};
 
-use super::mustache::mustache;
+use super::serve_text::{Call, served_text};
 use super::settings::KnowledgeSettings;
 use super::text::{inert, knowledge_lines, needs_writing_out};
-use super::tree::{Engine, KnowledgeEntry, KnowledgeOverlay, ServedFile, SkipReason};
+use super::tree::{Engine, FileFormat, KnowledgeEntry, KnowledgeOverlay, SkipReason};
 use super::{ErrorClass, KnowledgeError};
-use crate::front_matter::split_front_matter;
-use crate::names::{is_sensitive_variable, normalize_name, valid_relative_path};
-use crate::template::{template, template_values, value_is};
+use crate::names::{normalize_name, valid_relative_path};
 
 /// What a template knows of the call's caller: the role and profile the consumer has the agent
 /// in, as its own labels, and the environment variables the user allowed templates to read.
@@ -65,18 +63,6 @@ impl CallerFacts {
         self.env_allow.push(name.into());
         self
     }
-
-    fn allowed(&self) -> BTreeMap<&str, &str> {
-        self.env_allow
-            .iter()
-            .filter(|name| !is_sensitive_variable(name))
-            .filter_map(|name| {
-                self.env
-                    .get(name)
-                    .map(|value| (name.as_str(), value.as_str()))
-            })
-            .collect()
-    }
 }
 
 pub(crate) fn error(class: ErrorClass, message: impl Into<String>) -> KnowledgeError {
@@ -102,111 +88,12 @@ pub(crate) fn choose<'a>(
     Ok(chosen)
 }
 
-fn render(
-    overlay: &KnowledgeOverlay,
-    file: &ServedFile<'_>,
-    engine: Engine,
-    context: &Map<String, Value>,
-    caller: &CallerFacts,
-    settings: &KnowledgeSettings,
-) -> Result<String, KnowledgeError> {
-    let mut facts = overlay.facts.clone();
-    if facts.name.is_none() {
-        facts.name = Some(normalize_name(&overlay.identity));
-    }
-    let split = split_front_matter(file.raw, &overlay.reading);
-    let body = core::str::from_utf8(split.body(file.raw))
-        .map_err(|_| error(ErrorClass::NotText, "the body"))?;
-    let values = template_values(&overlay.manifest, &facts)
-        .map_err(|failure| error(ErrorClass::InvalidOption, failure.subject))?;
-    let env = caller.allowed();
-    let out = match engine {
-        Engine::Envsubst => {
-            let mut values = values;
-            for (name, value) in [
-                ("AOS_CALLER_ROLE", &caller.role),
-                ("AOS_CALLER_PROFILE", &caller.profile),
-            ] {
-                if let Some(value) = value {
-                    values = values.with(name, value.as_str());
-                }
-            }
-            for (name, value) in &env {
-                values = values.with(alloc::format!("AOS_ENV_{name}"), *value);
-            }
-            for (key, value) in context {
-                let text = match value {
-                    Value::Bool(flag) => flag.to_string(),
-                    Value::Number(number) => number.to_string(),
-                    Value::String(text) => text.clone(),
-                    _ => continue,
-                };
-                values = values.with(alloc::format!("AOS_ARG_{key}"), text);
-            }
-            template(body, &values)
-        }
-        Engine::Mustache => {
-            let mut options = Map::new();
-            let configured = &facts.options;
-            if let Some(declared) = overlay.manifest.get("options").and_then(Value::as_object) {
-                for (name, entry) in declared {
-                    let Some(entry) = entry.as_object() else {
-                        continue;
-                    };
-                    if entry.get("sensitive") == Some(&Value::Bool(true)) {
-                        continue;
-                    }
-                    if let Some(value) = configured.get(name) {
-                        let kind = entry.get("type").and_then(Value::as_str).unwrap_or("");
-                        if !value_is(kind, value) {
-                            return Err(error(ErrorClass::InvalidOption, name.as_str()));
-                        }
-                        options.insert(name.clone(), value.clone());
-                    } else if let Some(default) = entry.get("default") {
-                        options.insert(name.clone(), default.clone());
-                    }
-                }
-            }
-            let mut overlay_facts = Map::new();
-            for (key, value) in [
-                ("root", &facts.root),
-                ("state", &facts.state),
-                ("name", &facts.name),
-                ("scope", &facts.scope),
-            ] {
-                if let Some(value) = value {
-                    overlay_facts.insert(key.into(), json!(value));
-                }
-            }
-            let mut caller_facts = Map::new();
-            for (key, value) in [("role", &caller.role), ("profile", &caller.profile)] {
-                if let Some(value) = value {
-                    caller_facts.insert(key.into(), json!(value));
-                }
-            }
-            let data = json!({
-                "overlay": overlay_facts,
-                "project": facts.project.as_ref().map_or_else(|| json!({}), |root| json!({"root": root})),
-                "caller": caller_facts,
-                "env": env,
-                "options": options,
-                "context": context,
-            });
-            mustache(body, &data, settings)?
-        }
-    };
-    if !settings.max_rendered_bytes.allows(out.len()) {
-        return Err(error(ErrorClass::TooLarge, "the rendered text"));
-    }
-    Ok(out)
-}
-
 fn skip_class(reason: SkipReason) -> ErrorClass {
     match reason {
         SkipReason::Name => ErrorClass::InvalidPath,
         SkipReason::TooLarge => ErrorClass::TooLarge,
         SkipReason::NotText => ErrorClass::NotText,
-        SkipReason::Template => ErrorClass::UnknownTemplate,
+        SkipReason::Render => ErrorClass::NotFound,
     }
 }
 
@@ -216,7 +103,6 @@ fn priority(class: ErrorClass) -> usize {
         ErrorClass::Link,
         ErrorClass::NotText,
         ErrorClass::TooLarge,
-        ErrorClass::UnknownTemplate,
         ErrorClass::NotFound,
     ]
     .iter()
@@ -249,6 +135,7 @@ pub(crate) fn read(
     arguments: &Map<String, Value>,
     settings: &KnowledgeSettings,
     caller: &CallerFacts,
+    engines: &[Engine],
 ) -> Result<Value, KnowledgeError> {
     let path = arguments["path"].as_str().unwrap_or_default();
     if path_problem(path) {
@@ -264,8 +151,8 @@ pub(crate) fn read(
     for (overlay, set) in &sets {
         if linked(overlay, path) {
             problems.push(ErrorClass::Link);
-        } else if let Some(file) = set.files.get(path) {
-            found.push((*overlay, *file));
+        } else if set.files.contains_key(path) {
+            found.push((*overlay, set));
         } else {
             problems.push(set.skip_of(path).map_or(ErrorClass::NotFound, skip_class));
         }
@@ -276,7 +163,7 @@ pub(crate) fn read(
             "more than one overlay has that path",
         ));
     }
-    let Some((overlay, file)) = found.pop() else {
+    let Some((overlay, set)) = found.pop() else {
         let class = problems
             .into_iter()
             .min_by_key(|class| priority(*class))
@@ -284,18 +171,20 @@ pub(crate) fn read(
         return Err(error(class, inert(path)));
     };
     let empty = Map::new();
-    let rendered;
-    let text = if let Some(engine) = file.engine {
-        let context = arguments
-            .get("context")
-            .and_then(Value::as_object)
-            .unwrap_or(&empty);
-        rendered = render(overlay, &file, engine, context, caller, settings)?;
-        rendered.as_str()
-    } else {
-        file.text
+    let context = arguments
+        .get("context")
+        .and_then(Value::as_object)
+        .unwrap_or(&empty);
+    let call = Call {
+        overlay,
+        set,
+        context,
+        caller,
+        settings,
+        engines,
     };
-    let lines = knowledge_lines(text);
+    let text = served_text(&call, path)?;
+    let lines = knowledge_lines(&text);
     let total = lines.len();
     let start = arguments.get("from").and_then(Value::as_u64).unwrap_or(1);
     let stop = arguments.get("to").and_then(Value::as_u64);
@@ -330,8 +219,9 @@ pub(crate) fn read(
         "truncated": truncated,
         "text": inert(&chosen.join("\n")),
     });
-    if let Some(engine) = file.engine {
-        result["template"] = json!(engine.as_str());
+    if let Some(FileFormat::Engine(name)) = set.files.get(path).map(|file| &file.format) {
+        result["template"] = json!(name);
+        result["rendered"] = json!(engines.iter().any(|engine| engine.as_str() == name));
     }
     Ok(result)
 }

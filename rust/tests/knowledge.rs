@@ -61,7 +61,7 @@ fn overlay() -> KnowledgeOverlay {
         .with(
             "/o/kb/t.md",
             FileKind::File,
-            b"---\ntemplate: mustache\n---\nrole {{caller.role}} topic {{context.topic}}\n",
+            b"#!mustache\nrole {{caller.role}}\ntopic {{context.topic}}\n",
         )
         .with("/o/kb/out", FileKind::Symlink, b"")
         .with("/o/bin", FileKind::Directory, b"")
@@ -94,7 +94,14 @@ fn an_overlay_read_through_a_filesystem_serves_knowledge_and_refuses_a_link() {
         files[0],
         json!({"path": "kb/a.md", "lines": 2, "bytes": 10})
     );
-    assert_eq!(files[1], json!({"path": "kb/t.md", "template": "mustache"}));
+    assert_eq!(
+        files[1],
+        json!({"path": "kb/t.md", "lines": 2, "bytes": 13, "template": "mustache", "rendered": true})
+    );
+    assert_eq!(
+        listed.structured["engines"],
+        json!(["envsubst", "mustache"])
+    );
     let caller = CallerFacts::new();
     let linked = kb_read(
         &overlays,
@@ -124,11 +131,12 @@ fn kb_read_renders_a_template_from_the_callers_facts_per_call() {
     };
     let first = read("reviewer");
     assert!(!first.is_error);
-    assert_eq!(first.structured["text"], "role reviewer topic caching");
+    assert_eq!(first.structured["text"], "role reviewer\ntopic caching");
     assert_eq!(first.structured["template"], "mustache");
+    assert_eq!(first.structured["rendered"], true);
     assert_eq!(
         read("author").structured["text"],
-        "role author topic caching"
+        "role author\ntopic caching"
     );
     let mcp = first.to_mcp();
     assert_eq!(mcp["isError"], false);
@@ -159,7 +167,7 @@ impl SearchBackend for Fixed {
             SearchMode::Words,
             vec![
                 passage("kb/a.md", 2, 1.0),
-                // A template is never a passage, a line past the end is none, and a mode is asked for.
+                // A line past the end of the served text is no passage.
                 passage("kb/t.md", 1, 9.0),
                 passage("kb/a.md", 9, 9.0),
                 passage("kb/a.md", 1, 2.0),
@@ -197,7 +205,8 @@ fn kb_search_drops_what_the_specification_forbids_orders_and_reports_a_failed_ov
         .iter()
         .map(|passage| passage["from_line"].as_u64().unwrap())
         .collect();
-    assert_eq!(lines, [1, 2]);
+    // A rendered template is searched through its served text; a line past it is no passage.
+    assert_eq!(lines, [1, 1, 2]);
     assert_eq!(
         result.structured["results"][1]["error"]["class"],
         "unavailable"
