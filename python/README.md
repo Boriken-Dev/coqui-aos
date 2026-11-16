@@ -23,8 +23,8 @@ declares, reads catalogs, plans skills from elsewhere and checks hooks a caller 
 pip install "coqui-aos @ git+https://github.com/Boriken-Dev/coqui-aos#subdirectory=python"
 ```
 
-Not published to PyPI yet. The `templates` extra (`coqui-aos[templates]`) adds `tplx`, whose Mustache engine renders
-the Mustache templates of served knowledge; everything else needs nothing beyond the dependencies above.
+Not published to PyPI yet. The `templates` extra (`coqui-aos[templates]`) adds `tplx`, whose engines render the
+`envsubst` and Mustache files of served knowledge; everything else needs nothing beyond the dependencies above.
 
 ## Quick start
 

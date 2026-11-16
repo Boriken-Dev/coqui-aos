@@ -13,8 +13,9 @@ import dataclasses
 import json
 import re
 import sys
-from pathlib import PurePath
-from typing import Any, Dict, Iterable, List, Mapping, NamedTuple, Optional, Sequence, Tuple
+import types
+from pathlib import PurePath, PurePosixPath
+from typing import Any, Dict, Iterable, Iterator, List, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 from ._data import Document
 from ._defaults import context_of, declared, named, rules_of
@@ -25,7 +26,7 @@ from ._front_matter import ManifestFile, SplitCase, split_front_matter
 from ._fs import FileKind, FileSystem
 from ._names import EXCLUDED_COMPONENTS, is_sensitive_variable, normalize_name, valid_relative_path
 from ._settings import NonDefault, Settings
-from ._template import TemplateFacts, template, template_values
+from ._template import TemplateFacts, template_values
 from ._tree import OverlayTree
 
 __all__ = [
@@ -50,6 +51,7 @@ __all__ = [
     "knowledge_result",
     "knowledge_set",
     "knowledge_tools",
+    "ENVSUBST_UNDEFINED",
     "envsubst",
     "mustache",
     "search_check",
@@ -83,7 +85,6 @@ class KnowledgeSettings:
     max_top: Optional[int] = 100
     max_context_bytes: Optional[int] = 16 * _KIB
     max_context_depth: Optional[int] = 8
-    max_template_depth: Optional[int] = 32
     max_include_depth: Optional[int] = 5
 
     def replace(self, **limits: "Optional[int]") -> "KnowledgeSettings":
@@ -407,13 +408,14 @@ class KnowledgeFile(NamedTuple):
     """A file of the knowledge: its text as stored, the engine its first line names (``None`` for a
     file that names none, or names a format AOS defines), its size in bytes, whether it is served
     as written (a raw or markdown file, or one that is not markdown) and its text after the first
-    line that names a format."""
+    line that names a format, and the options of that line."""
 
     text: str
     engine: Optional[str]
     size: int
     as_written: bool
     rest: str
+    options: "Dict[str, str]"
 
 
 class KnowledgeSet(NamedTuple):
@@ -428,14 +430,34 @@ def _ascii_lower(text: str) -> str:
     return "".join(char.lower() if "A" <= char <= "Z" else char for char in text)
 
 
-def _format_name(data: bytes) -> Optional[str]:
-    """The name a first line gives a file's format, or ``None`` when it gives none."""
+_OPTION = re.compile(r"([a-z][a-z_]*)=(\S+)\Z")
+
+
+def _format_line(data: bytes) -> "Optional[Tuple[str, Dict[str, str]]]":
+    """The name and the options a first line gives a file's format, or ``None`` when it names none:
+    the last word that is not a ``name=value`` option, after any slash or backslash, without leading
+    dots, ASCII capitals lowered."""
     if not data.startswith(b"#!"):
         return None
+    end = data.find(b"\n")
     try:
-        return split_format_line(data, "")[0]
-    except Error:
+        text = (data[2:] if end < 0 else data[2:end]).decode("utf-8")
+    except UnicodeDecodeError:
         return None
+    options: "Dict[str, str]" = {}
+    names = []
+    for word in re.split(r"[ \t\x0c\r]+", text):
+        if not word:
+            continue
+        found = _OPTION.match(word)
+        if found:
+            options[found.group(1)] = found.group(2)
+        else:
+            names.append(word)
+    if not names:
+        return None
+    name = _ascii_lower(re.split(r"[/\\]", names[-1])[-1].lstrip("."))
+    return (name, options) if name else None
 
 
 def _after_first_line(text: str) -> str:
@@ -465,7 +487,8 @@ def knowledge_set(overlay: KnowledgeOverlay, settings: "Optional[KnowledgeSettin
                 skipped.append((path, "not-text"))
                 continue
             markdown = _ascii_lower(path).endswith(_MARKDOWN_SUFFIXES)
-            name = _format_name(data) if markdown else None
+            line = _format_line(data) if markdown else None
+            name = line[0] if line else None
             engine = None if name in (None,) + _AS_WRITTEN + _EXPANDED else name
             files[path] = KnowledgeFile(
                 text,
@@ -473,6 +496,7 @@ def knowledge_set(overlay: KnowledgeOverlay, settings: "Optional[KnowledgeSettin
                 len(data),
                 not markdown or name in _AS_WRITTEN,
                 _after_first_line(text) if name else text,
+                line[1] if line else {},
             )
     return KnowledgeSet(files, skipped)
 
@@ -483,16 +507,32 @@ _AS_WRITTEN = ("raw", "markdown", "md")
 
 
 def knowledge_engines() -> "List[str]":
-    """The template engines this installation renders with: ``envsubst``, and ``mustache`` when the
-    optional ``templates`` extra (``tplx``) is installed."""
-    found = ["envsubst"]
+    """The template engines this installation renders with, none unless the optional ``templates``
+    extra (``tplx``) is installed: ``envsubst``, and ``mustache`` when its library is there too."""
     try:
         import tplx  # noqa: F401
-        from tplx.engines import MustacheTemplate  # noqa: F401
-        import chevron  # noqa: F401
+        from tplx.engines import EnvsubstTemplate  # noqa: F401
     except ImportError:
-        return found
-    return found + ["mustache"]
+        return []
+    try:
+        import chevron  # noqa: F401
+        from tplx.engines import MustacheTemplate  # noqa: F401
+    except ImportError:
+        return ["envsubst"]
+    return ["envsubst", "mustache"]
+
+
+def _here(item: KnowledgeFile, engines: "List[str]") -> bool:
+    """Whether this server renders the file's engine with the options it asks for. A file whose
+    options are refused is rendered, so that the refusal is served."""
+    if item.engine not in engines:
+        return False
+    if item.engine == "envsubst":
+        try:
+            return _envsubst_options(item.options).features <= _ENVSUBST_FEATURES
+        except KnowledgeError:
+            return True
+    return True
 
 
 def _engines(engines: "Optional[Iterable[str]]") -> "List[str]":
@@ -619,7 +659,7 @@ def _list(
             }
             if item.engine:
                 entry["template"] = item.engine
-                entry["rendered"] = item.engine in engines
+                entry["rendered"] = _here(item, engines)
             files.append(entry)
         skipped.sort(key=lambda pair: _bytes_key(pair[0]))
         listed.append(
@@ -703,7 +743,7 @@ def _read(
     }
     if engine:
         result["template"] = engine
-        result["rendered"] = engine in engines
+        result["rendered"] = _here(held.found.files[path], engines)
     return result
 
 
@@ -814,6 +854,7 @@ def _context_block(engine: str, data: "Dict[str, Any]") -> str:
 
 def _render(
     held: _Held,
+    path: str,
     item: KnowledgeFile,
     context: "Dict[str, Any]",
     call: CallerFacts,
@@ -827,9 +868,18 @@ def _render(
         first, rest = (item.text + "\n", "") if end < 0 else (item.text[: end + 1], item.text[end + 1 :])
         out = first + _context_block(engine or "", data) + rest
     elif engine == "envsubst":
-        out = envsubst(item.rest, _envsubst_values(held.overlay, data, context))
+        out = envsubst(item.rest, _envsubst_values(held.overlay, data, context), item.options, limit)
     else:
-        out = mustache(item.rest, data, limit)
+        escape = item.options.get("escape", "html")
+        if escape not in ("html", "none"):
+            raise KnowledgeError("template-error", "escape is html or none")
+        folder = path[: path.rindex("/") + 1] if "/" in path else ""
+        partials = {
+            name[len(folder) :]: file.rest.encode("utf-8", "surrogatepass")
+            for name, file in held.found.files.items()
+            if name.startswith(folder)
+        }
+        out = mustache(item.rest, data, limit, partials, escape)
     if not _within(limit.max_rendered_bytes, len(out.encode("utf-8", "surrogatepass"))):
         raise KnowledgeError("too-large", "the rendered text")
     return out
@@ -875,7 +925,7 @@ def _serve(
     if item.as_written:
         return item.rest
     if item.engine:
-        return _render(held, item, context, call, limit, item.engine in engines)
+        return _render(held, path, item, context, call, limit, _here(item, engines))
     out = _expand(item.rest, path, _Expansion(held, context, call, limit, engines), (path,))
     if not _within(limit.max_rendered_bytes, len(out.encode("utf-8", "surrogatepass"))):
         raise KnowledgeError("too-large", "the served text")
@@ -959,19 +1009,9 @@ def _expand_line(
     line: str, in_code: "List[bool]", path: str, state: _Expansion, chain: "Tuple[str, ...]"
 ) -> str:
     out = []
+    start = 0
     i = 0
     while i < len(line):
-        if not in_code[i] and line.startswith("$${", i):
-            out.append("${")
-            i += 3
-            continue
-        found = None if in_code[i] else _PLACEHOLDER.match(line, i)
-        if found:
-            values = state.names()
-            if found.group(1) in values:
-                out.append(values[found.group(1)])
-                i = found.end()
-                continue
         if line[i] == "@" and not in_code[i] and (i == 0 or line[i - 1] in " \t\r\f\v"):
             token = _INCLUDE_NAME.match(line, i + 1)
             name = token.group() if token else ""
@@ -980,11 +1020,32 @@ def _expand_line(
             target = _resolve(path, name, state.held.found) if name else None
             included = _include(target, state, chain) if target else None
             if included is not None:
+                out.append(_dollars(line, in_code, start, i, state))
                 out.append(included)
                 i += 1 + len(name)
+                start = i
                 continue
-        out.append(line[i])
         i += 1
+    out.append(_dollars(line, in_code, start, len(line), state))
+    return "".join(out)
+
+
+def _dollars(line: str, in_code: "List[bool]", low: int, high: int, state: _Expansion) -> str:
+    """``line[low:high]`` with the ``${}`` pass applied outside code: the braced pattern, ``$$`` for
+    ``$`` and a name with no value kept as written."""
+    out = []
+    i = low
+    while i < high:
+        j = i
+        while j < high and in_code[j] == in_code[i]:
+            j += 1
+        run = line[i:j]
+        if in_code[i] or "$" not in run:
+            out.append(run)
+        else:
+            names = state.names() if _PLACEHOLDER.search(run.replace("$$", "")) else {}
+            out.append(_dollar_pass(run, names))
+        i = j
     return "".join(out)
 
 
@@ -1015,9 +1076,9 @@ def _include(target: str, state: _Expansion, chain: "Tuple[str, ...]") -> Option
     if item.as_written:
         text = item.rest
     elif item.engine:
-        if item.engine not in state.engines:
+        if not _here(item, state.engines):
             return None
-        text = _render(state.held, item, state.context, state.call, limit, True)
+        text = _render(state.held, target, item, state.context, state.call, limit, True)
     else:
         if target in chain:
             raise KnowledgeError("include-error", "an include comes back to " + target)
@@ -1037,23 +1098,90 @@ def _include(target: str, state: _Expansion, chain: "Tuple[str, ...]") -> Option
     return text[:-1] if text.endswith("\n") else text
 
 
-def mustache(text: str, data: "Dict[str, Any]", settings: "Optional[KnowledgeSettings]" = None) -> str:
-    """The text of a ``mustache`` file, rendered over ``data``: the one place Mustache is rendered,
-    by ``tplx``'s Mustache engine (the ``templates`` extra, imported only here). Raises
-    ``KnowledgeError`` of class ``template-error`` for a template the engine refuses, or when it is
-    not installed, and ``too-large`` past ``max_rendered_bytes``."""
-    limit = _mapping(settings)
+#: What a name with no value is in an ``envsubst`` file that does not say: kept as written.
+ENVSUBST_UNDEFINED = "debug"
+
+_ENVSUBST_DIALECTS = {
+    "gnu": ("all", frozenset()),
+    "a8m": ("all", frozenset({"escape", "default"})),
+    "drone": ("braced", frozenset({"escape", "default"})),
+}
+_SHELL_FEATURES = frozenset(
+    {
+        "escape",
+        "default",
+        "assign",
+        "alternate",
+        "nested",
+        "unquote",
+        "slice",
+        "replace",
+        "trim",
+        "case",
+        "length",
+    }
+)
+#: The features this server renders; a file that asks for another is served with its context.
+_ENVSUBST_FEATURES = frozenset({"escape", "default"})
+_UNDEFINED_MODES = ("strict", "lenient", "debug")
+
+
+class _EnvsubstOptions(NamedTuple):
+    dialect: str
+    pattern: str
+    features: "frozenset[str]"
+    undefined: str
+
+
+def _envsubst_options(options: "Mapping[str, str]") -> _EnvsubstOptions:
+    """The dialect, pattern, features and undefined mode an ``envsubst`` first line asks for, as
+    ``template-error`` when one has a value it does not have."""
+    dialect = options.get("dialect", "gnu")
+    if dialect not in _ENVSUBST_DIALECTS:
+        raise KnowledgeError("template-error", "dialect is gnu, a8m or drone")
+    pattern, features = _ENVSUBST_DIALECTS[dialect]
+    if "pattern" in options:
+        if options["pattern"] not in ("braced", "unbraced", "all"):
+            raise KnowledgeError("template-error", "pattern is braced, unbraced or all")
+        pattern = options["pattern"]
+    if "features" in options:
+        asked = frozenset(options["features"].split(","))
+        if not asked <= _SHELL_FEATURES:
+            raise KnowledgeError("template-error", "a feature that is not defined")
+        features = asked
+    undefined = options.get("undefined", ENVSUBST_UNDEFINED)
+    if undefined not in _UNDEFINED_MODES:
+        raise KnowledgeError("template-error", "undefined is strict, lenient or debug")
+    return _EnvsubstOptions(dialect, pattern, features, undefined)
+
+
+def _tplx() -> Any:
     try:
         import tplx
-        from tplx.engines import MustacheTemplate
+        import tplx.engines
     except ImportError:
         raise KnowledgeError("template-error", _NEEDS_EXTRA) from None
+    return tplx
+
+
+def _render_with(
+    engine: Any,
+    text: str,
+    data: "Dict[str, Any]",
+    undefined: str,
+    limit: KnowledgeSettings,
+    roots: "Sequence[Any]" = (),
+) -> str:
+    """``text`` rendered by the tplx engine class ``engine`` in tplx's sandbox, on the data given."""
+    tplx = _tplx()
     bounds: "Dict[str, int]" = {}
     if limit.max_rendered_bytes is not None:
         bounds["max_output"] = limit.max_rendered_bytes
     try:
-        loader = tplx.Loader(sandbox=tplx.SandboxLimits(**bounds), engines=(MustacheTemplate,))
-        out = loader.compile(text, engine=MustacheTemplate).render(data)
+        loader = tplx.Loader(
+            roots=roots, engines=(engine,), undefined=undefined, sandbox=tplx.SandboxLimits(**bounds)
+        )
+        out = loader.compile(text, engine=engine).render(data)
     except tplx.exceptions.SandboxError:
         raise KnowledgeError("too-large", "the rendered text") from None
     except (tplx.exceptions.TplxError, RecursionError) as error:
@@ -1065,10 +1193,122 @@ def mustache(text: str, data: "Dict[str, Any]", settings: "Optional[KnowledgeSet
     return out
 
 
-def envsubst(text: str, values: "Dict[str, str]") -> str:
-    """The text of an ``envsubst`` file with each ``${NAME}`` that has a value replaced: the one place
-    envsubst is rendered. Anything else, an unknown name included, stays as written."""
-    return template(text, values)
+def envsubst(
+    text: str,
+    values: "Dict[str, str]",
+    options: "Optional[Mapping[str, str]]" = None,
+    settings: "Optional[KnowledgeSettings]" = None,
+) -> str:
+    """The text of an ``envsubst`` file with its references replaced by ``values``: the one place
+    envsubst is rendered, by tplx's ``EnvsubstTemplate`` (GNU's, unless ``options`` say ``dialect``,
+    ``pattern``, ``features`` or ``undefined``). Raises ``KnowledgeError``: ``template-error`` for
+    an option with a value it does not have, a name with no value under ``undefined=strict``, or when
+    tplx is not installed."""
+    chosen = _envsubst_options(options or {})
+    tplx = _tplx()
+    engine = type(
+        "KnowledgeEnvsubst",
+        (tplx.engines.EnvsubstTemplate,),
+        {"DIALECT": chosen.dialect, "PATTERN": chosen.pattern, "FEATURES": chosen.features},
+    )
+    return _render_with(engine, text, dict(values), chosen.undefined, _mapping(settings))
+
+
+def _aos_engine() -> Any:
+    tplx = _tplx()
+    return type(
+        "KnowledgeAos",
+        (tplx.engines.DollarTemplate,),
+        {"PATTERN": "braced", "FEATURES": frozenset({"escape"})},
+    )
+
+
+def _dollar_pass(text: str, values: "Dict[str, str]") -> str:
+    """The ``${}`` pass of an expanded file over a run of text that is not code: ``${NAME}`` replaced,
+    ``$$`` written ``$``, a name with no value kept as written (tplx's ``DollarTemplate``, braced,
+    ``escape``, undefined ``debug``)."""
+    return _render_with(
+        _aos_engine(), text, dict(values), "debug", KnowledgeSettings(max_rendered_bytes=None)
+    )
+
+
+class _Served:
+    """A directory of served files as a path the template loader reads (pathlib's shape)."""
+
+    def __init__(self, files: "Mapping[str, bytes]", base: str = "") -> None:
+        self._files = files
+        self._base = base
+
+    @property
+    def name(self) -> str:
+        return self._base.rsplit("/", 1)[-1]
+
+    @property
+    def stem(self) -> str:
+        return PurePosixPath(self.name).stem
+
+    @property
+    def suffix(self) -> str:
+        return PurePosixPath(self.name).suffix
+
+    def __truediv__(self, other: Any) -> "_Served":
+        parts = [part for part in str(other).split("/") if part not in ("", ".")]
+        return _Served(self._files, "/".join(([self._base] if self._base else []) + parts))
+
+    def is_file(self) -> bool:
+        return self._base in self._files
+
+    def exists(self) -> bool:
+        prefix = self._base + "/"
+        return self._base == "" or self.is_file() or any(key.startswith(prefix) for key in self._files)
+
+    def iterdir(self) -> "Iterator[_Served]":
+        if self.is_file():
+            raise NotADirectoryError(self._base)
+        prefix = self._base + "/" if self._base else ""
+        seen = []
+        for key in self._files:
+            if key.startswith(prefix):
+                child = key[len(prefix) :].split("/")[0]
+                if child not in seen:
+                    seen.append(child)
+        return iter([self / child for child in seen])
+
+    def read_bytes(self) -> bytes:
+        return self._files[self._base]
+
+    def stat(self) -> Any:
+        return types.SimpleNamespace(st_mtime=0.0)
+
+    def is_absolute(self) -> bool:
+        return False
+
+    def __str__(self) -> str:
+        return "<served>/" + self._base
+
+
+def mustache(
+    text: str,
+    data: "Dict[str, Any]",
+    settings: "Optional[KnowledgeSettings]" = None,
+    partials: "Optional[Mapping[str, bytes]]" = None,
+    escape: str = "html",
+) -> str:
+    """The text of a ``mustache`` file rendered over ``data``: the one place Mustache is rendered, by
+    tplx's ``MustacheTemplate`` in its sandbox (the ``templates`` extra). ``partials`` are the served
+    files a ``{{> name}}`` may name, by path from the file's folder, with their text; one that names
+    none renders as nothing. Raises ``KnowledgeError``: ``template-error`` for a template the library
+    refuses or an ``escape`` that is not ``html`` or ``none``, ``too-large`` past
+    ``max_rendered_bytes``."""
+    if escape not in ("html", "none"):
+        raise KnowledgeError("template-error", "escape is html or none")
+    tplx = _tplx()
+    engine = type(
+        "KnowledgeMustache",
+        (tplx.engines.MustacheTemplate,),
+        {"EXT": (), "can_process": classmethod(lambda cls, file, source: True)},
+    )
+    return _render_with(engine, text, data, "lenient", _mapping(settings), [_Served(dict(partials or {}))])
 
 
 _NEEDS_EXTRA = "a mustache template needs the 'templates' extra: pip install coqui-aos[templates]"
