@@ -2113,7 +2113,7 @@
             },
             {
               "path": "kb/must.md",
-              "text": "#!mustache\n# {{overlay.name}}\n{{#caller.role}}\nRole: {{caller.role}}\n{{/caller.role}}\n{{^caller.profile}}\nNo profile\n{{/caller.profile}}\n  {{! a comment }}\n{{#context.items}}\n- {{.}}\n{{/context.items}}\n{{#context.people}}{{name}} is {{age}} at {{overlay.name}}\n{{/context.people}}env {{env.USER}} missing [{{env.NOPE}}] depth {{options.depth}} strict {{options.strict}}\nraw {{{context.html}}} {{&context.html}} {{context.html}}\nshell ${HOME} ${AOS_OVERLAY_NAME}\n"
+              "text": "#!mustache\n# {{overlay.name}}\n{{#caller.role}}\nRole: {{caller.role}}\n{{/caller.role}}\n{{^caller.profile}}\nNo profile\n{{/caller.profile}}\n  {{! a comment }}\n{{#context.items}}\n- {{.}}\n{{/context.items}}\n{{#context.people}}{{name}} is {{age}} at {{overlay.name}}\n{{/context.people}}env {{env.USER}} missing [{{env.NOPE}}] depth {{options.depth}}\nraw {{{context.html}}} {{&context.html}} {{context.html}}\nshell ${HOME} ${AOS_OVERLAY_NAME}\n"
             },
             {
               "path": "kb/jinja.md",
@@ -2212,7 +2212,7 @@
                 {
                   "path": "kb/must.md",
                   "lines": 5,
-                  "bytes": 102,
+                  "bytes": 94,
                   "template": "mustache",
                   "rendered": true
                 },
@@ -2482,7 +2482,7 @@
             },
             {
               "path": "kb/must.md",
-              "text": "#!mustache\n# {{overlay.name}}\n{{#caller.role}}\nRole: {{caller.role}}\n{{/caller.role}}\n{{^caller.profile}}\nNo profile\n{{/caller.profile}}\n  {{! a comment }}\n{{#context.items}}\n- {{.}}\n{{/context.items}}\n{{#context.people}}{{name}} is {{age}} at {{overlay.name}}\n{{/context.people}}env {{env.USER}} missing [{{env.NOPE}}] depth {{options.depth}} strict {{options.strict}}\nraw {{{context.html}}} {{&context.html}} {{context.html}}\nshell ${HOME} ${AOS_OVERLAY_NAME}\n"
+              "text": "#!mustache\n# {{overlay.name}}\n{{#caller.role}}\nRole: {{caller.role}}\n{{/caller.role}}\n{{^caller.profile}}\nNo profile\n{{/caller.profile}}\n  {{! a comment }}\n{{#context.items}}\n- {{.}}\n{{/context.items}}\n{{#context.people}}{{name}} is {{age}} at {{overlay.name}}\n{{/context.people}}env {{env.USER}} missing [{{env.NOPE}}] depth {{options.depth}}\nraw {{{context.html}}} {{&context.html}} {{context.html}}\nshell ${HOME} ${AOS_OVERLAY_NAME}\n"
             }
           ]
         }
@@ -2508,7 +2508,7 @@
                 {
                   "path": "kb/must.md",
                   "lines": 19,
-                  "bytes": 649,
+                  "bytes": 623,
                   "template": "mustache",
                   "rendered": false
                 }
@@ -6625,7 +6625,7 @@
           "tree": [
             {
               "path": "kb/must.md",
-              "text": "#!mustache\n# {{overlay.name}}\n{{#caller.role}}\nRole: {{caller.role}}\n{{/caller.role}}\n{{^caller.profile}}\nNo profile\n{{/caller.profile}}\n  {{! a comment }}\n{{#context.items}}\n- {{.}}\n{{/context.items}}\n{{#context.people}}{{name}} is {{age}} at {{overlay.name}}\n{{/context.people}}env {{env.USER}} missing [{{env.NOPE}}] depth {{options.depth}} strict {{options.strict}}\nraw {{{context.html}}} {{&context.html}} {{context.html}}\nshell ${HOME} ${AOS_OVERLAY_NAME}\n"
+              "text": "#!mustache\n# {{overlay.name}}\n{{#caller.role}}\nRole: {{caller.role}}\n{{/caller.role}}\n{{^caller.profile}}\nNo profile\n{{/caller.profile}}\n  {{! a comment }}\n{{#context.items}}\n- {{.}}\n{{/context.items}}\n{{#context.people}}{{name}} is {{age}} at {{overlay.name}}\n{{/context.people}}env {{env.USER}} missing [{{env.NOPE}}] depth {{options.depth}}\nraw {{{context.html}}} {{&context.html}} {{context.html}}\nshell ${HOME} ${AOS_OVERLAY_NAME}\n"
             }
           ]
         }
@@ -6647,7 +6647,7 @@
               "age": 4
             }
           ],
-          "html": "<b>&\"x\"</b>"
+          "html": "<b>&\"x\""
         }
       },
       "facts": {
@@ -6675,7 +6675,7 @@
           "to_line": 9,
           "total_lines": 9,
           "truncated": false,
-          "text": "# team-docs\nRole: reviewer\n- one\n- two\nana is 30 at team-docs\nbo is 4 at team-docs\nenv ana missing [] depth normal strict true\nraw <b>&\"x\"</b> <b>&\"x\"</b> &lt;b&gt;&amp;&quot;x&quot;&lt;/b&gt;\nshell ${HOME} ${AOS_OVERLAY_NAME}",
+          "text": "# team-docs\nRole: reviewer\n- one\n- two\nana is 30 at team-docs\nbo is 4 at team-docs\nenv ana missing [] depth normal\nraw <b>&\"x\" <b>&\"x\" &lt;b&gt;&amp;&quot;x&quot;\nshell ${HOME} ${AOS_OVERLAY_NAME}",
           "template": "mustache",
           "rendered": true
         }
@@ -6717,7 +6717,7 @@
           "tree": [
             {
               "path": "kb/must.md",
-              "text": "#!mustache\n# {{overlay.name}}\n{{#caller.role}}\nRole: {{caller.role}}\n{{/caller.role}}\n{{^caller.profile}}\nNo profile\n{{/caller.profile}}\n  {{! a comment }}\n{{#context.items}}\n- {{.}}\n{{/context.items}}\n{{#context.people}}{{name}} is {{age}} at {{overlay.name}}\n{{/context.people}}env {{env.USER}} missing [{{env.NOPE}}] depth {{options.depth}} strict {{options.strict}}\nraw {{{context.html}}} {{&context.html}} {{context.html}}\nshell ${HOME} ${AOS_OVERLAY_NAME}\n"
+              "text": "#!mustache\n# {{overlay.name}}\n{{#caller.role}}\nRole: {{caller.role}}\n{{/caller.role}}\n{{^caller.profile}}\nNo profile\n{{/caller.profile}}\n  {{! a comment }}\n{{#context.items}}\n- {{.}}\n{{/context.items}}\n{{#context.people}}{{name}} is {{age}} at {{overlay.name}}\n{{/context.people}}env {{env.USER}} missing [{{env.NOPE}}] depth {{options.depth}}\nraw {{{context.html}}} {{&context.html}} {{context.html}}\nshell ${HOME} ${AOS_OVERLAY_NAME}\n"
             }
           ]
         }
@@ -6734,7 +6734,7 @@
           "to_line": 5,
           "total_lines": 5,
           "truncated": false,
-          "text": "# team-docs\nNo profile\nenv  missing [] depth normal strict true\nraw   \nshell ${HOME} ${AOS_OVERLAY_NAME}",
+          "text": "# team-docs\nNo profile\nenv  missing [] depth normal\nraw   \nshell ${HOME} ${AOS_OVERLAY_NAME}",
           "template": "mustache",
           "rendered": true
         }
@@ -9456,7 +9456,7 @@
           "tree": [
             {
               "path": "kb/must.md",
-              "text": "#!mustache\n# {{overlay.name}}\n{{#caller.role}}\nRole: {{caller.role}}\n{{/caller.role}}\n{{^caller.profile}}\nNo profile\n{{/caller.profile}}\n  {{! a comment }}\n{{#context.items}}\n- {{.}}\n{{/context.items}}\n{{#context.people}}{{name}} is {{age}} at {{overlay.name}}\n{{/context.people}}env {{env.USER}} missing [{{env.NOPE}}] depth {{options.depth}} strict {{options.strict}}\nraw {{{context.html}}} {{&context.html}} {{context.html}}\nshell ${HOME} ${AOS_OVERLAY_NAME}\n"
+              "text": "#!mustache\n# {{overlay.name}}\n{{#caller.role}}\nRole: {{caller.role}}\n{{/caller.role}}\n{{^caller.profile}}\nNo profile\n{{/caller.profile}}\n  {{! a comment }}\n{{#context.items}}\n- {{.}}\n{{/context.items}}\n{{#context.people}}{{name}} is {{age}} at {{overlay.name}}\n{{/context.people}}env {{env.USER}} missing [{{env.NOPE}}] depth {{options.depth}}\nraw {{{context.html}}} {{&context.html}} {{context.html}}\nshell ${HOME} ${AOS_OVERLAY_NAME}\n"
             }
           ]
         }
@@ -9492,7 +9492,7 @@
           "to_line": 19,
           "total_lines": 19,
           "truncated": false,
-          "text": "#!mustache\n---\naos_template_context: {\"engine\": \"mustache\", \"overlay\": {\"name\": \"team-docs\", \"root\": \"/o/team-docs\", \"scope\": \"user\", \"state\": \"/s/team-docs\"}, \"project\": {\"root\": \"/work/app\"}, \"caller\": {\"profile\": \"work\", \"role\": \"reviewer\"}, \"env\": {\"USER\": \"ana\"}, \"options\": {\"depth\": \"normal\", \"strict\": true}}\n---\n# {{overlay.name}}\n{{#caller.role}}\nRole: {{caller.role}}\n{{/caller.role}}\n{{^caller.profile}}\nNo profile\n{{/caller.profile}}\n  {{! a comment }}\n{{#context.items}}\n- {{.}}\n{{/context.items}}\n{{#context.people}}{{name}} is {{age}} at {{overlay.name}}\n{{/context.people}}env {{env.USER}} missing [{{env.NOPE}}] depth {{options.depth}} strict {{options.strict}}\nraw {{{context.html}}} {{&context.html}} {{context.html}}\nshell ${HOME} ${AOS_OVERLAY_NAME}",
+          "text": "#!mustache\n---\naos_template_context: {\"engine\": \"mustache\", \"overlay\": {\"name\": \"team-docs\", \"root\": \"/o/team-docs\", \"scope\": \"user\", \"state\": \"/s/team-docs\"}, \"project\": {\"root\": \"/work/app\"}, \"caller\": {\"profile\": \"work\", \"role\": \"reviewer\"}, \"env\": {\"USER\": \"ana\"}, \"options\": {\"depth\": \"normal\", \"strict\": true}}\n---\n# {{overlay.name}}\n{{#caller.role}}\nRole: {{caller.role}}\n{{/caller.role}}\n{{^caller.profile}}\nNo profile\n{{/caller.profile}}\n  {{! a comment }}\n{{#context.items}}\n- {{.}}\n{{/context.items}}\n{{#context.people}}{{name}} is {{age}} at {{overlay.name}}\n{{/context.people}}env {{env.USER}} missing [{{env.NOPE}}] depth {{options.depth}}\nraw {{{context.html}}} {{&context.html}} {{context.html}}\nshell ${HOME} ${AOS_OVERLAY_NAME}",
           "template": "mustache",
           "rendered": false
         }
@@ -14184,6 +14184,9 @@
         }
       },
       "facts": {},
+      "needs": [
+        "mustache:escape=html"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -14232,6 +14235,9 @@
         }
       },
       "facts": {},
+      "needs": [
+        "mustache:escape=none"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -14280,6 +14286,9 @@
         }
       },
       "facts": {},
+      "needs": [
+        "mustache:colour=blue"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -14328,6 +14337,9 @@
         }
       },
       "facts": {},
+      "needs": [
+        "mustache:escape=maybe"
+      ],
       "expect": {
         "error": "template-error"
       }
@@ -15761,6 +15773,9 @@
         }
       },
       "facts": {},
+      "needs": [
+        "mustache:escape=none"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -16349,6 +16364,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:undefined=lenient"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -16394,6 +16412,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:undefined=debug"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -16439,6 +16460,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:undefined=strict"
+      ],
       "expect": {
         "error": "template-error"
       }
@@ -16474,6 +16498,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:undefined=strict"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -16519,6 +16546,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:undefined=quiet"
+      ],
       "expect": {
         "error": "template-error"
       }
@@ -16554,6 +16584,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:pattern=braced"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -16599,6 +16632,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:pattern=unbraced"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -16644,6 +16680,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:pattern=all"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -16689,6 +16728,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:pattern=double"
+      ],
       "expect": {
         "error": "template-error"
       }
@@ -16724,6 +16766,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:dialect=gnu"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -16772,6 +16817,9 @@
         }
       },
       "facts": {},
+      "needs": [
+        "envsubst:dialect=a8m"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -16817,6 +16865,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:dialect=drone"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -16862,6 +16913,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:dialect=posix"
+      ],
       "expect": {
         "error": "template-error"
       }
@@ -16897,6 +16951,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:features=default"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -16942,6 +16999,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:features=escape"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -16987,6 +17047,10 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:dialect=a8m",
+        "envsubst:features=escape"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -17048,6 +17112,9 @@
           "NOPE"
         ]
       },
+      "needs": [
+        "envsubst:features=slice"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -17093,6 +17160,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:features=magic"
+      ],
       "expect": {
         "error": "template-error"
       }
@@ -17128,6 +17198,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:colour=blue"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -17173,6 +17246,10 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:undefined=debug",
+        "envsubst:pattern=braced"
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -17218,6 +17295,9 @@
         "path": "kb/t.md"
       },
       "facts": {},
+      "needs": [
+        "envsubst:dialect="
+      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -17546,6 +17626,357 @@
           "total_lines": 1,
           "truncated": false,
           "text": "$x $AOS_OVERLAY_NAME $$ $"
+        }
+      }
+    },
+    {
+      "id": "mustache-escape-none-not-honoured",
+      "description": "A server on a Mustache library with no escape-off setting (a released tplx) cannot honour escape=none: the file is served as written, with the context, and is not an error.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache escape=none\n{{context.x}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "<a>"
+        }
+      },
+      "facts": {},
+      "lacks": [
+        "mustache:escape=none"
+      ],
+      "needs": [
+        "mustache:escape=none"
+      ],
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 5,
+          "total_lines": 5,
+          "truncated": false,
+          "text": "#!mustache escape=none\n---\naos_template_context: {\"engine\": \"mustache\", \"overlay\": {\"name\": \"team-docs\", \"root\": \"/o/team-docs\", \"scope\": \"user\", \"state\": \"/s/team-docs\"}, \"project\": {\"root\": \"/work/app\"}, \"context\": {\"x\": \"<a>\"}}\n---\n{{context.x}}",
+          "template": "mustache",
+          "rendered": false
+        }
+      }
+    },
+    {
+      "id": "mustache-default-still-rendered-when-escape-none-is-lacked",
+      "description": "The same server renders a file that asks for no option, and one that asks for escape=html.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{context.x}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "<a>"
+        }
+      },
+      "facts": {},
+      "lacks": [
+        "mustache:escape=none"
+      ],
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "&lt;a&gt;",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-escape-html-still-rendered-when-escape-none-is-lacked",
+      "description": "escape=html is the library's own.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache escape=html\n{{context.x}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "<a>"
+        }
+      },
+      "facts": {},
+      "lacks": [
+        "mustache:escape=none"
+      ],
+      "needs": [
+        "mustache:escape=html"
+      ],
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "&lt;a&gt;",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-dialect-not-honoured",
+      "description": "A server without the drone dialect serves a file that asks for it as written with the context.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst dialect=drone\n$AOS_OVERLAY_NAME ${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "lacks": [
+        "envsubst:dialect=drone"
+      ],
+      "needs": [
+        "envsubst:dialect=drone"
+      ],
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 5,
+          "total_lines": 5,
+          "truncated": false,
+          "text": "#!envsubst dialect=drone\n---\naos_template_context: {\"engine\": \"envsubst\", \"overlay\": {\"name\": \"team-docs\", \"root\": \"/o/team-docs\", \"scope\": \"user\", \"state\": \"/s/team-docs\"}, \"project\": {\"root\": \"/work/app\"}}\n---\n$AOS_OVERLAY_NAME ${AOS_OVERLAY_NAME}",
+          "template": "envsubst",
+          "rendered": false
+        }
+      }
+    },
+    {
+      "id": "envsubst-undefined-strict-not-honoured",
+      "description": "Any option value counts: a server that cannot refuse an undefined name serves a strict file as written.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst undefined=strict\n$NOPE\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "lacks": [
+        "envsubst:undefined=strict"
+      ],
+      "needs": [
+        "envsubst:undefined=strict"
+      ],
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 5,
+          "total_lines": 5,
+          "truncated": false,
+          "text": "#!envsubst undefined=strict\n---\naos_template_context: {\"engine\": \"envsubst\", \"overlay\": {\"name\": \"team-docs\", \"root\": \"/o/team-docs\", \"scope\": \"user\", \"state\": \"/s/team-docs\"}, \"project\": {\"root\": \"/work/app\"}}\n---\n$NOPE",
+          "template": "envsubst",
+          "rendered": false
+        }
+      }
+    },
+    {
+      "id": "list-option-not-honoured-is-not-rendered",
+      "description": "kb_list says a file whose option value the server cannot honour is not rendered, and one that asks for another value is.",
+      "tool": "kb_list",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/a.md",
+              "text": "#!mustache escape=none\nx\n"
+            },
+            {
+              "path": "kb/b.md",
+              "text": "#!mustache\nx\n"
+            },
+            {
+              "path": "kb/c.md",
+              "text": "#!envsubst dialect=drone\nx\n"
+            },
+            {
+              "path": "kb/d.md",
+              "text": "#!envsubst dialect=a8m\nx\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {},
+      "lacks": [
+        "mustache:escape=none",
+        "envsubst:dialect=drone"
+      ],
+      "expect": {
+        "result": {
+          "overlays": [
+            {
+              "overlay": "team-docs",
+              "served": false,
+              "files": [
+                {
+                  "path": "kb/a.md",
+                  "lines": 5,
+                  "bytes": 212,
+                  "template": "mustache",
+                  "rendered": false
+                },
+                {
+                  "path": "kb/b.md",
+                  "lines": 1,
+                  "bytes": 2,
+                  "template": "mustache",
+                  "rendered": true
+                },
+                {
+                  "path": "kb/c.md",
+                  "lines": 5,
+                  "bytes": 214,
+                  "template": "envsubst",
+                  "rendered": false
+                },
+                {
+                  "path": "kb/d.md",
+                  "lines": 1,
+                  "bytes": 2,
+                  "template": "envsubst",
+                  "rendered": true
+                }
+              ],
+              "skipped": []
+            }
+          ],
+          "engines": [
+            "envsubst",
+            "mustache"
+          ]
         }
       }
     },

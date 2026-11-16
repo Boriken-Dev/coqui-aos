@@ -21,6 +21,17 @@ rules and the classes they serve are in
 | `knowledge_search.json` | The rules a `kb_search` answer follows: the entry per overlay, the declared mode, `top`, the path limit, the passage and its lines and text, written-out text, and the order of passages |
 | `hooks.json` | Hooks: which run at each event and with what, `hook.<ext>` chosen by runtime, off until allowed at one digest (a project's over every file beside its configuration), a guard that is off keeping its overlay inactive, events a consumer cannot fire or fires in part; each event's payload; which calls a `match` selects; a run's output, and every way it fails, an attempt to grant, an undeclared variable and a control character included; several hooks of one event combined within the event's bound, and what a consumer cannot apply on a harness |
 
+**Options a server cannot honour.** A case that uses a first-line option lists it under `needs`, as
+`engine:option=value`. A runner whose server lacks a value (a released tplx has no Mustache escape-off setting) skips
+those cases, and runs the ones that give the value under `lacks` instead: they expect the file served as written with the
+context. `lacks` is the runner's own declaration, as `engines` is for the engines.
+
+**Stock libraries miss three behaviours** that the Mustache specification requires, and that `knowledge.json` keeps
+because they are the specification's: whitespace around the `&` of `{{ & x }}` (`mustache-spaces-in-tag`), the
+first part of a dotted name looked up through the contexts and the rest only in what that finds
+(`mustache-dotted-context-precedence`), and the indentation of a partial that is not alone on its line
+(`mustache-partial-inline`). A runner on such a library names the cases it does not run, with the reason.
+
 Error classes:
 
 - reading: `invalid-utf8`, `no-format-named`, `unsupported-format`, `parse-error`, `not-a-mapping`,
