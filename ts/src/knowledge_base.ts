@@ -2,6 +2,7 @@
 import { type Limit, limitText } from "./limits.ts";
 
 const MIB = 1024 * 1024;
+const encoder = new TextEncoder();
 
 /** Every knowledge setting's key (as a configuration writes it), field and default. */
 const DEFINITIONS = [
@@ -13,6 +14,7 @@ const DEFINITIONS = [
   ["max_context_bytes", "maxContextBytes", 16 * 1024],
   ["max_context_depth", "maxContextDepth", 8],
   ["max_template_depth", "maxTemplateDepth", 32],
+  ["max_include_depth", "maxIncludeDepth", 5],
 ] as const;
 
 type Field = (typeof DEFINITIONS)[number][1];
@@ -30,8 +32,8 @@ export interface KnowledgeNonDefault {
 
 /**
  * The limits of serving knowledge, each with a default and no floor: a file served (1 MiB), the text of one read (64 KiB), a
- * rendered template (1 MiB), a query (1000 characters), `top` (100), a call's context (16 KiB and 8 levels) and Mustache
- * sections nested (32). Immutable.
+ * rendered template (1 MiB), a query (1000 characters), `top` (100), a call's context (16 KiB and 8 levels), Mustache
+ * sections nested (32) and `@path` includes nested (5). Immutable.
  */
 export class KnowledgeSettings implements KnowledgeSettingsValues {
   readonly maxFileBytes!: Limit;
@@ -42,6 +44,7 @@ export class KnowledgeSettings implements KnowledgeSettingsValues {
   readonly maxContextBytes!: Limit;
   readonly maxContextDepth!: Limit;
   readonly maxTemplateDepth!: Limit;
+  readonly maxIncludeDepth!: Limit;
 
   constructor(changes: Partial<KnowledgeSettingsValues> = {}) {
     for (const [, field, byDefault] of DEFINITIONS) {
@@ -105,7 +108,7 @@ export const KNOWLEDGE_ERROR_CLASSES = [
   "link",
   "not-text",
   "too-large",
-  "unknown-template",
+  "include-error",
   "invalid-option",
   "template-error",
   "line-range",
@@ -196,5 +199,5 @@ export function within(limit: Limit, n: number): boolean {
 
 /** The size of text in bytes of UTF-8. */
 export function byteLength(text: string): number {
-  return new TextEncoder().encode(text).length;
+  return encoder.encode(text).length;
 }

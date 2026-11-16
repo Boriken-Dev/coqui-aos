@@ -42,6 +42,10 @@ function overlaysOf(item: Map<string, Json>): KnowledgeOverlay[] {
   });
 }
 
+function enginesOf(item: Map<string, Json>): string[] {
+  return item.has("engines") ? strings(item.get("engines")) : ["envsubst", "mustache"];
+}
+
 function callerOf(item: Map<string, Json>): CallerFacts {
   const facts = item.get("facts");
   if (!(facts instanceof Map)) return {};
@@ -77,7 +81,7 @@ runFile("knowledge.json", (item) => {
     const plan = knowledgePlan(item.get("manifest") as unknown as Document, item.get("files") as Map<string, string>, typeof user === "boolean" ? user : undefined);
     got = { served: plan.served, left_out: plan.leftOut };
   } else {
-    const out = knowledgeCall(str(item.get("tool")), overlaysOf(item), item.get("arguments"), modes, settings, callerOf(item));
+    const out = knowledgeCall(str(item.get("tool")), overlaysOf(item), item.get("arguments"), modes, settings, callerOf(item), enginesOf(item));
     got = "error" in out ? { error: out.error.class } : { result: out.result };
   }
   assert.deepEqual(plain(got), plain(item.get("expect")));
@@ -89,7 +93,7 @@ runFile("knowledge_search.json", (item) => {
   if (id.startsWith("order-")) {
     got = { order: searchOrder(arr(item.get("passages")) as Array<Map<string, unknown>>) };
   } else {
-    got = { violations: searchCheck(overlaysOf(item), item.get("arguments"), item.get("response"), strings(item.get("modes")), settingsOf(item)) };
+    got = { violations: searchCheck(overlaysOf(item), item.get("arguments"), item.get("response"), strings(item.get("modes")), settingsOf(item), callerOf(item), enginesOf(item)) };
   }
   assert.deepEqual(plain(got), plain(item.get("expect")));
 });
@@ -103,7 +107,7 @@ const overlay = (tree: Array<[string, string]>, manifest: Document = new Map()):
 });
 
 test("kbRead renders a template per call from the caller facts and the context", () => {
-  const one = overlay([["kb/t.md", "---\ntemplate: mustache\n---\n{{caller.role}} {{context.topic}} {{env.USER}} {{#context.deep}}deep{{/context.deep}}\n"]]);
+  const one = overlay([["kb/t.md", "#!mustache\n{{caller.role}} {{context.topic}} {{env.USER}} {{#context.deep}}deep{{/context.deep}}\n"]]);
   const sent = kbRead([one], { path: "kb/t.md", context: { topic: "cache", deep: true } }, { caller: { caller: { role: "reviewer" }, env: { USER: "ana", HOME: "x" }, envAllow: ["USER", "HOME"] } });
   assert.equal(sent.isError, false);
   assert.equal(sent.structuredContent["text"], "reviewer cache ana deep");

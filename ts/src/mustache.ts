@@ -54,10 +54,43 @@ function lineItems(line: string): Item[] {
   return items;
 }
 
+/** Whether a comment tag in `text` is not closed. */
+function openComment(text: string): boolean {
+  let at = 0;
+  for (;;) {
+    const found = text.indexOf("{{", at);
+    if (found < 0) return false;
+    if (text.startsWith("{{{", found)) {
+      const end = text.indexOf("}}}", found + 3);
+      if (end < 0) return false;
+      at = end + 3;
+      continue;
+    }
+    const end = text.indexOf("}}", found + 2);
+    if (end < 0) return text.startsWith("{{!", found);
+    at = end + 2;
+  }
+}
+
+/** The lines of `text`, a line that ends inside a comment joined to the next. */
+function logicalLines(text: string): string[] {
+  const out: string[] = [];
+  let buffer = "";
+  for (const line of text.match(/[^\n]*\n|[^\n]+/g) ?? []) {
+    buffer += line;
+    if (!openComment(buffer)) {
+      out.push(buffer);
+      buffer = "";
+    }
+  }
+  if (buffer !== "") out.push(buffer);
+  return out;
+}
+
 function parse(text: string, settings: KnowledgeSettings): Node[] {
   const root: Node[] = [];
   const stack: Array<{ name: string | null; children: Node[] }> = [{ name: null, children: root }];
-  for (const line of text.match(/[^\n]*\n|[^\n]+/g) ?? []) {
+  for (const line of logicalLines(text)) {
     for (const item of lineItems(line)) {
       const top = stack[stack.length - 1]!;
       if (item[0] === "text" || item[0] === "var") top.children.push([item[0], item[1]]);

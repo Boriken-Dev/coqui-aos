@@ -1,6 +1,6 @@
 /** The rules a `kb_search` answer follows: its shape and the order of its passages. How a mode ranks is the server's own and is not checked. */
-import { chooseOverlays, knowledgeArguments, knowledgeSet, type KnowledgeOverlay } from "./knowledge.ts";
-import { DEFAULT_KNOWLEDGE_SETTINGS, type KnowledgeSettings, inert, knowledgeLines } from "./knowledge_base.ts";
+import { type CallerFacts, chooseOverlays, knowledgeArguments, knowledgeSet, type KnowledgeOverlay, servedFileText } from "./knowledge.ts";
+import { DEFAULT_KNOWLEDGE_SETTINGS, KnowledgeError, type KnowledgeSettings, inert, knowledgeLines } from "./knowledge_base.ts";
 import { compareText } from "./text.ts";
 
 const isMap = (value: unknown): value is Map<string, unknown> => value instanceof Map;
@@ -17,15 +17,18 @@ export function searchOrder<T extends ReadonlyMap<string, unknown>>(passages: re
   );
 }
 
-/** The rules a `kb_search` answer breaks, as sorted ids (`overlays`, `mode`, `top`, `path-limit`, `not-knowledge`, `range`, `text`, `inert`, `shape`); empty when it conforms. `response` and `args` are mappings, integers `bigint`s (see `fromPlain`). */
+/** The rules a `kb_search` answer breaks, as sorted ids (`overlays`, `mode`, `top`, `path-limit`, `not-knowledge`, `range`, `text`, `inert`, `shape`); empty when it conforms. `response` and `args` are mappings, integers `bigint`s (see `fromPlain`). A passage must lie within the served text of its file as `kb_read` serves it with no `context`, for `caller` and the `engines` this server renders with. */
 export function searchCheck(
   overlays: readonly KnowledgeOverlay[],
   args: unknown,
   response: unknown,
   modes: Iterable<string>,
   settings: KnowledgeSettings = DEFAULT_KNOWLEDGE_SETTINGS,
+  caller: CallerFacts = {},
+  engines: Iterable<string> = ["envsubst", "mustache"],
 ): string[] {
   const declaredModes = [...modes];
+  const declaredEngines = [...engines];
   const given = knowledgeArguments("kb_search", args, declaredModes, settings);
   const broken = new Set<string>();
   if (!isMap(response) || response.size !== 1 || !response.has("results")) return ["shape"];
@@ -65,7 +68,7 @@ export function searchCheck(
       return;
     }
     if (passages.length > (given["top"] as number)) broken.add("top");
-    const held = knowledgeSet(overlay, settings).files;
+    const held = knowledgeSet(overlay, settings);
     for (const passage of passages) {
       if (!isMap(passage) || !sameKeys(passage, PASSAGE)) {
         broken.add("shape");
@@ -82,12 +85,15 @@ export function searchCheck(
         continue;
       }
       if (prefix !== undefined && !(path === prefix || path.startsWith(`${prefix}/`))) broken.add("path-limit");
-      const item = held.get(path);
-      if (item === undefined || item.engine !== null) {
+      let lines: string[];
+      try {
+        if (!held.files.has(path)) throw new KnowledgeError("not-found");
+        lines = knowledgeLines(servedFileText(overlay, held, path, { caller, settings, engines: declaredEngines }));
+      } catch (error) {
+        if (!(error instanceof KnowledgeError)) throw error;
         broken.add("not-knowledge");
         continue;
       }
-      const lines = knowledgeLines(item.text);
       const first = passage.get("from_line");
       const last = passage.get("to_line");
       if (typeof first !== "bigint" || typeof last !== "bigint" || !(first >= 1n && first <= last && last <= BigInt(lines.length))) {

@@ -58,7 +58,7 @@ console.log(digest.digest.toString(), overlay.issues);
 
 ## Serving knowledge
 
-`kbList` and `kbRead` answer the `kb_list` and `kb_read` tools of the specification's knowledge section as a request in and an MCP result out, over an overlay's files held as `KnowledgeEntry` values (`readKnowledgeTree` makes them through a `FileSystem`). A file whose front matter names `envsubst` or `mustache` is rendered per call from the caller's facts and context.
+`kbList` and `kbRead` answer the `kb_list` and `kb_read` tools of the specification's knowledge section as a request in and an MCP result out, over an overlay's files held as `KnowledgeEntry` values (`readKnowledgeTree` makes them through a `FileSystem`). A markdown file is expanded (`${NAME}` and `@path` includes) unless its first line names `raw`; `#!envsubst` or `#!mustache` renders it per call from the caller's facts and context.
 
 ```ts
 const sent = kbRead([overlay], { path: "kb/intro.md", from: 1, to: 20 }, { caller: { caller: { role: "reviewer" } } });
