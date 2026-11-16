@@ -1,7 +1,7 @@
 {
   "about": "The Agent Overlay Specification's conformance vectors, copied byte for byte with git cat-file. Copy them again from a later revision, and change the commit and every digest, to move coqui-aos to it.",
   "repository": "https://github.com/Boriken-Dev/agent-overlay-spec",
-  "commit": "dccbdcf810a2d554eee0b8bd6f4ad9b3443cbd93",
+  "commit": "ab008846cf75ee9ae4d38e66209bc3e2013c1de3",
   "path": "tests/vectors",
   "edition": "0.1.0-draft",
   "files": {
@@ -12,7 +12,7 @@
     "effective.json": "sha256:756cd77317ec87087eef20f42b211785efb46907192e25f97984d730812585d4",
     "front_matter.json": "sha256:947f36bfda65fe44edad661bfa2789ddb6134ceb5c5e19d778f84806065ea4bf",
     "hooks.json": "sha256:d54a5c713813e2c896fbf2ecdd8f46597b0b88903bdf7c8e5ad1876296065334",
-    "knowledge.json": "sha256:acb60faf4a6ca8082894ae0053ea07aa5b98fbcf7a2d697e19f9a5867f0b1931",
+    "knowledge.json": "sha256:76ac4cb58075bf608e5304835a3b4b5f63fe2bfd8180fe2574a70590d517e047",
     "knowledge_search.json": "sha256:2616aae410f8288d4ac30f58214c95bf8fd650772f7f8f05287481cec80482e2",
     "names.json": "sha256:15eb458747132c15bcba7c75a648bdd654a21f7e1ce4658b02888d80554c52c5",
     "reading.json": "sha256:722c75dc6941e2f5fdd1f30ffe302c57b14f8bb606b7abb253dce07f8dc7e931",

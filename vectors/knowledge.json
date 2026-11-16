@@ -2188,7 +2188,7 @@
                 {
                   "path": "kb/env.md",
                   "lines": 6,
-                  "bytes": 202,
+                  "bytes": 321,
                   "template": "envsubst",
                   "rendered": true
                 },
@@ -2501,7 +2501,7 @@
                 {
                   "path": "kb/env.md",
                   "lines": 6,
-                  "bytes": 187,
+                  "bytes": 360,
                   "template": "envsubst",
                   "rendered": true
                 },
@@ -5946,7 +5946,7 @@
     },
     {
       "id": "envsubst-facts",
-      "description": "Every name an envsubst file reads: the five AOS_ names, the caller's role and profile, the allowed variables of the environment, the call's context (strings, integers and booleans, not a list), and the options. The front matter is dropped; a name with no value, a variable not allowed, an option with a default, a sensitive option, an unknown name, an escape and a Mustache tag are left as written or replaced as the rules say.",
+      "description": "Every name an envsubst file reads: the five AOS_ names, the caller's role and profile, the allowed variables of the environment, the call's context (strings, integers and booleans, not a list), and the options. As GNU envsubst does, $$ is no escape (so $${X} is a dollar and the value), a Mustache tag is text, and a name with no value (a variable not allowed, a list, a sensitive option, an unknown name) stays as written, undefined=debug being the default.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -6021,7 +6021,7 @@
           "to_line": 6,
           "total_lines": 6,
           "truncated": false,
-          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home  off \ntopic caching n 3 flag true list \ndepth normal token  plain  $team-docs {{overlay.name}}",
+          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic caching n 3 flag true list ${AOS_ARG_items}\ndepth normal token ${token} plain ${HOME} $team-docs {{overlay.name}}",
           "template": "envsubst",
           "rendered": true
         }
@@ -6029,7 +6029,7 @@
     },
     {
       "id": "envsubst-no-caller",
-      "description": "A consumer with no caller facts, no environment and no context gives no value: every such name is replaced by nothing.",
+      "description": "A consumer with no caller facts, no environment and no context gives no value: every such name stays as written.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -6073,7 +6073,7 @@
           "to_line": 6,
           "total_lines": 6,
           "truncated": false,
-          "text": "overlay team-docs root /o/team-docs scope \nproject  state \nrole  profile \nuser  home  off \ntopic  n  flag  list \ndepth normal token  plain  $team-docs {{overlay.name}}",
+          "text": "overlay team-docs root /o/team-docs scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth normal token ${token} plain ${HOME} $team-docs {{overlay.name}}",
           "template": "envsubst",
           "rendered": true
         }
@@ -6225,7 +6225,7 @@
           "to_line": 6,
           "total_lines": 6,
           "truncated": false,
-          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home  off zsh\ntopic  n  flag  list \ndepth normal token  plain  $team-docs {{overlay.name}}",
+          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home ${AOS_ENV_HOME} off zsh\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth normal token ${token} plain ${HOME} $team-docs {{overlay.name}}",
           "template": "envsubst",
           "rendered": true
         }
@@ -6296,7 +6296,7 @@
           "to_line": 6,
           "total_lines": 6,
           "truncated": false,
-          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser  home  off \ntopic  n  flag  list \ndepth normal token  plain  $team-docs {{overlay.name}}",
+          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth normal token ${token} plain ${HOME} $team-docs {{overlay.name}}",
           "template": "envsubst",
           "rendered": true
         }
@@ -6374,7 +6374,7 @@
           "to_line": 6,
           "total_lines": 6,
           "truncated": false,
-          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home  off \ntopic ${AOS_OVERLAY_NAME} n  flag  list \ndepth normal token  plain  $team-docs {{overlay.name}}",
+          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_OVERLAY_NAME} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth normal token ${token} plain ${HOME} $team-docs {{overlay.name}}",
           "template": "envsubst",
           "rendered": true
         }
@@ -10063,7 +10063,7 @@
           "to_line": 6,
           "total_lines": 6,
           "truncated": false,
-          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home  off \ntopic  n  flag  list \ndepth normal token  plain  $team-docs {{overlay.name}}",
+          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth normal token ${token} plain ${HOME} $team-docs {{overlay.name}}",
           "template": "envsubst",
           "rendered": true
         }
@@ -16091,8 +16091,8 @@
       }
     },
     {
-      "id": "envsubst-gnu-undefined-is-empty",
-      "description": "A name with no value is replaced by nothing, by default.",
+      "id": "envsubst-undefined-default-keeps-the-name",
+      "description": "By default (undefined=debug) a name with no value stays as written, bare or braced, as it does in aos.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -16129,7 +16129,7 @@
           "to_line": 1,
           "total_lines": 1,
           "truncated": false,
-          "text": "[] [] []",
+          "text": "[$NOPE] [${NOPE}] [$nope_2]",
           "template": "envsubst",
           "rendered": true
         }
@@ -16319,8 +16319,8 @@
       }
     },
     {
-      "id": "envsubst-undefined-lenient-written-out",
-      "description": "undefined=lenient is the default, written out.",
+      "id": "envsubst-undefined-lenient-gives-empty",
+      "description": "undefined=lenient gives nothing for a name with no value, as GNU's own envsubst does.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -16340,7 +16340,7 @@
           "tree": [
             {
               "path": "kb/t.md",
-              "text": "#!envsubst undefined=lenient\n[$NOPE]\n"
+              "text": "#!envsubst undefined=lenient\n[$NOPE] [${NOPE}] [$nope_2] $AOS_OVERLAY_NAME\n"
             }
           ]
         }
@@ -16357,7 +16357,7 @@
           "to_line": 1,
           "total_lines": 1,
           "truncated": false,
-          "text": "[]",
+          "text": "[] [] [] team-docs",
           "template": "envsubst",
           "rendered": true
         }
@@ -16365,7 +16365,7 @@
     },
     {
       "id": "envsubst-undefined-debug-keeps-the-text",
-      "description": "undefined=debug keeps a name with no value as it was written, as nginx's image does with $request_uri.",
+      "description": "undefined=debug, the default, written out: a name with no value is kept as it was written, as nginx's image does with $request_uri.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -16732,7 +16732,7 @@
           "to_line": 1,
           "total_lines": 1,
           "truncated": false,
-          "text": "${NOPE:-y} $",
+          "text": "${NOPE:-y} $$A",
           "template": "envsubst",
           "rendered": true
         }
