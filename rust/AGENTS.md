@@ -6,6 +6,8 @@ Header-file-style reference for the `coqui-aos` crate: every public item with it
 | --- | --- | --- | --- |
 | `fs` | `StdFs`, `std::fs` as a `FileSystem` | reading a directory from the operating system | on |
 | `serde` | `Serialize` and `Deserialize` for `SetupRecord` and `Phase` (`{"digest": ..., "phase": "install"}`) | keeping a setup record | off |
+| `index` | `coqui_aos::index`: an index of an overlay's knowledge on disk (passages, BM25, vectors, generations) and `IndexSearch`, a `SearchBackend` over it; reads and writes files, so not for wasm32 | searching knowledge | off |
+| `embeddings` | `index::HttpEmbedder`, an OpenAI-compatible `/v1/embeddings` client (`ureq`, the platform's certificate verifier) | search by meaning | off |
 | `test-support` | `coqui_aos::vectors`: the specification's conformance vectors as a `Runner` (`std`, and `base64` for the vectors' bytes) | a consumer's own tests | off |
 
 MSRV Rust 1.89. Version `0.0.0-alpha.0`, not published; the API may change in any release before 1.0. A default build depends on `granit-parser` (the YAML parser `serde-saphyr` is built on), `guatiao` (the derives that describe `Settings`), `serde_json`, `sha2` and `toml`. `--no-default-features` compiles for `wasm32-unknown-unknown`. `serde_json` is re-exported as `coqui_aos::serde_json`, because the data model is its `Value` and `Map`, and its `preserve_order` feature is on for every crate in the build.
@@ -92,6 +94,53 @@ pub fn skill_text(data: &[u8], values: &Template, settings: &Settings) -> Result
 `${NAME}` is replaced in the context a consumer assembles and in the body of a bundled skill it serves, never in an installed file, and only for `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_STATE`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_SCOPE`, `AOS_PROJECT_ROOT` and the overlay's `options` that have a value; a name with no value, an unknown name, one with an operator and a sensitive option are left as written, `$${` is `${`, and a value is never read again. A skill's front matter is served as written. A configured value of the wrong type is `invalid-option`, never converted. The bound on the context counts the text after replacing: the caller checks it.
 
 `options` is validated by `validate` (`option-default-type`, `option-sensitive-default`, a reserved or malformed name is `schema`). `substitute` and its operators are for env values and are unchanged.
+
+## Knowledge served through MCP (`kb_read`, `kb_list`, `KnowledgeSession`)
+
+A call goes in and a result comes out, so a consumer serves the tools over its own MCP. Nothing here reads a file.
+
+```rust
+#[non_exhaustive] pub struct KnowledgeSettings { pub max_file_bytes, max_read_bytes, max_rendered_bytes, max_query_characters, max_top, max_context_bytes, max_context_depth, max_template_depth: Limit }   // Default (1 MiB, 64 KiB, 1 MiB, 1000, 100, 16 KiB, 8, 32), Copy; one setter each; non_defaults()
+#[non_exhaustive] pub enum KnowledgeEntry { File(Vec<u8>), Unread, Directory, Symlink, Special }
+pub struct KnowledgeTree;   // new().with(path, entry).with_text(path, text); insert; get; entries()
+KnowledgeTree::read(files: &dyn FileSystem, root: &Path, reading: &Settings, settings: &KnowledgeSettings, wanted: impl Fn(&str) -> bool) -> Result<KnowledgeTree, Error>   // never follows a link; reads at most max_file_bytes + 1 of each wanted file
+#[non_exhaustive] pub struct KnowledgeOverlay { pub identity: String, pub manifest: Document, pub tree: KnowledgeTree, pub served: bool, pub facts: TemplateFacts, pub reading: Settings }
+KnowledgeOverlay::new(identity, manifest, tree).served(bool).facts(TemplateFacts).reading(Settings)
+KnowledgeOverlay::read(identity, manifest, files, root, &Settings, &KnowledgeSettings) -> Result<KnowledgeOverlay, Error>   // reads the bytes of the knowledge files only
+KnowledgeOverlay::set(&self, &KnowledgeSettings) -> KnowledgeSet   // files: BTreeMap<&str, ServedFile { text, raw, engine: Option<Engine> }>, skipped: Vec<Skip { path, reason: SkipReason }>
+#[non_exhaustive] pub struct CallerFacts { pub role: Option<String>, pub profile: Option<String>, pub env: BTreeMap<String, String>, pub env_allow: Vec<String> }   // CallerFacts::new().role(..).profile(..).env(name, value).allow(name)
+#[non_exhaustive] pub struct ReadRequest { pub path, from: Option<u64>, to: Option<u64>, overlay: Option<String>, context: Option<Map<String, Value>> }   // ReadRequest::new(path).from(..).to(..).overlay(..).context(..)
+pub fn kb_read(overlays: &[KnowledgeOverlay], request: &ReadRequest, caller: &CallerFacts, settings: &KnowledgeSettings) -> ToolResult
+pub fn kb_list(overlays: &[KnowledgeOverlay], overlay: Option<&str>, modes: &[SearchMode], settings: &KnowledgeSettings) -> ToolResult
+pub struct ToolResult { pub structured: Value, pub is_error: bool }   // text(), to_mcp() -> {content: [{type: "text", text}], structuredContent, isError}
+pub struct ToolCall { pub name: String, pub arguments: Value }   // ToolCall::new(name, arguments)
+pub struct KnowledgeSession<'a>;   // new(overlays, settings, caller).search(&dyn SearchBackend); tools() -> Vec<Value>; call(&ToolCall) -> ToolResult
+pub fn knowledge_call(tool, overlays, arguments: &Value, modes, settings, caller) -> Result<Value, KnowledgeError>   // kb_list and kb_read, the vectors' form
+pub fn kb_tool_result(Result<Value, KnowledgeError>) -> ToolResult
+pub fn knowledge_tools(modes: &[SearchMode], settings) -> Vec<Value>;  pub fn knowledge_arguments(tool, arguments: &Value, modes, settings) -> Result<Map<String, Value>, KnowledgeError>
+pub fn knowledge_plan(manifest: &Document, tree: &OverlayTree, user: Option<bool>) -> KnowledgePlan { served, left_out }   // the [knowledge] serve hint
+pub fn knowledge_lines(text: &str) -> Vec<&str>;  pub fn inert(text: &str) -> String;  pub fn mustache(text: &str, data: &Value, settings) -> Result<String, KnowledgeError>
+pub trait SearchBackend { fn modes(&self) -> Vec<SearchMode>; fn search(&self, overlay: &KnowledgeOverlay, request: &SearchRequest) -> Result<SearchAnswer, SearchFailure>; }
+SearchMode { Words, Meaning, Llm };  SearchRequest { query, top, path: Option<String>, mode: Option<SearchMode> /* None is auto */ };  SearchAnswer::new(mode, Vec<Passage>).note(..);  Passage::new(path, heading, from_line, to_line, score, text);  SearchFailure::unavailable(..) / ::mode_unavailable(..)
+pub fn search_order(passages: &[Value]) -> Vec<Value>;  pub fn search_check(overlays, arguments: &Value, response: &Value, modes, settings) -> Result<Vec<String>, KnowledgeError>
+#[non_exhaustive] pub struct KnowledgeError { pub class: ErrorClass, pub message: String }   // ErrorClass::as_str() is the class as results write it
+```
+
+`kb_read` renders a template for **each call** from the facts it is given: the overlay's `TemplateFacts` (`name` defaults to the normalized identity), the caller's role, profile and the environment variables the user allowed (a sensitive one is never given), and the call's `context`; so a consumer never renders `envsubst` or `mustache` itself. A refusal is a result with `is_error` true, never a panic. Which files are knowledge, the lines (a CR is dropped only before an LF, an empty file has none), the written-out characters (`inert`), the order of `kb_list`, the argument checks and the error classes follow `spec/v0/knowledge.md`; `tools()` lists `kb_list`, `kb_read` and, when the backend declares a mode, `kb_search`. `kb_search` is answered by the session's `SearchBackend`; the handler drops any passage that is of a template, outside the path limit or past the file's lines, orders the rest (score, path bytes, first line, last line), keeps `top`, writes out `heading`, `text` and `note`, and turns a backend's failure into an entry `{overlay, error}` that does not fail the call. A file whose front matter names a template engine this edition does not define is skipped (`template`) and read as `unknown-template`; template detection is the one function `detect` in `knowledge/tree.rs`. `KnowledgeTree::read` opens each path by name through the `FileSystem` it is given: a `FileSystem` that must not leave the root through a link opens without following one.
+
+### The index (`index` feature, `coqui_aos::index`)
+
+```rust
+pub struct index::Corpus;   Corpus::from_overlay(&KnowledgeOverlay, &KnowledgeSettings) -> Corpus   // the served, plain files; also new(), insert(path, bytes), from_dir(root), text(path), paths(), len()
+pub struct index::Settings { pub chunk_bytes: usize /* 1024 */, overlap_bytes: usize, include: Vec<String>, exclude: Vec<String>, document_prefix: String, query_prefix: String, model: Option<String>, dimensions: Option<usize> }   // include empty selects every file of the corpus
+pub struct index::Index;   Index::create(dir, Settings, &Corpus, Option<&dyn Embedder>, &Options) / update / rebuild / refresh(.., seed) -> Result<Report, index::Error>;  Index::open(dir);  search(&self, query, &SearchOptions, Option<&dyn Embedder>) -> Result<Vec<Hit>, index::Error>
+pub trait index::Embedder { fn model(&self) -> &str; fn embed(&self, inputs: &[String]) -> Result<Vec<Vec<f32>>, index::Error>; }
+pub struct index::HttpEmbedder;   // `embeddings`: HttpEmbedder::new(base_url, model).with_bearer(..).with_timeout(..)
+pub struct index::IndexSearch;    // IndexSearch::new().index(identity, Index).embedder(Box<dyn Embedder>): words always, meaning where an index holds the embedder's model; an auto search falls back to words with a note
+pub fn index::index_dir(state, overlay, digest) -> PathBuf;  variant_dir(version, model);  previous_version(..);  remove_other_versions(..)
+```
+
+An index is chunked by Markdown heading then by size (a passage keeps its line range; a line longer than `chunk_bytes` is cut), scored by BM25 or by cosine over the embedder's vectors, seeded by each file's SHA-256, and written as a new generation beside the committed one and swapped in by one rename of `CURRENT`, so a failed write leaves the previous index. Two writers on one directory are not coordinated.
 
 ## Names, sources, digests
 
@@ -220,7 +269,7 @@ Running a hook is the caller's: it builds a `HookRun` (`HookRun::new(source, std
 
 ```rust
 pub struct vectors::Runner;   pub struct vectors::Report { pub file: String, pub passed: usize, pub skipped: Vec<String>, pub failed: Vec<String> }
-pub const Runner::FILES: [&str; 12]
+pub const Runner::FILES: [&str; 14]
 pub fn Runner::new(dir: impl Into<PathBuf>) -> Runner       // the specification's tests/vectors/ or a copy
 pub fn Runner::skip(self, f: impl Fn(&str /*file*/, &Value /*case*/) -> Option<&'static str /*reason*/>) -> Runner
 pub fn Runner::effective(self, f: impl Fn(&Document, &Facts) -> Result<Effective, Error>) -> Runner   // a host's wrapper of `effective`
