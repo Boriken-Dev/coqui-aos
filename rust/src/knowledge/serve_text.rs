@@ -7,15 +7,18 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 use serde_json::{Map, Value, json};
+use tplx_rs::{
+    Dialect, EnvsubstOptions, Escape, Feature, Features, Limits, MustacheOptions, Options, Pattern,
+    Undefined, render,
+};
 
-use super::mustache::mustache;
 use super::read::CallerFacts;
 use super::settings::KnowledgeSettings;
 use super::tree::{Engine, FileFormat, KnowledgeOverlay, KnowledgeSet, ServedFile};
 use super::{ErrorClass, KnowledgeError};
 use crate::front_matter::{SplitCase, split_front_matter};
 use crate::names::{is_sensitive_variable, normalize_name, valid_relative_path};
-use crate::template::{Template, template, template_values, value_is};
+use crate::template::{Template, template_values, value_is};
 
 fn error(class: ErrorClass, message: &str) -> KnowledgeError {
     KnowledgeError::new(class, message)
@@ -32,12 +35,12 @@ pub(crate) struct Call<'a> {
     pub context: &'a Map<String, Value>,
     pub caller: &'a CallerFacts,
     pub settings: &'a KnowledgeSettings,
-    pub engines: &'a [Engine],
+    pub engines: &'a Renderers,
 }
 
 struct Walk<'a> {
     call: &'a Call<'a>,
-    values: Option<Template>,
+    names: Option<Value>,
     added: usize,
 }
 
@@ -210,10 +213,263 @@ fn context_block(engine: &str, data: &Value) -> String {
     out
 }
 
+/// The envsubst features this crate's engine has, as the specification names them.
+const ENVSUBST_FEATURES: [&str; 11] = [
+    "escape",
+    "default",
+    "assign",
+    "alternate",
+    "nested",
+    "unquote",
+    "slice",
+    "replace",
+    "trim",
+    "case",
+    "length",
+];
+
+/// What an `envsubst` file does with a name that has no value, when its first line says nothing.
+const DEFAULT_UNDEFINED: Undefined = Undefined::Debug;
+
+/// The template engines a server renders, and with which envsubst features. A file for another engine,
+/// or one that asks for a feature this server lacks, is served as written with its context.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Renderers {
+    engines: Vec<Engine>,
+    features: Option<Vec<String>>,
+}
+
+impl Renderers {
+    /// Both engines, with every feature of `envsubst`.
+    #[must_use]
+    pub fn all() -> Self {
+        Self {
+            engines: Engine::ALL.to_vec(),
+            features: None,
+        }
+    }
+
+    /// No engine: every template is served with its context.
+    #[must_use]
+    pub fn none() -> Self {
+        Self {
+            engines: Vec::new(),
+            features: None,
+        }
+    }
+
+    /// Renders only `engines`.
+    #[must_use]
+    pub fn engines(mut self, engines: &[Engine]) -> Self {
+        self.engines = engines.to_vec();
+        self
+    }
+
+    /// Renders `envsubst` with only the features these names give (`escape`, `default`, ...); a file that
+    /// asks for another is served with its context.
+    #[must_use]
+    pub fn envsubst_features(mut self, features: &[&str]) -> Self {
+        self.features = Some(features.iter().map(|name| (*name).to_owned()).collect());
+        self
+    }
+
+    /// The engines rendered, in the order `kb_list` names them.
+    #[must_use]
+    pub fn names(&self) -> Vec<&'static str> {
+        Engine::ALL
+            .into_iter()
+            .filter(|engine| self.engines.contains(engine))
+            .map(Engine::as_str)
+            .collect()
+    }
+
+    /// Whether this server renders the file of engine `name` with `options`.
+    pub(crate) fn renders(&self, name: &str, options: &BTreeMap<String, String>) -> bool {
+        if !self.engines.iter().any(|engine| engine.as_str() == name) {
+            return false;
+        }
+        match (name, &self.features, options.get("features")) {
+            ("envsubst", Some(have), Some(asked)) => {
+                let asked: Vec<&str> = asked.split(',').collect();
+                // A name that is no feature is the file's error, raised when it is read.
+                !asked
+                    .iter()
+                    .all(|feature| ENVSUBST_FEATURES.contains(feature))
+                    || asked
+                        .iter()
+                        .all(|feature| have.iter().any(|held| held == feature))
+            }
+            _ => true,
+        }
+    }
+}
+
+impl Default for Renderers {
+    fn default() -> Self {
+        Self::all()
+    }
+}
+
+fn refused(message: &str) -> KnowledgeError {
+    error(ErrorClass::TemplateError, message)
+}
+
+/// What the library's refusal is, in the specification's classes.
+fn library(failure: &tplx_rs::Error) -> KnowledgeError {
+    match failure {
+        tplx_rs::Error::Limit(tplx_rs::Limit::Output) => rendered_too_large(),
+        tplx_rs::Error::Limit(tplx_rs::Limit::Depth) => {
+            error(ErrorClass::IncludeError, "partials are nested too deep")
+        }
+        other => refused(&other.to_string()),
+    }
+}
+
+fn limits(call: &Call<'_>) -> Limits {
+    let mut limits = Limits::default();
+    limits.max_output = call
+        .settings
+        .max_rendered_bytes
+        .get()
+        .map_or(usize::MAX, |most| {
+            usize::try_from(most).unwrap_or(usize::MAX)
+        });
+    limits.max_depth = call
+        .settings
+        .max_include_depth
+        .get()
+        .map_or(usize::MAX, |most| {
+            usize::try_from(most).unwrap_or(usize::MAX)
+        })
+        .saturating_add(1);
+    limits
+}
+
+/// The options of an `envsubst` first line, as the library takes them.
+fn envsubst_options(options: &BTreeMap<String, String>) -> Result<EnvsubstOptions, KnowledgeError> {
+    let mut out = EnvsubstOptions::default();
+    out.dialect = match options.get("dialect").map_or("gnu", String::as_str) {
+        "gnu" => Dialect::Gnu,
+        "a8m" => Dialect::A8m,
+        "drone" => Dialect::Drone,
+        _ => return Err(refused("dialect is gnu, a8m or drone")),
+    };
+    out.pattern = match options.get("pattern").map(String::as_str) {
+        None => None,
+        Some("braced") => Some(Pattern::Braced),
+        Some("unbraced") => Some(Pattern::Unbraced),
+        Some("all") => Some(Pattern::All),
+        Some(_) => return Err(refused("pattern is braced, unbraced or all")),
+    };
+    if let Some(asked) = options.get("features") {
+        let mut set = Features::none();
+        for name in asked.split(',') {
+            let feature = match name {
+                "escape" => Feature::Escape,
+                "default" => Feature::Default,
+                "assign" => Feature::Assign,
+                "alternate" => Feature::Alternate,
+                "nested" => Feature::Nested,
+                "unquote" => Feature::Unquote,
+                "slice" => Feature::Slice,
+                "replace" => Feature::Replace,
+                "trim" => Feature::Trim,
+                "case" => Feature::Case,
+                "length" => Feature::Length,
+                _ => return Err(refused("a feature that is not defined")),
+            };
+            set = set.with(feature);
+        }
+        out.features = Some(set);
+    }
+    out.undefined = match options.get("undefined").map(String::as_str) {
+        None => DEFAULT_UNDEFINED,
+        Some("lenient") => Undefined::Lenient,
+        Some("strict") => Undefined::Strict,
+        Some("debug") => Undefined::Debug,
+        Some(_) => return Err(refused("undefined is strict, lenient or debug")),
+    };
+    Ok(out)
+}
+
+/// Renders an `envsubst` file's text over its names with the library: the one place `envsubst` is applied.
+fn render_envsubst(
+    call: &Call<'_>,
+    text: &str,
+    names: &Value,
+    options: &EnvsubstOptions,
+) -> Result<String, KnowledgeError> {
+    render(
+        "envsubst",
+        text,
+        names,
+        &Options::new().limits(limits(call)).envsubst(*options),
+    )
+    .map_err(|failure| library(&failure))
+}
+
+/// Renders a `mustache` file's text over its data with the library: the one place `mustache` is applied.
+/// A partial is a served file of the overlay, found as an `@path` is from the file that holds the tag.
+fn render_mustache(
+    call: &Call<'_>,
+    text: &str,
+    data: &Value,
+    options: &BTreeMap<String, String>,
+    path: &str,
+) -> Result<String, KnowledgeError> {
+    let escape = match options.get("escape").map_or("html", String::as_str) {
+        "html" => Escape::Html,
+        "none" => Escape::None,
+        _ => return Err(refused("escape is html or none")),
+    };
+    let partials = |name: &str| {
+        resolve(call.set, path, name).map(|target| call.set.files[target.as_str()].rest.to_owned())
+    };
+    let mut mustache = MustacheOptions::default();
+    mustache.escape = escape;
+    render(
+        "mustache",
+        text,
+        data,
+        &Options::new()
+            .limits(limits(call))
+            .resolver(&partials)
+            .mustache(mustache),
+    )
+    .map_err(|failure| library(&failure))
+}
+
+/// The file of the knowledge a name refers to from the folder of `path`: `..` rises only to the root,
+/// and what is not a served file is nothing.
+fn resolve(set: &KnowledgeSet<'_>, path: &str, name: &str) -> Option<String> {
+    let first = name.chars().next()?;
+    let drive = name.chars().nth(1) == Some(':') && first.is_ascii_alphabetic();
+    if matches!(first, '/' | '~') || name.contains('\\') || drive {
+        return None;
+    }
+    let mut parts: Vec<&str> = path.split('/').collect();
+    parts.pop();
+    for part in name.split('/') {
+        match part {
+            "" => return None,
+            "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            other => parts.push(other),
+        }
+    }
+    let target = parts.join("/");
+    (valid_relative_path(&target) && set.files.contains_key(target.as_str())).then_some(target)
+}
+
 fn render_engine(
     call: &Call<'_>,
     file: &ServedFile<'_>,
     engine: &str,
+    options: &BTreeMap<String, String>,
+    path: &str,
     here: bool,
 ) -> Result<String, KnowledgeError> {
     let data = data(call)?;
@@ -226,19 +482,16 @@ fn render_engine(
             });
         alloc::format!("{first}{}{rest}", context_block(engine, &data))
     } else if engine == "envsubst" {
-        render_envsubst(file.rest, &envsubst_values(call, &data)?)
+        let settings = envsubst_options(options)?;
+        let names = envsubst_values(call, &data)?.to_object();
+        render_envsubst(call, file.rest, &names, &settings)?
     } else {
-        render_mustache(file.rest, &data, call.settings)?
+        render_mustache(call, file.rest, &data, options, path)?
     };
     if !call.settings.max_rendered_bytes.allows(out.len()) {
         return Err(rendered_too_large());
     }
     Ok(out)
-}
-
-/// Whether the engine named `name` is one this call renders.
-fn renders(call: &Call<'_>, name: &str) -> bool {
-    call.engines.iter().any(|engine| engine.as_str() == name)
 }
 
 /// The text `kb_read` serves for `path`, a file of the set, before it is cut into lines.
@@ -248,11 +501,14 @@ pub(crate) fn served_text(call: &Call<'_>, path: &str) -> Result<String, Knowled
     };
     match &file.format {
         FileFormat::AsWritten => Ok(file.rest.to_owned()),
-        FileFormat::Engine(name) => render_engine(call, file, name, renders(call, name)),
+        FileFormat::Engine { name, options } => {
+            let here = call.engines.renders(name, options);
+            render_engine(call, file, name, options, path, here)
+        }
         FileFormat::Expanded => {
             let mut walk = Walk {
                 call,
-                values: None,
+                names: None,
                 added: 0,
             };
             let out = walk.markdown(file.rest, path, &[path.to_owned()])?;
@@ -329,6 +585,42 @@ fn code_mask(chars: &[char]) -> Vec<bool> {
 
 const TRAILING: [char; 10] = ['.', ',', ';', ':', '!', '?', ')', ']', '}', '\''];
 
+/// What `${NAME}` the text holds that a value is needed for: a reference not escaped by `$$`.
+fn reads_a_name(chars: &[char]) -> bool {
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i..].starts_with(&['$', '$']) {
+            i += 2;
+        } else if reference_at(chars, i) {
+            return true;
+        } else {
+            i += 1;
+        }
+    }
+    false
+}
+
+/// Whether a `${NAME}` starts at `at`.
+fn reference_at(chars: &[char], at: usize) -> bool {
+    if chars.get(at) != Some(&'$') || chars.get(at + 1) != Some(&'{') {
+        return false;
+    }
+    let mut end = at + 2;
+    if !chars
+        .get(end)
+        .is_some_and(|c| c.is_ascii_alphabetic() || *c == '_')
+    {
+        return false;
+    }
+    while chars
+        .get(end)
+        .is_some_and(|c| c.is_ascii_alphanumeric() || *c == '_')
+    {
+        end += 1;
+    }
+    chars.get(end) == Some(&'}')
+}
+
 impl Walk<'_> {
     fn markdown(
         &mut self,
@@ -341,7 +633,13 @@ impl Walk<'_> {
         for line in text.split_inclusive('\n') {
             let chars: Vec<char> = line.chars().collect();
             if let Some(open) = fence {
-                out.push_str(&self.line(&chars, &alloc::vec![true; chars.len()], path, chain)?);
+                out.push_str(&line_of(
+                    &chars,
+                    &alloc::vec![true; chars.len()],
+                    self,
+                    path,
+                    chain,
+                )?);
                 if closes(line, open) {
                     fence = None;
                 }
@@ -353,98 +651,38 @@ impl Walk<'_> {
             } else {
                 code_mask(&chars)
             };
-            out.push_str(&self.line(&chars, &mask, path, chain)?);
+            out.push_str(&line_of(&chars, &mask, self, path, chain)?);
         }
         Ok(out)
     }
 
-    fn values(&mut self) -> Result<&Template, KnowledgeError> {
-        if self.values.is_none() {
+    /// The names `${NAME}` replaces, made the first time one is read.
+    fn names(&mut self) -> Result<Value, KnowledgeError> {
+        if self.names.is_none() {
             let data = data(self.call)?;
-            self.values = Some(envsubst_values(self.call, &data)?);
+            self.names = Some(envsubst_values(self.call, &data)?.to_object());
         }
-        Ok(self.values.as_ref().expect("made above"))
+        Ok(self.names.clone().expect("made above"))
     }
 
-    fn line(
-        &mut self,
-        chars: &[char],
-        in_code: &[bool],
-        path: &str,
-        chain: &[String],
-    ) -> Result<String, KnowledgeError> {
-        let mut out = String::new();
-        let mut i = 0;
-        while i < chars.len() {
-            if !in_code[i] && chars[i..].starts_with(&['$', '$', '{']) {
-                out.push_str("${");
-                i += 3;
-                continue;
-            }
-            if !in_code[i]
-                && let Some(end) = placeholder_end(chars, i)
-            {
-                let name: String = chars[i + 2..end - 1].iter().collect();
-                if let Some(value) = self.values()?.get(&name) {
-                    out.push_str(value);
-                    i = end;
-                    continue;
-                }
-            }
-            if chars[i] == '@'
-                && !in_code[i]
-                && (i == 0 || matches!(chars[i - 1], ' ' | '\t' | '\r' | '\u{c}' | '\u{b}'))
-            {
-                let mut name: Vec<char> = chars[i + 1..]
-                    .iter()
-                    .take_while(|c| !matches!(c, ' ' | '\t' | '\r' | '\n' | '\u{c}' | '\u{b}'))
-                    .copied()
-                    .collect();
-                while name
-                    .last()
-                    .is_some_and(|c| TRAILING.contains(c) || *c == '"')
-                {
-                    name.pop();
-                }
-                let name: String = name.into_iter().collect();
-                if !name.is_empty()
-                    && let Some(target) = self.resolve(path, &name)
-                    && let Some(text) = self.include(&target, chain)?
-                {
-                    out.push_str(&text);
-                    i += 1 + name.chars().count();
-                    continue;
-                }
-            }
-            out.push(chars[i]);
-            i += 1;
+    /// A run of the file's own text outside code, with `$$` read as `$` and each `${NAME}` that has a
+    /// value replaced: the `braced` pattern, the `escape` feature and `undefined=debug` of envsubst.
+    fn own(&mut self, run: &[char]) -> Result<String, KnowledgeError> {
+        if run.is_empty() {
+            return Ok(String::new());
         }
-        Ok(out)
-    }
-
-    /// The file of the knowledge an include names, from the including file's folder; `..` rises only
-    /// to the root.
-    fn resolve(&self, path: &str, name: &str) -> Option<String> {
-        let first = name.chars().next()?;
-        let drive = name.chars().nth(1) == Some(':') && first.is_ascii_alphabetic();
-        if matches!(first, '/' | '~') || name.contains('\\') || drive {
-            return None;
-        }
-        let mut parts: Vec<&str> = path.split('/').collect();
-        parts.pop();
-        for part in name.split('/') {
-            match part {
-                "" => return None,
-                "." => {}
-                ".." => {
-                    parts.pop()?;
-                }
-                other => parts.push(other),
-            }
-        }
-        let target = parts.join("/");
-        (valid_relative_path(&target) && self.call.set.files.contains_key(target.as_str()))
-            .then_some(target)
+        let names = if reads_a_name(run) {
+            self.names()?
+        } else {
+            json!({})
+        };
+        let mut options = EnvsubstOptions::default();
+        options.dialect = Dialect::Gnu;
+        options.pattern = Some(Pattern::Braced);
+        options.features = Some(Features::of(&[Feature::Escape]));
+        options.undefined = Undefined::Debug;
+        let text: String = run.iter().collect();
+        render_envsubst(self.call, &text, &names, &options)
     }
 
     fn include(
@@ -456,11 +694,11 @@ impl Walk<'_> {
         let file = &call.set.files[target];
         let text = match &file.format {
             FileFormat::AsWritten => file.rest.to_owned(),
-            FileFormat::Engine(name) => {
-                if !renders(call, name) {
+            FileFormat::Engine { name, options } => {
+                if !call.engines.renders(name, options) {
                     return Ok(None);
                 }
-                render_engine(call, file, name, true)?
+                render_engine(call, file, name, options, target, true)?
             }
             FileFormat::Expanded => {
                 if chain.iter().any(|held| held == target) {
@@ -499,23 +737,57 @@ impl Walk<'_> {
     }
 }
 
-/// The end of a `${NAME}` that starts at `at`, when one does.
-fn placeholder_end(chars: &[char], at: usize) -> Option<usize> {
-    if chars.get(at) != Some(&'$') || chars.get(at + 1) != Some(&'{') {
-        return None;
+/// One line of an expanded file: code is left alone, an include is replaced by its text, and the
+/// runs of the file's own text between them are read by envsubst.
+fn line_of(
+    chars: &[char],
+    in_code: &[bool],
+    walk: &mut Walk<'_>,
+    path: &str,
+    chain: &[String],
+) -> Result<String, KnowledgeError> {
+    let mut out = String::new();
+    let mut run: Vec<char> = Vec::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if in_code[i] {
+            out.push_str(&walk.own(&run)?);
+            run.clear();
+            out.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        if chars[i] == '@'
+            && (i == 0 || matches!(chars[i - 1], ' ' | '\t' | '\r' | '\u{c}' | '\u{b}'))
+        {
+            let mut name: Vec<char> = chars[i + 1..]
+                .iter()
+                .take_while(|c| !matches!(c, ' ' | '\t' | '\r' | '\n' | '\u{c}' | '\u{b}'))
+                .copied()
+                .collect();
+            while name
+                .last()
+                .is_some_and(|c| TRAILING.contains(c) || *c == '"')
+            {
+                name.pop();
+            }
+            let name: String = name.into_iter().collect();
+            if !name.is_empty()
+                && let Some(target) = resolve(walk.call.set, path, &name)
+                && let Some(text) = walk.include(&target, chain)?
+            {
+                out.push_str(&walk.own(&run)?);
+                run.clear();
+                out.push_str(&text);
+                i += 1 + name.chars().count();
+                continue;
+            }
+        }
+        run.push(chars[i]);
+        i += 1;
     }
-    let mut end = at + 2;
-    let first = *chars.get(end)?;
-    if !(first.is_ascii_alphabetic() || first == '_') {
-        return None;
-    }
-    while chars
-        .get(end)
-        .is_some_and(|c| c.is_ascii_alphanumeric() || *c == '_')
-    {
-        end += 1;
-    }
-    (chars.get(end) == Some(&'}')).then_some(end + 1)
+    out.push_str(&walk.own(&run)?);
+    Ok(out)
 }
 
 /// The lines of the served text of each file whose text can be made.
@@ -535,20 +807,6 @@ pub(crate) fn served_lines(call: &Call<'_>) -> BTreeMap<String, Vec<String>> {
         .collect()
 }
 
-/// Renders an `envsubst` file's text over its values: the one place `envsubst` is applied.
-fn render_envsubst(text: &str, values: &Template) -> String {
-    template(text, values)
-}
-
-/// Renders a `mustache` file's text over its data: the one place `mustache` is applied.
-fn render_mustache(
-    text: &str,
-    data: &Value,
-    settings: &KnowledgeSettings,
-) -> Result<String, KnowledgeError> {
-    mustache(text, data, settings)
-}
-
 /// The served text of each file of `overlay` that can be served with no `context`, by path: what
 /// `kb_read` gives for it, which a search indexes. A template reads the facts of `caller`.
 #[must_use]
@@ -556,7 +814,7 @@ pub fn served_texts(
     overlay: &KnowledgeOverlay,
     settings: &KnowledgeSettings,
     caller: &CallerFacts,
-    engines: &[Engine],
+    engines: &Renderers,
 ) -> BTreeMap<String, String> {
     let set = overlay.set(settings);
     let empty = Map::new();

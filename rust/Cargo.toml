@@ -47,6 +47,8 @@ base64 = { version = "0.22", optional = true }
 # `Serialize` and `Deserialize`, for `serde`.
 serde = { version = "1", default-features = false, features = ["alloc", "derive"], optional = true }
 sha2 = { version = "0.10", default-features = false }
+# The template engines of a knowledge file: envsubst and Mustache as their own specifications define them.
+tplx-rs = { git = "https://github.com/jose-pr/tplx-rs", rev = "0298ec416a1676d088abf4f8519812ec4b5eb1e1", default-features = false }
 # The index's include and exclude filters.
 globset = { version = "0.4", default-features = false, optional = true }
 # The index stores vectors as base64.

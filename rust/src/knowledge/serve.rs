@@ -7,11 +7,11 @@ use serde_json::{Map, Value, json};
 
 use super::read::{CallerFacts, choose, read};
 use super::search::{SearchBackend, SearchMode, search};
-use super::serve_text::{Call, served_text};
+use super::serve_text::{Call, Renderers, served_text};
 use super::settings::KnowledgeSettings;
 use super::text::{inert, knowledge_lines};
 use super::tools::{ToolName, knowledge_arguments, knowledge_tools};
-use super::tree::{Engine, FileFormat, KnowledgeOverlay, SkipReason};
+use super::tree::{FileFormat, KnowledgeOverlay, SkipReason};
 use super::{ErrorClass, KnowledgeError};
 
 /// A call of a tool, as the consumer's MCP server received it.
@@ -88,7 +88,7 @@ fn list(
     modes: &[SearchMode],
     settings: &KnowledgeSettings,
     caller: &CallerFacts,
-    engines: &[Engine],
+    engines: &Renderers,
 ) -> Result<Value, KnowledgeError> {
     let mut listed = Vec::new();
     let empty = Map::new();
@@ -118,9 +118,9 @@ fn list(
                 "lines": knowledge_lines(&text).len(),
                 "bytes": text.len(),
             });
-            if let FileFormat::Engine(name) = &file.format {
+            if let FileFormat::Engine { name, options } = &file.format {
                 entry["template"] = json!(name);
-                entry["rendered"] = json!(engines.iter().any(|engine| engine.as_str() == name));
+                entry["rendered"] = json!(engines.renders(name, options));
             }
             files.push(entry);
         }
@@ -136,11 +136,7 @@ fn list(
             "skipped": skipped,
         }));
     }
-    let names: Vec<&str> = Engine::ALL
-        .into_iter()
-        .filter(|engine| engines.contains(engine))
-        .map(Engine::as_str)
-        .collect();
+    let names = engines.names();
     let mut result = json!({"overlays": listed, "engines": names});
     let declared: Vec<&str> = SearchMode::ALL
         .into_iter()
@@ -165,7 +161,7 @@ pub fn knowledge_call(
     overlays: &[KnowledgeOverlay],
     arguments: &Value,
     modes: &[SearchMode],
-    engines: &[Engine],
+    engines: &Renderers,
     settings: &KnowledgeSettings,
     caller: &CallerFacts,
 ) -> Result<Value, KnowledgeError> {
@@ -267,7 +263,7 @@ pub fn kb_read(
         overlays,
         &request.arguments(),
         &[],
-        &Engine::ALL,
+        &Renderers::all(),
         settings,
         caller,
     ))
@@ -288,7 +284,7 @@ pub fn kb_list(
         overlays,
         &arguments,
         modes,
-        &Engine::ALL,
+        &Renderers::all(),
         settings,
         &CallerFacts::new(),
     ))
@@ -296,14 +292,14 @@ pub fn kb_list(
 
 /// One session's knowledge tools: its active overlays, the facts of its caller and, when it offers
 /// `kb_search`, the backend that finds passages.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 #[non_exhaustive]
 pub struct KnowledgeSession<'a> {
     overlays: &'a [KnowledgeOverlay],
     settings: &'a KnowledgeSettings,
     caller: &'a CallerFacts,
     backend: Option<&'a dyn SearchBackend>,
-    engines: &'a [Engine],
+    engines: Renderers,
 }
 
 impl core::fmt::Debug for KnowledgeSession<'_> {
@@ -329,7 +325,7 @@ impl<'a> KnowledgeSession<'a> {
             settings,
             caller,
             backend: None,
-            engines: &Engine::ALL,
+            engines: Renderers::all(),
         }
     }
 
@@ -342,7 +338,7 @@ impl<'a> KnowledgeSession<'a> {
 
     /// Renders only these engines; the rest are served with their context, unrendered.
     #[must_use]
-    pub fn engines(mut self, engines: &'a [Engine]) -> Self {
+    pub fn engines(mut self, engines: Renderers) -> Self {
         self.engines = engines;
         self
     }
@@ -375,7 +371,7 @@ impl<'a> KnowledgeSession<'a> {
                 backend,
                 self.settings,
                 self.caller,
-                self.engines,
+                &self.engines,
             );
         }
         knowledge_call(
@@ -383,7 +379,7 @@ impl<'a> KnowledgeSession<'a> {
             self.overlays,
             &call.arguments,
             modes,
-            self.engines,
+            &self.engines,
             self.settings,
             self.caller,
         )

@@ -6,7 +6,6 @@
 //! consumer serves them over its own MCP. Nothing here reads a file; a [`KnowledgeTree`] is built
 //! from entries or from a [`FileSystem`](crate::FileSystem) the caller supplies.
 
-mod mustache;
 mod plan;
 mod read;
 mod search;
@@ -17,7 +16,6 @@ mod text;
 mod tools;
 mod tree;
 
-pub use mustache::mustache;
 pub use plan::{KnowledgePlan, knowledge_plan};
 pub use read::CallerFacts;
 pub use search::{
@@ -28,7 +26,7 @@ pub use serve::{
     KnowledgeSession, ReadRequest, ToolCall, ToolResult, kb_list, kb_read, kb_tool_result,
     knowledge_call,
 };
-pub use serve_text::served_texts;
+pub use serve_text::{Renderers, served_texts};
 pub use settings::{KnowledgeSettings, MAX_INTEGER};
 pub use text::{inert, knowledge_lines};
 pub use tools::{ToolName, knowledge_arguments, knowledge_tools};

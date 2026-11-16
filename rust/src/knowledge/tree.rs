@@ -68,8 +68,14 @@ pub enum FileFormat {
     Expanded,
     /// Byte for byte: a file that is not markdown, or names `markdown`, `md` or `raw`.
     AsWritten,
-    /// A template of the engine this name gives, which a server may not render.
-    Engine(String),
+    /// A template of the engine this name gives, which a server may not render, with the options
+    /// its first line gives.
+    Engine {
+        /// The engine's name.
+        name: String,
+        /// The `name=value` words of the first line.
+        options: BTreeMap<String, String>,
+    },
 }
 
 /// Why a file of the knowledge is not served.
@@ -396,17 +402,36 @@ impl KnowledgeOverlay {
     }
 }
 
-/// The name a first line gives its format, or none: `#!` and its last word, after any slash or
-/// backslash, leading dots dropped and ASCII capitals lower-cased.
-fn format_name(text: &str) -> Option<String> {
+/// A `name=value` word: `name` lower-case letters and `_`, `value` with no white space.
+fn option_of(word: &str) -> Option<(&str, &str)> {
+    let (name, value) = word.split_once('=')?;
+    let mut chars = name.chars();
+    let named = chars.next().is_some_and(|c| c.is_ascii_lowercase())
+        && chars.all(|c| c.is_ascii_lowercase() || c == '_');
+    (named && !value.is_empty() && !value.chars().any(char::is_whitespace)).then_some((name, value))
+}
+
+/// The name a first line gives its format and its options, or none: `#!` and the last word that is
+/// no option, after any slash or backslash, leading dots dropped and ASCII capitals lower-cased.
+fn format_line(text: &str) -> Option<(String, BTreeMap<String, String>)> {
     let line = text.strip_prefix("#!")?;
     let line = line.split('\n').next().unwrap_or("");
-    let word = line
+    let mut options = BTreeMap::new();
+    let mut name = None;
+    for word in line
         .split([' ', '\t', '\u{c}', '\r'])
-        .rfind(|word| !word.is_empty())?;
-    let word = word.rsplit(['/', '\\']).next().unwrap_or("");
+        .filter(|word| !word.is_empty())
+    {
+        match option_of(word) {
+            Some((key, value)) => {
+                options.insert(key.to_owned(), value.to_owned());
+            }
+            None => name = Some(word),
+        }
+    }
+    let word = name?.rsplit(['/', '\\']).next().unwrap_or("");
     let word = word.trim_start_matches('.');
-    (!word.is_empty()).then(|| word.to_ascii_lowercase())
+    (!word.is_empty()).then(|| (word.to_ascii_lowercase(), options))
 }
 
 /// The one place a file is told from a template: only a markdown file reads its first line.
@@ -415,14 +440,14 @@ fn detect<'a>(path: &str, text: &'a str) -> (FileFormat, &'a str) {
     if !(lower.ends_with(".md") || lower.ends_with(".markdown")) {
         return (FileFormat::AsWritten, text);
     }
-    let Some(name) = format_name(text) else {
+    let Some((name, options)) = format_line(text) else {
         return (FileFormat::Expanded, text);
     };
     let rest = text.find('\n').map_or("", |end| &text[end + 1..]);
     let format = match name.as_str() {
         "markdown" | "md" | "raw" => FileFormat::AsWritten,
         "aos" | "agentic" => FileFormat::Expanded,
-        _ => FileFormat::Engine(name),
+        _ => FileFormat::Engine { name, options },
     };
     (format, rest)
 }

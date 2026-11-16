@@ -7,7 +7,7 @@ use super::support::decode;
 use super::{Report, Runner};
 use crate::{
     CallerFacts, Engine, ErrorClass, KnowledgeEntry, KnowledgeError, KnowledgeOverlay,
-    KnowledgeSettings, KnowledgeTree, Limit, OverlayTree, SearchMode, TemplateFacts,
+    KnowledgeSettings, KnowledgeTree, Limit, OverlayTree, Renderers, SearchMode, TemplateFacts,
     kb_tool_result, knowledge_arguments, knowledge_call, knowledge_plan, knowledge_tools,
     search_check, search_order,
 };
@@ -28,7 +28,6 @@ fn settings_of(case: &Value) -> KnowledgeSettings {
             "max_top" => settings.max_top(limit),
             "max_context_bytes" => settings.max_context_bytes(limit),
             "max_context_depth" => settings.max_context_depth(limit),
-            "max_template_depth" => settings.max_template_depth(limit),
             "max_include_depth" => settings.max_include_depth(limit),
             other => panic!("a limit this runner does not know: {other}"),
         };
@@ -36,14 +35,19 @@ fn settings_of(case: &Value) -> KnowledgeSettings {
     settings
 }
 
-fn engines_of(case: &Value) -> Vec<Engine> {
-    match case.get("engines").and_then(Value::as_array) {
+/// The engines a case's server renders. The vectors' server has `envsubst` with the `escape` and
+/// `default` features only, so a file that asks for another is served with its context.
+fn engines_of(case: &Value) -> Renderers {
+    let engines: Vec<Engine> = match case.get("engines").and_then(Value::as_array) {
         None => Engine::ALL.to_vec(),
         Some(names) => Engine::ALL
             .into_iter()
             .filter(|engine| names.iter().any(|name| name == engine.as_str()))
             .collect(),
-    }
+    };
+    Renderers::none()
+        .engines(&engines)
+        .envsubst_features(&["escape", "default"])
 }
 
 fn modes_of(case: &Value) -> Vec<SearchMode> {

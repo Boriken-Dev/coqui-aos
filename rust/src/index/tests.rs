@@ -900,7 +900,7 @@ fn a_corpus_comes_from_an_overlay_or_a_folder_and_leaves_out_what_is_not_text() 
         &overlay,
         &KnowledgeSettings::default(),
         &crate::CallerFacts::new(),
-        &crate::Engine::ALL,
+        &crate::Renderers::all(),
     );
     // The served text is indexed: a template as rendered, a raw file without its first line.
     assert_eq!(

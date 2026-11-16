@@ -9,15 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Knowledge served through MCP, from specification revision 7f44576, in every language: the knowledge set, argument
+- Knowledge served through MCP, from specification revision ab00884, in every language: the knowledge set, argument
   checks, `kb_list`, `kb_read` with its line rules and the written-out text, a file's format named on the first line
-  of a markdown file (expanded `${NAME}` and `@path` includes by default, as written, `envsubst`, `mustache`, or
-  passed through with its context), templates rendered per call from the caller's facts (`kb_read`, `kbRead`), the
-  result envelopes, the `[knowledge] serve` hint (`knowledge_plan`) and the checks on a search answer; the validator
-  reads the `[knowledge]` table. In Rust the handlers are transport-agnostic (`KnowledgeSession`, `kb_read`,
-  `kb_list`, `SearchBackend`), and the `index` and `embeddings` features add an on-disk index of the served text
-  (passages, BM25, cosine over an embeddings endpoint, generations swapped in atomically) and `IndexSearch`. In
-  Python, Mustache is rendered by `tplx` through the optional `templates` extra.
+  of a markdown file with `name=value` options (expanded `${NAME}` and `@path` includes by default, as written,
+  standard `envsubst` and Mustache, or passed through with its context), templates rendered per call from the
+  caller's facts (`kb_read`, `kbRead`), the result envelopes, the `[knowledge] serve` hint (`knowledge_plan`) and the
+  checks on a search answer; the validator reads the `[knowledge]` table. In Rust the engines are `tplx-rs`, the
+  handlers are transport-agnostic (`KnowledgeSession`, `kb_read`, `kb_list`, `SearchBackend`), and the `index` and
+  `embeddings` features add an on-disk index of the served text (passages, BM25, cosine over an embeddings endpoint,
+  generations swapped in atomically) and `IndexSearch`. In Python the engines are `tplx` (the optional `templates`
+  extra); in TypeScript and Dart, a stock Mustache package and a small envsubst.
 - Options and templating, from specification revision 9692b20, in every language: `validate` checks an
   overlay's `options` (`option-default-type`, `option-sensitive-default`); `template_values`, `template`,
   `context_text` and `skill_text` (`templateValues`, `template`, `contextText`, `skillText` in Dart and

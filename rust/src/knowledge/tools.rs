@@ -4,7 +4,6 @@ use alloc::vec::Vec;
 
 use serde_json::{Map, Value, json};
 
-use super::mustache::is_integer;
 use super::search::SearchMode;
 use super::settings::{KnowledgeSettings, MAX_INTEGER};
 use super::{ErrorClass, KnowledgeError};
@@ -241,4 +240,14 @@ pub fn knowledge_arguments(
         out.entry("mode").or_insert_with(|| json!("auto"));
     }
     Ok(out)
+}
+
+/// Whether `value` is an integer the specification's call and result carry.
+fn is_integer(value: &Value) -> bool {
+    value
+        .as_i64()
+        .is_some_and(|number| number.unsigned_abs() <= MAX_INTEGER.unsigned_abs())
+        || value
+            .as_u64()
+            .is_some_and(|number| number <= MAX_INTEGER.unsigned_abs())
 }

@@ -2,7 +2,7 @@
 
 use coqui_aos::index::{Corpus, Index, IndexSearch, Options, Settings};
 use coqui_aos::{
-    CallerFacts, Engine, KnowledgeOverlay, KnowledgeSession, KnowledgeSettings, KnowledgeTree,
+    CallerFacts, KnowledgeOverlay, KnowledgeSession, KnowledgeSettings, KnowledgeTree, Renderers,
     SearchMode, ToolCall, search_check,
 };
 use serde_json::json;
@@ -24,7 +24,7 @@ fn a_session_searches_the_index_of_the_served_text() {
     let settings = KnowledgeSettings::default();
     let dir = tempfile::tempdir().unwrap();
     let caller = CallerFacts::new();
-    let corpus = Corpus::from_overlay(&overlay, &settings, &caller, &Engine::ALL);
+    let corpus = Corpus::from_overlay(&overlay, &settings, &caller, &Renderers::all());
     assert_eq!(
         corpus.paths().collect::<Vec<_>>(),
         ["flows/ship.md", "kb/rust.md", "kb/t.md"]
@@ -60,7 +60,7 @@ fn a_session_searches_the_index_of_the_served_text() {
         &[SearchMode::Words],
         &settings,
         &caller,
-        &Engine::ALL,
+        &Renderers::all(),
     )
     .unwrap();
     assert!(broken.is_empty(), "{broken:?}");

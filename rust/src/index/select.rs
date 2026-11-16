@@ -10,7 +10,7 @@ use globset::{Glob, GlobBuilder, GlobSet, GlobSetBuilder};
 use sha2::{Digest as _, Sha256};
 
 use super::Error;
-use crate::{CallerFacts, Engine, KnowledgeOverlay, KnowledgeSettings, served_texts};
+use crate::{CallerFacts, KnowledgeOverlay, KnowledgeSettings, Renderers, served_texts};
 
 /// The largest file read from a folder; a bigger one is left out and named in [`Corpus::skipped`].
 const MAX_FILE: u64 = 8 * 1024 * 1024;
@@ -54,7 +54,7 @@ impl Corpus {
         overlay: &KnowledgeOverlay,
         settings: &KnowledgeSettings,
         caller: &CallerFacts,
-        engines: &[Engine],
+        engines: &Renderers,
     ) -> Self {
         let mut corpus = Self::new();
         for (path, text) in served_texts(overlay, settings, caller, engines) {

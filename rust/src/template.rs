@@ -229,3 +229,15 @@ impl Template {
         self
     }
 }
+
+impl Template {
+    /// The names and their text as a JSON object, for an engine that reads its names from data.
+    pub(crate) fn to_object(&self) -> serde_json::Value {
+        serde_json::Value::Object(
+            self.values
+                .iter()
+                .map(|(name, value)| (name.clone(), serde_json::Value::String(value.clone())))
+                .collect(),
+        )
+    }
+}

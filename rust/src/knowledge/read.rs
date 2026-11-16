@@ -6,10 +6,10 @@ use alloc::vec::Vec;
 
 use serde_json::{Map, Value, json};
 
-use super::serve_text::{Call, served_text};
+use super::serve_text::{Call, Renderers, served_text};
 use super::settings::KnowledgeSettings;
 use super::text::{inert, knowledge_lines, needs_writing_out};
-use super::tree::{Engine, FileFormat, KnowledgeEntry, KnowledgeOverlay, SkipReason};
+use super::tree::{FileFormat, KnowledgeEntry, KnowledgeOverlay, SkipReason};
 use super::{ErrorClass, KnowledgeError};
 use crate::names::{normalize_name, valid_relative_path};
 
@@ -135,7 +135,7 @@ pub(crate) fn read(
     arguments: &Map<String, Value>,
     settings: &KnowledgeSettings,
     caller: &CallerFacts,
-    engines: &[Engine],
+    engines: &Renderers,
 ) -> Result<Value, KnowledgeError> {
     let path = arguments["path"].as_str().unwrap_or_default();
     if path_problem(path) {
@@ -219,9 +219,10 @@ pub(crate) fn read(
         "truncated": truncated,
         "text": inert(&chosen.join("\n")),
     });
-    if let Some(FileFormat::Engine(name)) = set.files.get(path).map(|file| &file.format) {
+    if let Some(FileFormat::Engine { name, options }) = set.files.get(path).map(|file| &file.format)
+    {
         result["template"] = json!(name);
-        result["rendered"] = json!(engines.iter().any(|engine| engine.as_str() == name));
+        result["rendered"] = json!(engines.renders(name, options));
     }
     Ok(result)
 }

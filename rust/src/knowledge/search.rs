@@ -9,11 +9,11 @@ use core::cmp::Ordering;
 use serde_json::{Map, Value, json};
 
 use super::read::{CallerFacts, choose, path_problem};
-use super::serve_text::{Call, served_lines};
+use super::serve_text::{Call, Renderers, served_lines};
 use super::settings::KnowledgeSettings;
 use super::text::inert;
 use super::tools::knowledge_arguments;
-use super::tree::{Engine, KnowledgeOverlay};
+use super::tree::KnowledgeOverlay;
 use super::{ErrorClass, KnowledgeError};
 
 /// How a query is matched.
@@ -182,7 +182,7 @@ fn served_of(
     overlay: &KnowledgeOverlay,
     settings: &KnowledgeSettings,
     caller: &CallerFacts,
-    engines: &[Engine],
+    engines: &Renderers,
 ) -> BTreeMap<String, Vec<String>> {
     let set = overlay.set(settings);
     let empty = Map::new();
@@ -203,7 +203,7 @@ pub(crate) fn search(
     backend: &dyn SearchBackend,
     settings: &KnowledgeSettings,
     caller: &CallerFacts,
-    engines: &[Engine],
+    engines: &Renderers,
 ) -> Result<Value, KnowledgeError> {
     let prefix = arguments.get("path").and_then(Value::as_str);
     if let Some(prefix) = prefix
@@ -357,7 +357,7 @@ pub fn search_check(
     modes: &[SearchMode],
     settings: &KnowledgeSettings,
     caller: &CallerFacts,
-    engines: &[Engine],
+    engines: &Renderers,
 ) -> Result<Vec<String>, KnowledgeError> {
     let args = knowledge_arguments("kb_search", arguments, modes, settings)?;
     let mut broken: alloc::collections::BTreeSet<&'static str> =
@@ -410,7 +410,7 @@ fn check_entry(
     modes: &[SearchMode],
     settings: &KnowledgeSettings,
     caller: &CallerFacts,
-    engines: &[Engine],
+    engines: &Renderers,
     broken: &mut alloc::collections::BTreeSet<&'static str>,
 ) {
     let Some(map) = entry.as_object() else {
