@@ -20,6 +20,7 @@ mod fs;
 mod hook_env;
 mod hooks;
 mod kinds;
+mod knowledge;
 mod limits;
 mod names;
 mod overlay;
@@ -67,6 +68,14 @@ pub use hooks::{
     hook_matches, hook_payload, hook_plan, hook_result, hooks_declared, hooks_of, read_hook_output,
 };
 pub use kinds::{FailStep, Format, LeftState, ManifestFile, NonDefaultId, Runtime, Step};
+pub use knowledge::{
+    CallerFacts, Engine, ErrorClass, KnowledgeEntry, KnowledgeError, KnowledgeOverlay,
+    KnowledgePlan, KnowledgeSession, KnowledgeSet, KnowledgeSettings, KnowledgeTree, MAX_INTEGER,
+    Passage, ReadRequest, SearchAnswer, SearchBackend, SearchFailure, SearchMode, SearchRequest,
+    ServedFile, Skip, SkipReason, ToolCall, ToolName, ToolResult, inert, kb_list, kb_read,
+    kb_tool_result, knowledge_arguments, knowledge_call, knowledge_lines, knowledge_plan,
+    knowledge_tools, mustache, search_check, search_order,
+};
 pub use limits::{Limit, NonDefault, Settings};
 pub use names::{
     EXCLUDED_COMPONENTS, current_os, is_reserved_variable, is_sensitive_variable, is_variable_name,

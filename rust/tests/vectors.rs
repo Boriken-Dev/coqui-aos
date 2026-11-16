@@ -74,6 +74,16 @@ fn hooks() {
 }
 
 #[test]
+fn knowledge() {
+    run("knowledge.json");
+}
+
+#[test]
+fn knowledge_search() {
+    run("knowledge_search.json");
+}
+
+#[test]
 fn templating() {
     run("templating.json");
 }

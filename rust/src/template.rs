@@ -220,3 +220,12 @@ pub fn skill_text(data: &[u8], values: &Template, settings: &Settings) -> Result
     out.push_str(&template(utf8(&data[offset..])?, values));
     Ok(out)
 }
+
+impl Template {
+    /// The template with `name` replaced by `value`, in place of any text it had.
+    #[must_use]
+    pub(crate) fn with(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
+        self.values.insert(name.into(), value.into());
+        self
+    }
+}
