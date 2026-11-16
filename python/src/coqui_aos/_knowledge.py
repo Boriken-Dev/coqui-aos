@@ -33,6 +33,7 @@ __all__ = [
     "CallerFacts",
     "KNOWLEDGE_DIRS",
     "KNOWLEDGE_ENGINES",
+    "KNOWLEDGE_LACKS",
     "KNOWLEDGE_MODES",
     "KnowledgeError",
     "KnowledgeFile",
@@ -527,6 +528,9 @@ def _here(item: KnowledgeFile, engines: "List[str]") -> bool:
     options are refused is rendered, so that the refusal is served."""
     if item.engine not in engines:
         return False
+    for key, value in item.options.items():
+        if "-%s:%s=%s" % (item.engine, key, value) in engines:
+            return False
     if item.engine == "envsubst":
         try:
             return _envsubst_options(item.options).features <= _ENVSUBST_FEATURES
@@ -535,9 +539,22 @@ def _here(item: KnowledgeFile, engines: "List[str]") -> bool:
     return True
 
 
+#: The option values of the engines this server cannot honour, as ``engine:option=value``: tplx's
+#: Mustache has no setting that turns escaping off. A file that asks for one is served as it is
+#: with its context, as for an engine the server lacks.
+KNOWLEDGE_LACKS = ("mustache:escape=none",)
+
+
 def _engines(engines: "Optional[Iterable[str]]") -> "List[str]":
-    wanted = set(knowledge_engines() if engines is None else engines)
-    return [engine for engine in KNOWLEDGE_ENGINES if engine in wanted]
+    """The engines a call renders with, then what the server lacks as ``-engine:option=value``: those
+    given, or by default ``knowledge_engines()`` and ``KNOWLEDGE_LACKS``."""
+    if engines is None:
+        return knowledge_engines() + ["-" + lacked for lacked in KNOWLEDGE_LACKS]
+    given = list(engines)
+    wanted = set(given)
+    return [engine for engine in KNOWLEDGE_ENGINES if engine in wanted] + [
+        entry for entry in given if entry.startswith("-")
+    ]
 
 
 def _choose(overlays: "Sequence[KnowledgeOverlay]", wanted: Optional[str]) -> "List[KnowledgeOverlay]":
@@ -670,7 +687,10 @@ def _list(
                 "skipped": [{"path": inert(path), "reason": reason} for path, reason in skipped],
             }
         )
-    result: "Dict[str, Any]" = {"overlays": listed, "engines": engines}
+    result: "Dict[str, Any]" = {
+        "overlays": listed,
+        "engines": [engine for engine in engines if not engine.startswith("-")],
+    }
     if modes:
         result["search"] = {"modes": [mode for mode in KNOWLEDGE_MODES if mode in set(modes)]}
     return result

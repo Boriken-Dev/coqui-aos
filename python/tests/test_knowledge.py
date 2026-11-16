@@ -18,6 +18,7 @@ from coqui_aos import (
     Metadata,
     TemplateFacts,
     TreeEntry,
+    KNOWLEDGE_LACKS,
     inert,
     kb_list,
     kb_read,
@@ -37,6 +38,7 @@ from coqui_aos import (
 
 KNOWLEDGE = cases("knowledge.json")
 ENGINES = ("envsubst", "mustache")
+LACKED = KNOWLEDGE_LACKS  # what this server cannot honour
 KNOWLEDGE_SEARCH = cases("knowledge_search.json")
 
 
@@ -76,19 +78,31 @@ def caller_of(facts):
     )
 
 
+def engines_of(case):
+    return list(case.get("engines", ENGINES)) + ["-" + lacked for lacked in case.get("lacks", [])]
+
+
+def not_run(case):
+    """Whether the case needs an option value this server lacks and does not say it lacks it: the
+    case is then not run (`test_the_cases_needing_a_lacked_option_are_named` names them)."""
+    return not case.get("lacks") and any(need in LACKED for need in case.get("needs", []))
+
+
 # Cases the Mustache engine behind the `templates` extra (tplx's MustacheTemplate over chevron) does not
 # meet, each named with what differs. `test_the_engine_gaps_still_differ` runs them and fails once one
 # is met, so the entry is dropped.
 ENGINE_GAPS = {
-    "mustache-facts": "a boolean is written True, where the vector reads true",
-    "mustache-no-caller": "a boolean is written True, where the vector reads true",
-    "mustache-escape-none-option": "MustacheTemplate has no setting that turns escaping off (escape=none)",
-    "mustache-partial-escape-none-reaches-partials": "MustacheTemplate has no setting that turns escaping off (escape=none)",
     "mustache-dotted-context-precedence": "a dotted name falls back to an outer context for its later parts",
     "mustache-delimiters-bad": "a delimiter tag with one word (`{{=<%=}}`) is accepted, not refused",
     "mustache-partial-reaches-the-root": "a partial name with `..` is refused by the loader, so it renders as nothing",
-    "mustache-partial-endless-recursion-is-a-limit": "partial nesting has no depth limit, a template-error is raised and not include-error",
+    "mustache-partial-endless-recursion-is-a-limit": "partial nesting has no depth limit, so a template-error is raised and not include-error",
 }
+
+
+def test_the_cases_needing_a_lacked_option_are_named():
+    named = sorted(c["id"] for c in KNOWLEDGE if not_run(c))
+    assert named, "no case needs an option this server lacks"
+    assert all("escape=none" in json.dumps(c["needs"]) for c in KNOWLEDGE if not_run(c))
 
 
 def outcome_of(case):
@@ -99,7 +113,7 @@ def outcome_of(case):
         case.get("modes", []),
         settings_of(case),
         caller_of(case.get("facts")),
-        case.get("engines", ENGINES),
+        engines_of(case),
     )
     return {"error": out["error"]["class"]} if "error" in out else {"result": out["result"]}
 
@@ -109,7 +123,9 @@ def test_the_engine_gaps_still_differ(case):
     assert strict(json.loads(json.dumps(outcome_of(case)))) != strict(case["expect"])
 
 
-@pytest.mark.parametrize("case", [c for c in KNOWLEDGE if c["id"] not in ENGINE_GAPS], ids=lambda c: c["id"])
+@pytest.mark.parametrize(
+    "case", [c for c in KNOWLEDGE if c["id"] not in ENGINE_GAPS and not not_run(c)], ids=lambda c: c["id"]
+)
 def test_knowledge(case):
     limits = settings_of(case)
     if case["id"].startswith("tools-"):
@@ -144,7 +160,7 @@ def test_knowledge_search(case):
                 case["modes"],
                 settings_of(case),
                 caller_of(case.get("facts")),
-                case.get("engines", ENGINES),
+                engines_of(case),
             )
         }
     assert strict(json.loads(json.dumps(got))) == strict(case["expect"])
