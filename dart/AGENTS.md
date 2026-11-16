@@ -119,6 +119,29 @@ void checkRequirements(String text, bool locked)                           // `i
 
 `OverlayTree` is immutable. `withText` ignores a path the tree does not hold; `withBytes` adds it. The body of `OVERLAY.md` is the context default when its text was read into the tree.
 
+## Knowledge served through MCP
+
+```dart
+Map<String, Object?> kbRead(List<KnowledgeOverlay> overlays, {required String path, Object? from, Object? to, String? overlay, Map<String, Object?>? context, CallerFacts caller = const CallerFacts(), KnowledgeSettings? settings})
+Map<String, Object?> kbList(List<KnowledgeOverlay> overlays, {String? overlay, Iterable<String> modes = const [], KnowledgeSettings? settings})
+Map<String, Object?> knowledgeCall(String tool, List<KnowledgeOverlay> overlays, Object? arguments, [Iterable<String> modes = const [], KnowledgeSettings? settings, CallerFacts caller])   // {'result': ...} or {'error': {'class', 'message'}}
+Map<String, Object?> knowledgeResult(Map<String, Object?> outcome)     // MCP: {content: [{type: text, text}], structuredContent, isError}
+List<Map<String, Object?>> knowledgeTools(Iterable<String> modes, [KnowledgeSettings? settings])   // kb_list, kb_read, and kb_search when a mode is declared
+Map<String, Object?> knowledgeArguments(String tool, Object? arguments, Iterable<String> modes, [KnowledgeSettings? settings])   // throws KnowledgeError invalid-arguments
+KnowledgeSet knowledgeSet(KnowledgeOverlay overlay, [KnowledgeSettings? settings])   // files (KnowledgeFile: path, text, engine, bytes, raw), skipped [(path, reason)]
+KnowledgePlan knowledgePlan(Document manifest, OverlayTree tree, [bool? user])      // served, leftOut
+Future<Map<String, KnowledgeEntry>> readKnowledgeTree(FileSystem files, String root, {Settings? limits, KnowledgeSettings? settings})
+String mustache(String text, Map<String, Object?> data, [KnowledgeSettings? settings])   // KnowledgeError template-error, too-large
+String inert(String text);  List<String> knowledgeLines(String text)
+List<Map<String, Object?>> searchOrder(List<Map<String, Object?>> passages);  List<String> searchCheck(overlays, arguments, response, modes, [settings])
+class KnowledgeOverlay { KnowledgeOverlay({required identity, Document manifest, required Map<String, KnowledgeEntry> tree, bool served = false, TemplateFacts facts});  KnowledgeEntry.file(bytes, {size}), .text(text), .directory(), .symlink(), .special() }
+class CallerFacts { const CallerFacts({String? role, profile, Map<String, String> env, List<String> envAllow}) }
+class KnowledgeSettings { KnowledgeSettings([Map<String, Limit> changes]);  KnowledgeSettings.fromData(Map<String, Object?>);  copyWith, values(), nonDefaults();  maxFileBytes, maxReadBytes, maxRenderedBytes, maxQueryCharacters, maxTop, maxContextBytes, maxContextDepth, maxTemplateDepth }
+class KnowledgeError implements Exception { final String errorClass; final String message }
+```
+
+`kbRead` is the one call a consumer's `kb_read` makes: it validates the arguments, finds the file, renders it when its front matter names `template: envsubst` or `template: mustache` from the overlay's facts, `caller` (role, profile, the environment names the user allowed with their values, never a sensitive one) and `context`, cuts the lines, writes the text out and returns the MCP result; a consumer never renders a template itself. In `knowledgeCall` and `knowledgeArguments` an integer is a `BigInt` (a plain `int` is not one, since on the web a whole `double` is an `int`); `kbRead` takes `from`, `to` and `context` as plain JSON and reads each `int` as an integer. A result's numbers are `int`. `from` and `to` are 1-based lines; a read stops before the line that would pass `maxReadBytes` and says `truncated`. Served text is written out by `inert` (control and hiding characters become `<U+XXXX>`) and a consumer never splices it into text of its own. `readKnowledgeTree` records a link and never enters it, keeps only the start of a file past `maxFileBytes`, and leaves out names an overlay may not hold. `kb_search` is the consumer's: this package declares no mode and searches nothing, and `searchCheck` and `searchOrder` check an answer's shape and order. Every knowledge limit is a setting with no floor; `nonDefaults()` reports the ones that differ. A manifest's `[knowledge]` table holds only the boolean `serve`; `knowledgePlan` says which `rules` and `context` files a served overlay leaves out of the context.
+
 ## Composition and the environment
 
 ```dart

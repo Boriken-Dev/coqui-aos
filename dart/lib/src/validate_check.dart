@@ -289,6 +289,11 @@ class Check {
           hooks(value, at);
         case 'about':
           about(value, at);
+        case 'knowledge':
+          final map = object(value, at, const ['serve']);
+          if (map != null && map.containsKey('serve')) {
+            boolean(map['serve'], join(at, 'serve'));
+          }
         default:
       }
     }

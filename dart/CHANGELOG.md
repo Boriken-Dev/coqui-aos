@@ -16,6 +16,12 @@ All notable changes to this package are documented in this file; the repository'
   `match` may allow it: `HookRun` gains `select` and `fireEvent` a `toolKind`; another hook's allow and
   `input` are not counted and are reported `hook-not-applied` `allow`, and its deny and ask still count.
 
+- From specification revision 02856e6, an overlay's knowledge served through MCP: `knowledgeTools`,
+  `knowledgeArguments`, `kbList`, `kbRead` (the file rendered per call from the caller's role, profile,
+  allowed environment names and the call's `context`, for `envsubst` and the `mustache` subset), `knowledgeResult`,
+  `knowledgeSet`, `readKnowledgeTree`, `knowledgePlan` and the `[knowledge]` table's validation; `searchCheck` and
+  `searchOrder` check a `kb_search` answer. Every limit is a `KnowledgeSettings` field with no floor.
+
 ## 0.0.0-alpha.0
 
 - First release: the whole of AOS v0 `0.1.0-draft` in pure Dart, passing every conformance vector
