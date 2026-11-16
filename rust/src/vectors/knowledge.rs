@@ -35,8 +35,7 @@ fn settings_of(case: &Value) -> KnowledgeSettings {
     settings
 }
 
-/// The engines a case's server renders. The vectors' server has `envsubst` with the `escape` and
-/// `default` features only, so a file that asks for another is served with its context.
+/// The engines a case's server renders, and the option values it declares it lacks.
 fn engines_of(case: &Value) -> Renderers {
     let engines: Vec<Engine> = match case.get("engines").and_then(Value::as_array) {
         None => Engine::ALL.to_vec(),
@@ -45,9 +44,14 @@ fn engines_of(case: &Value) -> Renderers {
             .filter(|engine| names.iter().any(|name| name == engine.as_str()))
             .collect(),
     };
-    Renderers::none()
-        .engines(&engines)
-        .envsubst_features(&["escape", "default"])
+    let lacks: Vec<&str> = case
+        .get("lacks")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    Renderers::none().engines(&engines).lacking(&lacks)
 }
 
 fn modes_of(case: &Value) -> Vec<SearchMode> {

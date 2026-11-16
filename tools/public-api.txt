@@ -925,7 +925,7 @@ pub fn coqui_aos::ReadRequest::to(self, u64) -> Self
 impl coqui_aos::Renderers
 pub fn coqui_aos::Renderers::all() -> Self
 pub fn coqui_aos::Renderers::engines(self, &[coqui_aos::Engine]) -> Self
-pub fn coqui_aos::Renderers::envsubst_features(self, &[&str]) -> Self
+pub fn coqui_aos::Renderers::lacking(self, &[&str]) -> Self
 pub fn coqui_aos::Renderers::names(&self) -> alloc::vec::Vec<&'static str>
 pub fn coqui_aos::Renderers::none() -> Self
 impl core::default::Default for coqui_aos::Renderers

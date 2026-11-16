@@ -213,21 +213,6 @@ fn context_block(engine: &str, data: &Value) -> String {
     out
 }
 
-/// The envsubst features this crate's engine has, as the specification names them.
-const ENVSUBST_FEATURES: [&str; 11] = [
-    "escape",
-    "default",
-    "assign",
-    "alternate",
-    "nested",
-    "unquote",
-    "slice",
-    "replace",
-    "trim",
-    "case",
-    "length",
-];
-
 /// What an `envsubst` file does with a name that has no value, when its first line says nothing.
 const DEFAULT_UNDEFINED: Undefined = Undefined::Debug;
 
@@ -237,7 +222,7 @@ const DEFAULT_UNDEFINED: Undefined = Undefined::Debug;
 #[non_exhaustive]
 pub struct Renderers {
     engines: Vec<Engine>,
-    features: Option<Vec<String>>,
+    lacking: Vec<String>,
 }
 
 impl Renderers {
@@ -246,7 +231,7 @@ impl Renderers {
     pub fn all() -> Self {
         Self {
             engines: Engine::ALL.to_vec(),
-            features: None,
+            lacking: Vec::new(),
         }
     }
 
@@ -255,7 +240,7 @@ impl Renderers {
     pub fn none() -> Self {
         Self {
             engines: Vec::new(),
-            features: None,
+            lacking: Vec::new(),
         }
     }
 
@@ -266,11 +251,12 @@ impl Renderers {
         self
     }
 
-    /// Renders `envsubst` with only the features these names give (`escape`, `default`, ...); a file that
-    /// asks for another is served with its context.
+    /// Does not honour these option values, each written `engine:option=value` (`mustache:escape=none`):
+    /// a file that asks for one is served as written with its context, and `kb_list` says it is not
+    /// rendered.
     #[must_use]
-    pub fn envsubst_features(mut self, features: &[&str]) -> Self {
-        self.features = Some(features.iter().map(|name| (*name).to_owned()).collect());
+    pub fn lacking(mut self, values: &[&str]) -> Self {
+        self.lacking = values.iter().map(|value| (*value).to_owned()).collect();
         self
     }
 
@@ -289,19 +275,11 @@ impl Renderers {
         if !self.engines.iter().any(|engine| engine.as_str() == name) {
             return false;
         }
-        match (name, &self.features, options.get("features")) {
-            ("envsubst", Some(have), Some(asked)) => {
-                let asked: Vec<&str> = asked.split(',').collect();
-                // A name that is no feature is the file's error, raised when it is read.
-                !asked
-                    .iter()
-                    .all(|feature| ENVSUBST_FEATURES.contains(feature))
-                    || asked
-                        .iter()
-                        .all(|feature| have.iter().any(|held| held == feature))
-            }
-            _ => true,
-        }
+        !options.iter().any(|(key, value)| {
+            self.lacking
+                .iter()
+                .any(|lacked| *lacked == alloc::format!("{name}:{key}={value}"))
+        })
     }
 }
 
