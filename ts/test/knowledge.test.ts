@@ -43,7 +43,8 @@ function overlaysOf(item: Map<string, Json>): KnowledgeOverlay[] {
 }
 
 function enginesOf(item: Map<string, Json>): string[] {
-  return item.has("engines") ? strings(item.get("engines")) : ["envsubst", "mustache"];
+  const engines = item.has("engines") ? strings(item.get("engines")) : ["envsubst", "mustache"];
+  return [...engines, ...strings(item.get("lacks")).map((lacked) => `-${lacked}`)];
 }
 
 function callerOf(item: Map<string, Json>): CallerFacts {

@@ -308,13 +308,14 @@ function failure(error: KnowledgeError): KnowledgeOutcome {
   return { error: { class: error.class, message: error.detail } };
 }
 
-/** The engines `engines` names that this package renders, in the order `envsubst`, `mustache`. */
+/** The engines `engines` names that this package renders, in the order `envsubst`, `mustache`, then the option values it lacks, each as `-engine:option=value`. */
 function renderable(engines: Iterable<string>): string[] {
   const given = new Set(engines);
-  return ENGINES.filter((engine) => given.has(engine));
+  const lacks = [...given].filter((entry) => entry.startsWith("-"));
+  return [...ENGINES.filter((engine) => given.has(engine)), ...lacks];
 }
 
-/** What a server answers a call of `kb_list` or `kb_read`: `{ result }` or `{ error: { class, message } }`. `modes` are the declared search modes, `engines` the template engines this server renders with (`envsubst` and `mustache` by default); `arguments` are as `knowledgeArguments` reads them. */
+/** What a server answers a call of `kb_list` or `kb_read`: `{ result }` or `{ error: { class, message } }`. `modes` are the declared search modes, `engines` the template engines this server renders with (`envsubst` and `mustache` by default, with any `-engine:option=value` entry naming an option value it cannot honour: a file whose first line gives it is served as written, `rendered` false); `arguments` are as `knowledgeArguments` reads them. */
 export function knowledgeCall(
   tool: string,
   overlays: readonly KnowledgeOverlay[],
@@ -374,7 +375,7 @@ function listResult(
       skipped: skipped.map(([path, reason]) => ({ path: inert(path), reason })),
     });
   }
-  const result: Record<string, unknown> = { overlays: listed, engines: [...engines] };
+  const result: Record<string, unknown> = { overlays: listed, engines: engines.filter((engine) => !engine.startsWith("-")) };
   if (ordered(modes).length > 0) result["search"] = { modes: ordered(modes) };
   return result;
 }
@@ -453,6 +454,7 @@ function readResult(
 /** Whether this server renders the file's engine with the options its first line asks for: an `envsubst` file asking for a feature this renderer lacks is served as for an engine the server does not have. */
 function renders(item: KnowledgeFile, engines: readonly string[]): boolean {
   if (item.engine === null || !engines.includes(item.engine)) return false;
+  for (const [key, value] of Object.entries(item.options)) if (engines.includes(`-${item.engine}:${key}=${value}`)) return false;
   if (item.engine !== "envsubst") return true;
   try {
     return [...envsubstOptions(item.options).features].every((feature) => IMPLEMENTED_FEATURES.has(feature));
