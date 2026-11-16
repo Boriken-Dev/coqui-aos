@@ -1616,7 +1616,7 @@
                 {
                   "path": "kb/dollar.md",
                   "lines": 1,
-                  "bytes": 96
+                  "bytes": 95
                 },
                 {
                   "path": "kb/empty.md",
@@ -2183,12 +2183,12 @@
                 {
                   "path": "kb/dollar.md",
                   "lines": 1,
-                  "bytes": 96
+                  "bytes": 95
                 },
                 {
                   "path": "kb/env.md",
                   "lines": 6,
-                  "bytes": 330,
+                  "bytes": 202,
                   "template": "envsubst",
                   "rendered": true
                 },
@@ -2501,7 +2501,7 @@
                 {
                   "path": "kb/env.md",
                   "lines": 6,
-                  "bytes": 369,
+                  "bytes": 187,
                   "template": "envsubst",
                   "rendered": true
                 },
@@ -5593,7 +5593,7 @@
     },
     {
       "id": "default-vars-and-unknown-names",
-      "description": "A markdown file that names no format is expanded: ${NAME} of the facts is replaced, `$${` is `${`, and anything else stays as written: an unknown name, `$$` and `$x`, and {{...}} tags.",
+      "description": "A markdown file that names no format is expanded: ${NAME} of the facts is replaced, `$${` is `${`, and anything else stays as written: an unknown name, `$$` is `$`, and anything else stays as written: an unknown name, `$x` (only the braced form is read) and {{...}} tags.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -5649,7 +5649,7 @@
           "to_line": 1,
           "total_lines": 1,
           "truncated": false,
-          "text": "name team-docs home ${HOME} {{overlay.name}} lit ${AOS_OVERLAY_NAME} arg caching $$ $x"
+          "text": "name team-docs home ${HOME} {{overlay.name}} lit ${AOS_OVERLAY_NAME} arg caching $ $x"
         }
       }
     },
@@ -5692,7 +5692,7 @@
           "to_line": 1,
           "total_lines": 1,
           "truncated": false,
-          "text": "name team-docs home ${HOME} {{overlay.name}} lit ${AOS_OVERLAY_NAME} arg ${AOS_ARG_topic} $$ $x"
+          "text": "name team-docs home ${HOME} {{overlay.name}} lit ${AOS_OVERLAY_NAME} arg ${AOS_ARG_topic} $ $x"
         }
       }
     },
@@ -6021,7 +6021,7 @@
           "to_line": 6,
           "total_lines": 6,
           "truncated": false,
-          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic caching n 3 flag true list ${AOS_ARG_items}\ndepth normal token ${token} plain ${HOME} ${AOS_OVERLAY_NAME} {{overlay.name}}",
+          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home  off \ntopic caching n 3 flag true list \ndepth normal token  plain  $team-docs {{overlay.name}}",
           "template": "envsubst",
           "rendered": true
         }
@@ -6029,7 +6029,7 @@
     },
     {
       "id": "envsubst-no-caller",
-      "description": "A consumer with no caller facts, no environment and no context gives no value: every name is left as written.",
+      "description": "A consumer with no caller facts, no environment and no context gives no value: every such name is replaced by nothing.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -6073,7 +6073,7 @@
           "to_line": 6,
           "total_lines": 6,
           "truncated": false,
-          "text": "overlay team-docs root /o/team-docs scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth normal token ${token} plain ${HOME} ${AOS_OVERLAY_NAME} {{overlay.name}}",
+          "text": "overlay team-docs root /o/team-docs scope \nproject  state \nrole  profile \nuser  home  off \ntopic  n  flag  list \ndepth normal token  plain  $team-docs {{overlay.name}}",
           "template": "envsubst",
           "rendered": true
         }
@@ -6225,7 +6225,7 @@
           "to_line": 6,
           "total_lines": 6,
           "truncated": false,
-          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home ${AOS_ENV_HOME} off zsh\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth normal token ${token} plain ${HOME} ${AOS_OVERLAY_NAME} {{overlay.name}}",
+          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home  off zsh\ntopic  n  flag  list \ndepth normal token  plain  $team-docs {{overlay.name}}",
           "template": "envsubst",
           "rendered": true
         }
@@ -6296,7 +6296,7 @@
           "to_line": 6,
           "total_lines": 6,
           "truncated": false,
-          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth normal token ${token} plain ${HOME} ${AOS_OVERLAY_NAME} {{overlay.name}}",
+          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser  home  off \ntopic  n  flag  list \ndepth normal token  plain  $team-docs {{overlay.name}}",
           "template": "envsubst",
           "rendered": true
         }
@@ -6374,7 +6374,7 @@
           "to_line": 6,
           "total_lines": 6,
           "truncated": false,
-          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_OVERLAY_NAME} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth normal token ${token} plain ${HOME} ${AOS_OVERLAY_NAME} {{overlay.name}}",
+          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home  off \ntopic ${AOS_OVERLAY_NAME} n  flag  list \ndepth normal token  plain  $team-docs {{overlay.name}}",
           "template": "envsubst",
           "rendered": true
         }
@@ -6591,7 +6591,7 @@
     },
     {
       "id": "mustache-facts",
-      "description": "Every root a Mustache file reads: overlay, project, caller, env (the allowed ones), options and context. Sections walk lists and take an object as their context; a missing name is empty; a section on a missing or false name is skipped and an inverted one is shown; a comment alone on a line (white space around it allowed) leaves no line, as do section tags alone on theirs; a value is inserted as it is, with no escaping, however it is written; ${...} is plain text here.",
+      "description": "Every root a Mustache file reads: overlay, project, caller, env (the allowed ones), options and context. Sections walk lists and take an object as their context; a missing name is empty; a section on a missing or false name is skipped and an inverted one is shown; a comment alone on a line (white space around it allowed) leaves no line, as do section tags alone on theirs; {{x}} is HTML escaped (& < > \"), {{{x}}} and {{&x}} are not; ${...} is plain text here.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -6675,7 +6675,7 @@
           "to_line": 9,
           "total_lines": 9,
           "truncated": false,
-          "text": "# team-docs\nRole: reviewer\n- one\n- two\nana is 30 at team-docs\nbo is 4 at team-docs\nenv ana missing [] depth normal strict true\nraw <b>&\"x\"</b> <b>&\"x\"</b> <b>&\"x\"</b>\nshell ${HOME} ${AOS_OVERLAY_NAME}",
+          "text": "# team-docs\nRole: reviewer\n- one\n- two\nana is 30 at team-docs\nbo is 4 at team-docs\nenv ana missing [] depth normal strict true\nraw <b>&\"x\"</b> <b>&\"x\"</b> &lt;b&gt;&amp;&quot;x&quot;&lt;/b&gt;\nshell ${HOME} ${AOS_OVERLAY_NAME}",
           "template": "mustache",
           "rendered": true
         }
@@ -7090,54 +7090,6 @@
       }
     },
     {
-      "id": "mustache-two-tags-one-line",
-      "description": "Two section tags on one line are not standalone.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{#context.x}}{{/context.x}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md",
-        "context": {
-          "x": true
-        }
-      },
-      "facts": {},
-      "expect": {
-        "result": {
-          "overlay": "team-docs",
-          "path": "kb/t.md",
-          "from_line": 1,
-          "to_line": 1,
-          "total_lines": 1,
-          "truncated": false,
-          "text": "",
-          "template": "mustache",
-          "rendered": true
-        }
-      }
-    },
-    {
       "id": "mustache-last-line-no-terminator",
       "description": "A standalone tag on a last line with no line end.",
       "tool": "kb_read",
@@ -7180,155 +7132,6 @@
           "total_lines": 2,
           "truncated": false,
           "text": "a\nin",
-          "template": "mustache",
-          "rendered": true
-        }
-      }
-    },
-    {
-      "id": "mustache-implicit-iterator",
-      "description": "'.' is the item a section is on.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{#context.xs}}[{{.}}]{{/context.xs}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md",
-        "context": {
-          "xs": [
-            "a",
-            2,
-            true
-          ]
-        }
-      },
-      "facts": {},
-      "expect": {
-        "result": {
-          "overlay": "team-docs",
-          "path": "kb/t.md",
-          "from_line": 1,
-          "to_line": 1,
-          "total_lines": 1,
-          "truncated": false,
-          "text": "[a][2][true]",
-          "template": "mustache",
-          "rendered": true
-        }
-      }
-    },
-    {
-      "id": "mustache-scalar-section",
-      "description": "A section on a value that is not a list or object shows once with that value as '.'.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{#context.n}}n is {{.}}{{/context.n}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md",
-        "context": {
-          "n": 3
-        }
-      },
-      "facts": {},
-      "expect": {
-        "result": {
-          "overlay": "team-docs",
-          "path": "kb/t.md",
-          "from_line": 1,
-          "to_line": 1,
-          "total_lines": 1,
-          "truncated": false,
-          "text": "n is 3",
-          "template": "mustache",
-          "rendered": true
-        }
-      }
-    },
-    {
-      "id": "mustache-empty-string-is-truthy",
-      "description": "An empty string and 0 are not false.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{#context.s}}s{{/context.s}}{{#context.z}}z{{/context.z}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md",
-        "context": {
-          "s": "",
-          "z": 0
-        }
-      },
-      "facts": {},
-      "expect": {
-        "result": {
-          "overlay": "team-docs",
-          "path": "kb/t.md",
-          "from_line": 1,
-          "to_line": 1,
-          "total_lines": 1,
-          "truncated": false,
-          "text": "sz",
           "template": "mustache",
           "rendered": true
         }
@@ -7601,110 +7404,6 @@
       }
     },
     {
-      "id": "mustache-bool-and-int",
-      "description": "A boolean is written true or false, an integer in decimal; an object or a list inserted as a variable gives nothing.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{context.t}} {{context.f}} {{context.n}} [{{context.o}}] [{{context.l}}]\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md",
-        "context": {
-          "t": true,
-          "f": false,
-          "n": -7,
-          "o": {
-            "a": 1
-          },
-          "l": [
-            1
-          ]
-        }
-      },
-      "facts": {},
-      "expect": {
-        "result": {
-          "overlay": "team-docs",
-          "path": "kb/t.md",
-          "from_line": 1,
-          "to_line": 1,
-          "total_lines": 1,
-          "truncated": false,
-          "text": "true false -7 [] []",
-          "template": "mustache",
-          "rendered": true
-        }
-      }
-    },
-    {
-      "id": "mustache-no-escaping",
-      "description": "No escaping, in any form: markup and quotes come out as they went in.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{context.x}}|{{{context.x}}}|{{&context.x}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md",
-        "context": {
-          "x": "<a href=\"y\">&amp;</a>"
-        }
-      },
-      "facts": {},
-      "expect": {
-        "result": {
-          "overlay": "team-docs",
-          "path": "kb/t.md",
-          "from_line": 1,
-          "to_line": 1,
-          "total_lines": 1,
-          "truncated": false,
-          "text": "<a href=\"y\">&amp;</a>|<a href=\"y\">&amp;</a>|<a href=\"y\">&amp;</a>",
-          "template": "mustache",
-          "rendered": true
-        }
-      }
-    },
-    {
       "id": "mustache-spaces-in-tag",
       "description": "Spaces and tabs inside a tag are ignored.",
       "tool": "kb_read",
@@ -7746,7 +7445,7 @@
           "to_line": 1,
           "total_lines": 1,
           "truncated": false,
-          "text": "vvvv",
+          "text": "vvv",
           "template": "mustache",
           "rendered": true
         }
@@ -7850,181 +7549,6 @@
       }
     },
     {
-      "id": "mustache-partial-refused",
-      "description": "A partial would read a file: refused.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{> other}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md"
-      },
-      "facts": {},
-      "expect": {
-        "error": "template-error"
-      }
-    },
-    {
-      "id": "mustache-delimiter-refused",
-      "description": "Changing delimiters is not defined.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{=<% %>=}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md"
-      },
-      "facts": {},
-      "expect": {
-        "error": "template-error"
-      }
-    },
-    {
-      "id": "mustache-lambda-refused",
-      "description": "A section whose name is a call or a script is no name.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{#run()}}x{{/run()}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md"
-      },
-      "facts": {},
-      "expect": {
-        "error": "template-error"
-      }
-    },
-    {
-      "id": "mustache-bad-name",
-      "description": "A name with a space inside, or a dash.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{a b}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md"
-      },
-      "facts": {},
-      "expect": {
-        "error": "template-error"
-      }
-    },
-    {
-      "id": "mustache-dash-name",
-      "description": "A dash is not in a name.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{a-b}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md"
-      },
-      "facts": {},
-      "expect": {
-        "error": "template-error"
-      }
-    },
-    {
       "id": "mustache-unclosed-tag",
       "description": "A tag with no closing braces.",
       "tool": "kb_read",
@@ -8047,41 +7571,6 @@
             {
               "path": "kb/t.md",
               "text": "#!mustache\ntext {{x\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md"
-      },
-      "facts": {},
-      "expect": {
-        "error": "template-error"
-      }
-    },
-    {
-      "id": "mustache-tag-over-two-lines",
-      "description": "A tag does not span lines.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{x\n}}\n"
             }
           ]
         }
@@ -8197,168 +7686,6 @@
       "facts": {},
       "expect": {
         "error": "template-error"
-      }
-    },
-    {
-      "id": "mustache-empty-tag",
-      "description": "An empty tag.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md"
-      },
-      "facts": {},
-      "expect": {
-        "error": "template-error"
-      }
-    },
-    {
-      "id": "mustache-unknown-sigil",
-      "description": "A sigil nothing defines.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{%x}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md"
-      },
-      "facts": {},
-      "expect": {
-        "error": "template-error"
-      }
-    },
-    {
-      "id": "mustache-too-deep",
-      "description": "Sections nested past max_template_depth.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{#context.a}}{{#context.a}}{{#context.a}}{{/context.a}}{{/context.a}}{{/context.a}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md",
-        "context": {
-          "a": true
-        }
-      },
-      "facts": {},
-      "limits": {
-        "max_template_depth": 3
-      },
-      "expect": {
-        "error": "template-error"
-      }
-    },
-    {
-      "id": "mustache-at-depth",
-      "description": "At max_template_depth: the document itself is not a level.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{#context.a}}{{#context.a}}{{/context.a}}{{/context.a}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md",
-        "context": {
-          "a": true
-        }
-      },
-      "facts": {},
-      "limits": {
-        "max_template_depth": 3
-      },
-      "expect": {
-        "result": {
-          "overlay": "team-docs",
-          "path": "kb/t.md",
-          "from_line": 1,
-          "to_line": 1,
-          "total_lines": 1,
-          "truncated": false,
-          "text": "",
-          "template": "mustache",
-          "rendered": true
-        }
       }
     },
     {
@@ -10736,7 +10063,7 @@
           "to_line": 6,
           "total_lines": 6,
           "truncated": false,
-          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth normal token ${token} plain ${HOME} ${AOS_OVERLAY_NAME} {{overlay.name}}",
+          "text": "overlay team-docs root /o/team-docs scope user\nproject /work/app state /s/team-docs\nrole reviewer profile work\nuser ana home  off \ntopic  n  flag  list \ndepth normal token  plain  $team-docs {{overlay.name}}",
           "template": "envsubst",
           "rendered": true
         }
@@ -12156,7 +11483,7 @@
     },
     {
       "id": "include-render-error-propagates",
-      "description": "An included mustache file that the subset refuses fails the including file's read.",
+      "description": "An included mustache file that the library refuses (here a section never closed) fails the including file's read.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -12180,7 +11507,7 @@
             },
             {
               "path": "kb/b.md",
-              "text": "#!mustache\n{{> p}}\n"
+              "text": "#!mustache\n{{#x}}\n"
             }
           ]
         }
@@ -13880,7 +13207,7 @@
     },
     {
       "id": "mustache-comment-spans-lines-standalone",
-      "description": "A comment may span lines. One that, with white space, fills its lines leaves none.",
+      "description": "As in the Mustache specification a comment may span lines, and one that, with white space, fills its lines leaves none.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -14772,6 +14099,3453 @@
           "total_lines": 3,
           "truncated": false,
           "text": "b team-docs E\nc ${AOS_OVERLAY_NAME} @e.md\nd ${AOS_OVERLAY_NAME}"
+        }
+      }
+    },
+    {
+      "id": "mustache-escaping-default",
+      "description": "{{x}} is HTML escaped with & < > \" as the specification says; {{{x}}} and {{&x}} are not. (Other characters, the apostrophe and the slash among them, are escaped or not as the library has it: no vector asks.)",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{context.x}}|{{{context.x}}}|{{&context.x}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "& \" < >"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "&amp; &quot; &lt; &gt;|& \" < >|& \" < >",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-escape-html-explicit",
+      "description": "The option escape=html is the default, written out, here on an env-form line.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!/usr/bin/env mustache escape=html\n{{context.x}}|{{{context.x}}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "<a>"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "&lt;a&gt;|<a>",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-escape-none-option",
+      "description": "escape=none turns the escaping off: every form inserts the value as it is.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache escape=none\n{{context.x}}|{{{context.x}}}|{{&context.x}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "& \" < >"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "& \" < >|& \" < >|& \" < >",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-unknown-option-is-ignored",
+      "description": "An option no edition defines is ignored, so a later edition can add one.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache colour=blue\n{{context.x}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "<a>"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "&lt;a&gt;",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-bad-escape-value",
+      "description": "A known option with a value it does not have is refused, never guessed.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache escape=maybe\n{{context.x}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "<a>"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "error": "template-error"
+      }
+    },
+    {
+      "id": "mustache-integer-interpolation",
+      "description": "An integer is written in decimal.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{context.n}} {{context.neg}} {{context.zero}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "n": 12,
+          "neg": -3,
+          "zero": 0
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "12 -3 0",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-missing-is-empty",
+      "description": "A name that is not there renders as nothing, at any depth.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n[{{context.nope}}] [{{nope.deeper}}] [{{context.a.b}}]\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "a": {}
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[] [] []",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-dotted-broken-chain",
+      "description": "A dotted name whose chain breaks is empty.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n[{{context.a.b.c}}]\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "a": {
+            "b": {}
+          }
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[]",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-dotted-context-precedence",
+      "description": "A dotted name's first part is looked up through the contexts, and the rest only in what that finds: no climbing for the rest.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n[{{#context.a}}{{overlay.name}}{{/context.a}}]\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "a": {
+            "overlay": {}
+          }
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[]",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-implicit-iterator-strings",
+      "description": "'.' is the item a section is on.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{#context.xs}}[{{.}}]{{/context.xs}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "xs": [
+            "a",
+            "b",
+            3
+          ]
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[a][b][3]",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-section-object-is-context",
+      "description": "A section on an object takes it as the context.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{#context.o}}{{k}}{{/context.o}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "o": {
+            "k": "v"
+          }
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "v",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-inverted-empty-list",
+      "description": "An inverted section shows for an empty list.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{^context.xs}}none{{/context.xs}}{{#context.xs}}some{{/context.xs}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "xs": []
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "none",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-section-crlf-standalone-both",
+      "description": "Standalone lines with CR LF: the tag lines go, the others stay.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\na\r\n  {{#context.t}}\r\nb\r\n  {{/context.t}}\r\nc\r\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "t": true
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 3,
+          "total_lines": 3,
+          "truncated": false,
+          "text": "a\nb\nc",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-standalone-indented-tag-at-end",
+      "description": "A standalone tag on the last line with no line end.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\na\n  {{! c }}"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "a",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-inline-comment-keeps-line",
+      "description": "A comment with text on its line keeps the text and the line.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n12345 {{! Comment Block! }} 67890\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "12345  67890",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-delimiters-basic",
+      "description": "{{=<% %>=}} changes the delimiters for the rest of the template: the old tags are text.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{=<% %>=}}(<%context.x%>) {{context.x}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "v"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "(v) {{context.x}}",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-delimiters-standalone",
+      "description": "A delimiter tag alone on its line leaves no line.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\na\n{{=| |=}}\nb |context.x|\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "v"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 2,
+          "total_lines": 2,
+          "truncated": false,
+          "text": "a\nb v",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-delimiters-back",
+      "description": "And back again.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{=| |=}}|context.x| |={{ }}=| {{context.x}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "v"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "v  v",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-delimiters-in-section",
+      "description": "A section closes with the delimiters then in force.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{=<% %>=}}<%#context.t%>[<%context.x%>]<%/context.t%>\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "t": true,
+          "x": "v"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[v]",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-delimiters-bad",
+      "description": "A delimiter tag that does not give two delimiters is refused.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{=<%=}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "error": "template-error"
+      }
+    },
+    {
+      "id": "mustache-unclosed-section-standard",
+      "description": "A section never closed: every library refuses it.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{#context.a}}x\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "error": "template-error"
+      }
+    },
+    {
+      "id": "mustache-partial-basic",
+      "description": "A partial is a served file of the overlay, named from the folder of the file that has the tag; it is rendered with the current context.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\nHello {{> p.md}} end\n"
+            },
+            {
+              "path": "kb/p.md",
+              "text": "P({{context.x}})"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "v"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "Hello P(v) end",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-spaces-in-tag",
+      "description": "White space around the name is ignored.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n[{{>   p.md  }}]\n"
+            },
+            {
+              "path": "kb/p.md",
+              "text": "P"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[P]",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-standalone-indented",
+      "description": "A standalone partial gives its lines the tag's indentation, and its line end goes.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\na\n  {{> p.md}}\nb\n"
+            },
+            {
+              "path": "kb/p.md",
+              "text": "L1\nL2\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 4,
+          "total_lines": 4,
+          "truncated": false,
+          "text": "a\n  L1\n  L2\nb",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-inline",
+      "description": "An inline partial is inserted as it is.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\na {{> p.md}} b\n"
+            },
+            {
+              "path": "kb/p.md",
+              "text": "L1\nL2\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 3,
+          "total_lines": 3,
+          "truncated": false,
+          "text": "a L1\nL2\n b",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-missing-is-empty",
+      "description": "A partial that names no file renders as nothing.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n[{{> nope.md}}]\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[]",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-from-the-folder",
+      "description": "A name is from the including file's folder: kb/sub/p.md is 'sub/p.md' from kb/t.md.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{> sub/p.md}}\n"
+            },
+            {
+              "path": "kb/sub/p.md",
+              "text": "SUB"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "SUB",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-reaches-the-root",
+      "description": "'..' climbs to the root and no further, as in an include.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{> ../CONTEXT.md}}"
+            },
+            {
+              "path": "CONTEXT.md",
+              "text": "ROOT"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "ROOT",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-cannot-leave-the-root",
+      "description": "One that would leave the root names nothing: empty.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n[{{> ../../CONTEXT.md}}]"
+            },
+            {
+              "path": "CONTEXT.md",
+              "text": "ROOT"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[]",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-outside-the-knowledge",
+      "description": "A file that is not knowledge is no partial.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n[{{> ../docs/other.md}}]"
+            },
+            {
+              "path": "docs/other.md",
+              "text": "OTHER"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[]",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-absolute-is-nothing",
+      "description": "An absolute path names nothing.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n[{{> /kb/p.md}}]"
+            },
+            {
+              "path": "kb/p.md",
+              "text": "P"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[]",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-first-line-dropped",
+      "description": "A partial's first line is dropped when it names a format, as a file's is.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n[{{> p.md}}]"
+            },
+            {
+              "path": "kb/p.md",
+              "text": "#!mustache\nP3"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[P3]",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-not-markdown",
+      "description": "A file that is not markdown is a partial as it is, first line and all.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n[{{> p.txt}}]"
+            },
+            {
+              "path": "kb/p.txt",
+              "text": "#!x\nT{{context.x}}"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "v"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 2,
+          "total_lines": 2,
+          "truncated": false,
+          "text": "[#!x\nTv]",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-escapes-its-values",
+      "description": "A partial's values are escaped as the template's own.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{> p.md}}"
+            },
+            {
+              "path": "kb/p.md",
+              "text": "{{context.x}}"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "<b>"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "&lt;b&gt;",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-escape-none-reaches-partials",
+      "description": "And the option reaches them.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache escape=none\n{{> p.md}}"
+            },
+            {
+              "path": "kb/p.md",
+              "text": "{{context.x}}"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "<b>"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "<b>",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-delimiters-do-not-leak",
+      "description": "Delimiters changed in the template are not those of a partial.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{=| |=}}|> p.md|"
+            },
+            {
+              "path": "kb/p.md",
+              "text": "[{{context.x}}]"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "v"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[v]",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-in-a-section",
+      "description": "A partial in a section sees the item.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{#context.xs}}{{> p.md}}{{/context.xs}}"
+            },
+            {
+              "path": "kb/p.md",
+              "text": "<{{n}}>"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "xs": [
+            {
+              "n": 1
+            },
+            {
+              "n": 2
+            }
+          ]
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "<1><2>",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-recursion",
+      "description": "A partial may name itself: the data ends it (here three levels, within the limit).",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{#context.node}}{{> node.md}}{{/context.node}}"
+            },
+            {
+              "path": "kb/node.md",
+              "text": "{{name}}{{#kids}}<{{> node.md}}>{{/kids}}"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "node": {
+            "name": "a",
+            "kids": [
+              {
+                "name": "b",
+                "kids": [
+                  {
+                    "name": "c",
+                    "kids": []
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "a<b<c>>",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-partial-endless-recursion-is-a-limit",
+      "description": "One that nothing ends is stopped by the server's limit on nesting, max_include_depth (the same as for includes), an error of the server and not of the language.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{> loop.md}}"
+            },
+            {
+              "path": "kb/loop.md",
+              "text": "x{{> loop.md}}"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "limits": {
+        "max_include_depth": 5
+      },
+      "expect": {
+        "error": "include-error"
+      }
+    },
+    {
+      "id": "mustache-partial-not-rendered-by-its-own-format",
+      "description": "A partial is template text whatever format its first line names: here '#!raw' is dropped and its tags are read.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{> p.md}}"
+            },
+            {
+              "path": "kb/p.md",
+              "text": "#!raw\n{{context.x}}"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "v"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "v",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-gnu-braced-and-bare",
+      "description": "As GNU envsubst: $NAME and ${NAME} are both read, a bare name as long as it goes.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst\n$AOS_OVERLAY_NAME ${AOS_OVERLAY_NAME} $AOS_OVERLAY_NAME-x ${AOS_OVERLAY_NAME}x\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "team-docs team-docs team-docs-x team-docsx",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-gnu-undefined-is-empty",
+      "description": "A name with no value is replaced by nothing, by default.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst\n[$NOPE] [${NOPE}] [$nope_2]\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[] [] []",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-gnu-no-operators",
+      "description": "GNU's has no defaults or other operators: '${NAME:-word}' is text, defined name or not.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst\n${AOS_OVERLAY_NAME:-x} ${NOPE:-y} ${NOPE-z} ${NOPE:+w}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "${AOS_OVERLAY_NAME:-x} ${NOPE:-y} ${NOPE-z} ${NOPE:+w}",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-gnu-no-escape",
+      "description": "GNU's has no $$ escape: '$$NAME' is a dollar and the value; a dollar before anything that is no name, and a brace never closed, are text.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst\n$$AOS_OVERLAY_NAME $$ $1 $ ${ ${AOS_OVERLAY_NAME $-\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "$team-docs $$ $1 $ ${ ${AOS_OVERLAY_NAME $-",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-braced-name-must-close",
+      "description": "'${NAME' with no brace is text, not a bare name.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst\n${AOS_OVERLAY_NAME and $AOS_OVERLAY_NAME\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "${AOS_OVERLAY_NAME and team-docs",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-value-is-not-read-again",
+      "description": "A value is inserted as it is: a '$' in it is no reference.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst\n[$AOS_ARG_a]\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "a": "$AOS_OVERLAY_NAME"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[$AOS_OVERLAY_NAME]",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-undefined-lenient-written-out",
+      "description": "undefined=lenient is the default, written out.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst undefined=lenient\n[$NOPE]\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[]",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-undefined-debug-keeps-the-text",
+      "description": "undefined=debug keeps a name with no value as it was written, as nginx's image does with $request_uri.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst undefined=debug\n[$NOPE] [${NOPE}] $AOS_OVERLAY_NAME\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[$NOPE] [${NOPE}] team-docs",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-undefined-strict-refuses",
+      "description": "undefined=strict refuses a name with no value.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst undefined=strict\n$NOPE\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "error": "template-error"
+      }
+    },
+    {
+      "id": "envsubst-undefined-strict-defined-is-fine",
+      "description": "And serves a text whose names all have values.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst undefined=strict\n$AOS_OVERLAY_NAME\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "team-docs",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-undefined-bad-value",
+      "description": "A mode that is none of the three is refused.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst undefined=quiet\n$NOPE\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "error": "template-error"
+      }
+    },
+    {
+      "id": "envsubst-pattern-braced",
+      "description": "pattern=braced reads only ${NAME}.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst pattern=braced\n$AOS_OVERLAY_NAME ${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "$AOS_OVERLAY_NAME team-docs",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-pattern-unbraced",
+      "description": "pattern=unbraced reads only $NAME.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst pattern=unbraced\n$AOS_OVERLAY_NAME ${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "team-docs ${AOS_OVERLAY_NAME}",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-pattern-all",
+      "description": "pattern=all reads both.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst pattern=all\n$AOS_OVERLAY_NAME ${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "team-docs team-docs",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-pattern-bad-value",
+      "description": "A pattern that is none of the three is refused.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst pattern=double\nx\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "error": "template-error"
+      }
+    },
+    {
+      "id": "envsubst-dialect-gnu-written-out",
+      "description": "dialect=gnu is the default.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst dialect=gnu\n${NOPE:-y} $$A\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "${NOPE:-y} $",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-dialect-a8m",
+      "description": "dialect=a8m, as github.com/a8m/envsubst: $$ is a dollar, and defaults are read (':-' also for an empty value, '-' only for an unset one).",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst dialect=a8m\n$$AOS_OVERLAY_NAME ${NOPE:-y} ${AOS_OVERLAY_NAME:-y} ${NOPE-z} ${AOS_ARG_e:-d} ${AOS_ARG_e-d}|\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "e": ""
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "$AOS_OVERLAY_NAME y team-docs z d |",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-dialect-drone",
+      "description": "dialect=drone, as github.com/drone/envsubst: braced names only, $$ a dollar, defaults read.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst dialect=drone\n$AOS_OVERLAY_NAME ${AOS_OVERLAY_NAME} $$x ${NOPE:-y}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "$AOS_OVERLAY_NAME team-docs $x y",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-dialect-bad-value",
+      "description": "A dialect that is none of the three is refused.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst dialect=posix\nx\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "error": "template-error"
+      }
+    },
+    {
+      "id": "envsubst-features-default-on-gnu",
+      "description": "features=default adds ${NAME:-word} to GNU's.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst features=default\n${NOPE:-y} ${AOS_OVERLAY_NAME:-y} ${NOPE-z}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "y team-docs z",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-features-escape-on-gnu",
+      "description": "features=escape adds $$ to GNU's.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst features=escape\n$$AOS_OVERLAY_NAME $${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "$AOS_OVERLAY_NAME ${AOS_OVERLAY_NAME}",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-features-none-overrides-a-dialect",
+      "description": "A features list replaces the dialect's: a8m with only escape reads no defaults.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst dialect=a8m features=escape\n$$AOS_OVERLAY_NAME ${NOPE:-y}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "$AOS_OVERLAY_NAME ${NOPE:-y}",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-features-not-here-is-an-engine-this-server-lacks",
+      "description": "A feature this server does not implement (slice) makes the file one for an engine it does not render: served as written with the context.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst features=slice\n${AOS_OVERLAY_NAME:1:3}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 5,
+          "total_lines": 5,
+          "truncated": false,
+          "text": "#!envsubst features=slice\n---\naos_template_context: {\"engine\": \"envsubst\", \"overlay\": {\"name\": \"team-docs\", \"root\": \"/o/team-docs\", \"scope\": \"user\", \"state\": \"/s/team-docs\"}, \"project\": {\"root\": \"/work/app\"}, \"caller\": {\"profile\": \"work\", \"role\": \"reviewer\"}, \"env\": {\"USER\": \"ana\"}}\n---\n${AOS_OVERLAY_NAME:1:3}",
+          "template": "envsubst",
+          "rendered": false
+        }
+      }
+    },
+    {
+      "id": "envsubst-features-bad-name",
+      "description": "A feature that is none of those defined is refused.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst features=magic\nx\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "error": "template-error"
+      }
+    },
+    {
+      "id": "envsubst-unknown-option-is-ignored",
+      "description": "An option no edition defines is ignored.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst colour=blue\n$AOS_OVERLAY_NAME\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "team-docs",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-options-on-an-env-line",
+      "description": "The name is the last word that is no option, so options may follow it on an env-form line.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!/usr/bin/env -S envsubst undefined=debug pattern=braced\n[$NOPE] ${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "[$NOPE] team-docs",
+          "template": "envsubst",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "envsubst-option-without-a-value-is-a-word",
+      "description": "A word 'dialect=' with no value is not an option, and is the name if it is last: no engine of that name.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!envsubst dialect=\n$AOS_OVERLAY_NAME\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 5,
+          "total_lines": 5,
+          "truncated": false,
+          "text": "#!envsubst dialect=\n---\naos_template_context: {\"engine\": \"dialect=\", \"overlay\": {\"name\": \"team-docs\", \"root\": \"/o/team-docs\", \"scope\": \"user\", \"state\": \"/s/team-docs\"}, \"project\": {\"root\": \"/work/app\"}}\n---\n$AOS_OVERLAY_NAME",
+          "template": "dialect=",
+          "rendered": false
+        }
+      }
+    },
+    {
+      "id": "aos-dollar-escape-and-kept-names",
+      "description": "In the expanded format $$ is a dollar, only ${NAME} is read, and a name with no value stays as written.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!aos\n$$ $$x $x ${AOS_OVERLAY_NAME} $${AOS_OVERLAY_NAME} $${NOPE} ${NOPE}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "$ $x $x team-docs ${AOS_OVERLAY_NAME} ${NOPE} ${NOPE}"
+        }
+      }
+    },
+    {
+      "id": "format-extension-ascii-case-only",
+      "description": "A name ends in .markdown only with ASCII letters: with the Kelvin sign (U+212A) for the k it does not, though a Unicode lower-casing would make it so. The file is not markdown, so its first line is text and nothing is expanded.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/page.marKdown",
+              "text": "#!raw\n${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/page.marKdown"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/page.marKdown",
+          "from_line": 1,
+          "to_line": 2,
+          "total_lines": 2,
+          "truncated": false,
+          "text": "#!raw\n${AOS_OVERLAY_NAME}"
+        }
+      }
+    },
+    {
+      "id": "format-extension-ascii-upper-is-markdown",
+      "description": "'.MARKDOWN' in ASCII capitals is markdown.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/page.MARKDOWN",
+              "text": "#!raw\n${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/page.MARKDOWN"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/page.MARKDOWN",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "${AOS_OVERLAY_NAME}"
+        }
+      }
+    },
+    {
+      "id": "list-bad-format-option-is-render",
+      "description": "A file whose first-line option has a value it does not have cannot be served without a context to fail on: it is listed apart, with the reason 'render'; kb_read gives the error.",
+      "tool": "kb_list",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n"
+            },
+            {
+              "path": "kb/bad.md",
+              "text": "#!envsubst dialect=posix\nx\n"
+            },
+            {
+              "path": "kb/bad2.md",
+              "text": "#!mustache escape=maybe\nx\n"
+            },
+            {
+              "path": "kb/fine.md",
+              "text": "#!mustache escape=none\nx\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {},
+      "expect": {
+        "result": {
+          "overlays": [
+            {
+              "overlay": "team-docs",
+              "served": false,
+              "files": [
+                {
+                  "path": "kb/fine.md",
+                  "lines": 1,
+                  "bytes": 2,
+                  "template": "mustache",
+                  "rendered": true
+                },
+                {
+                  "path": "kb/intro.md",
+                  "lines": 1,
+                  "bytes": 8
+                }
+              ],
+              "skipped": [
+                {
+                  "path": "kb/bad.md",
+                  "reason": "render"
+                },
+                {
+                  "path": "kb/bad2.md",
+                  "reason": "render"
+                }
+              ]
+            }
+          ],
+          "engines": [
+            "envsubst",
+            "mustache"
+          ]
+        }
+      }
+    },
+    {
+      "id": "read-bad-format-option-says-why",
+      "description": "And reading it says why.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/bad.md",
+              "text": "#!envsubst dialect=posix\nx\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/bad.md"
+      },
+      "expect": {
+        "error": "template-error"
+      }
+    },
+    {
+      "id": "aos-dollar-dollar-is-a-dollar-before-text",
+      "description": "In the expanded format '$$' is '$' before anything, a name or not: '$$x' is '$x', '$$AOS_OVERLAY_NAME' is '$AOS_OVERLAY_NAME'.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!aos\n$$x $$AOS_OVERLAY_NAME $$$ $$\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "$x $AOS_OVERLAY_NAME $$ $"
         }
       }
     },
