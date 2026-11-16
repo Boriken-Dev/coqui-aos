@@ -17112,7 +17112,7 @@
           "NOPE"
         ]
       },
-      "needs": [
+      "lacks": [
         "envsubst:features=slice"
       ],
       "expect": {
@@ -17666,9 +17666,6 @@
       "lacks": [
         "mustache:escape=none"
       ],
-      "needs": [
-        "mustache:escape=none"
-      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -17822,9 +17819,6 @@
       "lacks": [
         "envsubst:dialect=drone"
       ],
-      "needs": [
-        "envsubst:dialect=drone"
-      ],
       "expect": {
         "result": {
           "overlay": "team-docs",
@@ -17871,9 +17865,6 @@
       },
       "facts": {},
       "lacks": [
-        "envsubst:undefined=strict"
-      ],
-      "needs": [
         "envsubst:undefined=strict"
       ],
       "expect": {

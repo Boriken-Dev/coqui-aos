@@ -23,7 +23,7 @@ rules and the classes they serve are in
 
 **Options a server cannot honour.** A case that uses a first-line option lists it under `needs`, as
 `engine:option=value`. A runner whose server lacks a value (a released tplx has no Mustache escape-off setting) skips
-those cases, and runs the ones that give the value under `lacks` instead: they expect the file served as written with the
+those cases, and runs the ones that give the value under `lacks` instead (a case with `lacks` is for a server that lacks the value: a runner whose server renders it skips that case, and no case relies on a limit of the reference that it does not declare there): they expect the file served as written with the
 context. `lacks` is the runner's own declaration, as `engines` is for the engines.
 
 **Stock libraries miss three behaviours** that the Mustache specification requires, and that `knowledge.json` keeps
