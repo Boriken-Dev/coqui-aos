@@ -19,6 +19,8 @@ mod front_matter;
 mod fs;
 mod hook_env;
 mod hooks;
+#[cfg(feature = "index")]
+pub mod index;
 mod kinds;
 mod knowledge;
 mod limits;
