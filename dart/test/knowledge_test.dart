@@ -67,6 +67,9 @@ List<KnowledgeOverlay> overlaysOf(Case item) => [
     ),
 ];
 
+Iterable<String> enginesOf(Case item) =>
+    item.containsKey('engines') ? strings(item['engines']) : knowledgeEngines;
+
 CallerFacts callerOf(Object? facts) {
   if (facts is! Map<String, Object?>) return const CallerFacts();
   final caller = facts['caller'];
@@ -129,9 +132,10 @@ void main() {
         str(item['tool']),
         overlaysOf(item),
         item['arguments'],
-        strings(item['modes']),
-        limits,
-        callerOf(item['facts']),
+        modes: strings(item['modes']),
+        settings: limits,
+        caller: callerOf(item['facts']),
+        engines: enginesOf(item),
       );
       final error = out['error'];
       same(
@@ -153,7 +157,9 @@ void main() {
           item['arguments'],
           item['response'],
           strings(item['modes']),
-          limitsOf(item),
+          settings: limitsOf(item),
+          caller: callerOf(item['facts']),
+          engines: enginesOf(item),
         ),
       }, expect);
     }
@@ -170,7 +176,7 @@ void main() {
       tree: {
         'kb/a.md': KnowledgeEntry.text('one\r\ntwo\n'),
         'kb/t.md': KnowledgeEntry.text(
-          '---\ntemplate: mustache\n---\n'
+          '#!mustache\n'
           '{{caller.role}} {{options.depth}} {{context.n}}\n',
         ),
         'kb/link': KnowledgeEntry.symlink(),
@@ -212,15 +218,91 @@ void main() {
       final files = ((body['overlays']! as List).single as Map)['files'];
       expect(files, [
         {'path': 'kb/a.md', 'lines': 2, 'bytes': 9},
-        {'path': 'kb/t.md', 'template': 'mustache'},
+        {
+          'path': 'kb/t.md',
+          'lines': 1,
+          'bytes': 7,
+          'template': 'mustache',
+          'rendered': true,
+        },
       ]);
+      expect(body['engines'], ['envsubst', 'mustache']);
       expect(body['search'], {
         'modes': ['words'],
       });
     });
 
+    test('a server without an engine keeps the file and its context', () {
+      final result = kbRead(
+        [overlay],
+        path: 'kb/t.md',
+        context: {'n': 3},
+        caller: const CallerFacts(role: 'r'),
+        engines: const [],
+      );
+      final body = result['structuredContent']! as Map;
+      expect(body['rendered'], isFalse);
+      expect(
+        body['text'],
+        '#!mustache\n---\naos_template_context: {"engine": "mustache", '
+        '"overlay": {"name": "team", "root": "/o/team"}, "caller": '
+        '{"role": "r"}, "options": {"depth": "deep"}, "context": {"n": 3}}\n'
+        '---\n{{caller.role}} {{options.depth}} {{context.n}}',
+      );
+    });
+
+    test(
+      'a first line names the format, and only a markdown file reads it',
+      () {
+        final data = Uint8List.fromList(
+          encodeUtf8('#!/usr/bin/env -S MUSTACHE\n'),
+        );
+        expect(knowledgeFormat(data), 'mustache');
+        expect(knowledgeFormat(encodeUtf8(' #!raw\n')), isNull);
+        expect(knowledgeFormat(encodeUtf8('#!\n')), isNull);
+        expect(knowledgeFormat(encodeUtf8('#!.Raw')), 'raw');
+      },
+    );
+
+    test('an include is read from the includer, code is left alone', () {
+      final tree = KnowledgeOverlay(
+        identity: 'team',
+        tree: {
+          'kb/a.md': KnowledgeEntry.text(
+            'x @b.md y\n`@b.md` \${AOS_OVERLAY_NAME}\n',
+          ),
+          'kb/b.md': KnowledgeEntry.text('---\nk: v\n---\nB\n'),
+        },
+      );
+      final body = kbRead([tree], path: 'kb/a.md')['structuredContent']! as Map;
+      expect(body['text'], 'x B y\n`@b.md` team');
+    });
+
+    test('a cycle of includes is an include-error', () {
+      final tree = KnowledgeOverlay(
+        identity: 'team',
+        tree: {
+          'kb/a.md': KnowledgeEntry.text('@b.md\n'),
+          'kb/b.md': KnowledgeEntry.text('@a.md\n'),
+        },
+      );
+      final result = kbRead([tree], path: 'kb/a.md');
+      expect(
+        ((result['structuredContent']! as Map)['error'] as Map)['class'],
+        'include-error',
+      );
+      final skipped =
+          (((kbList([tree])['structuredContent']! as Map)['overlays']! as List)
+                  .single
+              as Map)['skipped'];
+      expect(skipped, [
+        {'path': 'kb/a.md', 'reason': 'render'},
+        {'path': 'kb/b.md', 'reason': 'render'},
+      ]);
+    });
+
     test('written-out text covers U+2060 to U+2064, and a key is strict', () {
-      expect(inert('a⁡b⁤c'), 'a<U+2061>b<U+2064>c');
+      expect(inert('a\u2061b\u2064c'), 'a<U+2061>b<U+2064>c');
       expect(
         () => knowledgeArguments('kb_read', {
           'path': 'a',

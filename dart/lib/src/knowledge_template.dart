@@ -105,11 +105,44 @@ List<_Item> _line(String line) {
 
 final RegExp _lines = RegExp(r'[^\n]*\n|[^\n]+');
 
+/// Whether a comment tag in [text] is not closed.
+bool _openComment(String text) {
+  var i = 0;
+  for (;;) {
+    final found = text.indexOf('{{', i);
+    if (found < 0) return false;
+    if (text.startsWith('{{{', found)) {
+      final end = text.indexOf('}}}', found + 3);
+      if (end < 0) return false;
+      i = end + 3;
+      continue;
+    }
+    final end = text.indexOf('}}', found + 2);
+    if (end < 0) return text.startsWith('{{!', found);
+    i = end + 2;
+  }
+}
+
+/// The lines of [text], a line that ends inside a comment joined to the next.
+List<String> _logicalLines(String text) {
+  final out = <String>[];
+  var buffer = '';
+  for (final match in _lines.allMatches(text)) {
+    buffer += match.group(0)!;
+    if (!_openComment(buffer)) {
+      out.add(buffer);
+      buffer = '';
+    }
+  }
+  if (buffer.isNotEmpty) out.add(buffer);
+  return out;
+}
+
 _Node _parse(String text, KnowledgeSettings settings) {
   final root = _Node('root', '');
   final stack = <_Node>[root];
-  for (final match in _lines.allMatches(text)) {
-    for (final item in _line(match.group(0)!)) {
+  for (final logical in _logicalLines(text)) {
+    for (final item in _line(logical)) {
       final children = stack.last.children;
       switch (item.kind) {
         case 'text' || 'var':

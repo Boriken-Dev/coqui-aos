@@ -3,6 +3,7 @@
 library;
 
 import 'knowledge_core.dart';
+import 'knowledge_serve.dart';
 import 'text.dart';
 
 num? _number(Object? value) {
@@ -66,9 +67,11 @@ List<String> searchCheck(
   List<KnowledgeOverlay> overlays,
   Object? arguments,
   Object? response,
-  Iterable<String> modes, [
+  Iterable<String> modes, {
   KnowledgeSettings? settings,
-]) {
+  CallerFacts caller = const CallerFacts(),
+  Iterable<String> engines = knowledgeEngines,
+}) {
   final declared = modes.toList();
   final limit = settings ?? KnowledgeSettings();
   final args = knowledgeArguments('kb_search', arguments, declared, limit);
@@ -135,7 +138,7 @@ List<String> searchCheck(
       continue;
     }
     if (BigInt.from(passages.length) > top) broken.add('top');
-    final held = knowledgeSet(overlay, limit).files;
+    final held = knowledgeSet(overlay, limit);
     for (final passage in passages) {
       if (passage is! Map ||
           !_sameKeys(passage, const [
@@ -162,12 +165,20 @@ List<String> searchCheck(
       if (prefix != null && !(path == prefix || path.startsWith('$prefix/'))) {
         broken.add('path-limit');
       }
-      final item = held[path];
-      if (item == null || item.engine != null) {
+      final List<String> lines;
+      try {
+        lines = knowledgeLines(
+          held.files.containsKey(path)
+              ? knowledgeServe(overlay, held, path, const {}, caller, limit, [
+                  for (final engine in knowledgeEngines)
+                    if (engines.contains(engine)) engine,
+                ])
+              : throw KnowledgeError('not-found'),
+        );
+      } on KnowledgeError {
         broken.add('not-knowledge');
         continue;
       }
-      final lines = knowledgeLines(item.text);
       final first = _whole(passage['from_line']);
       final last = _whole(passage['to_line']);
       if (first == null ||

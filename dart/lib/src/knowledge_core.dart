@@ -8,11 +8,10 @@ import 'dart:typed_data';
 
 import 'defaults.dart';
 import 'error.dart';
-import 'front_matter.dart';
 import 'fs.dart';
-import 'knowledge_template.dart';
 import 'limits.dart';
 import 'names.dart';
+import 'knowledge_serve.dart';
 import 'template.dart';
 import 'text.dart';
 import 'tree.dart';
@@ -31,7 +30,7 @@ const List<String> knowledgeDirs = [
 /// The search modes a server may declare, in the order `kb_list` writes them.
 const List<String> knowledgeModes = ['words', 'meaning', 'llm'];
 
-/// The template engines this edition defines.
+/// The template engines this edition defines, in the order `kb_list` writes them.
 const List<String> knowledgeEngines = ['envsubst', 'mustache'];
 
 /// The largest integer an argument may hold (`2^53 - 1`).
@@ -68,6 +67,7 @@ const List<(String, String, int)> _knowledgeDefinitions = [
   ('max_context_bytes', 'maxContextBytes', 16 * 1024),
   ('max_context_depth', 'maxContextDepth', 8),
   ('max_template_depth', 'maxTemplateDepth', 32),
+  ('max_include_depth', 'maxIncludeDepth', 5),
 ];
 
 /// The limits knowledge is served within, each a setting with a default and no floor: a null
@@ -159,6 +159,9 @@ class KnowledgeSettings {
 
   /// Mustache sections one in another.
   Limit get maxTemplateDepth => _values['maxTemplateDepth'];
+
+  /// `@path` includes one in another.
+  Limit get maxIncludeDepth => _values['maxIncludeDepth'];
 }
 
 /// One entry of an overlay's tree, for [KnowledgeOverlay]: a regular file with its bytes, a
@@ -494,7 +497,15 @@ Map<String, Object?> knowledgeArguments(
 
 /// A file of an overlay's knowledge that is served.
 class KnowledgeFile {
-  KnowledgeFile._(this.path, this.text, this.engine, this.bytes, this.raw);
+  KnowledgeFile._(
+    this.path,
+    this.text,
+    this.engine,
+    this.asWritten,
+    this.bytes,
+    this.data,
+    this.rest,
+  );
 
   /// The relative path.
   final String path;
@@ -502,14 +513,22 @@ class KnowledgeFile {
   /// The file's text as stored.
   final String text;
 
-  /// The template engine its front matter names, or null for a plain file.
+  /// The engine its first line names when it is none of the formats every server knows
+  /// (`markdown`, `md`, `raw`, `aos`, `agentic`), else null.
   final String? engine;
+
+  /// Whether the file is served as written: not a markdown file, or one that names `markdown`,
+  /// `md` or `raw`.
+  final bool asWritten;
 
   /// Its size as stored.
   final int bytes;
 
   /// Its bytes.
-  final Uint8List raw;
+  final Uint8List data;
+
+  /// The text after the first line when that names a format, else the whole text.
+  final String rest;
 }
 
 /// An overlay's knowledge: the served files and the skipped ones, both in path-byte order.
@@ -519,7 +538,7 @@ class KnowledgeSet {
   /// The served files by path, in order.
   final Map<String, KnowledgeFile> files;
 
-  /// Each skipped path and its reason (`name`, `too-large`, `not-text` or `template`).
+  /// Each skipped path and its reason (`name`, `too-large` or `not-text`).
   final List<(String, String)> skipped;
 }
 
@@ -544,11 +563,44 @@ bool _selected(String path, Document manifest) {
 
 bool _hiddenName(String path) => path.runes.any(_hides);
 
+/// The name a markdown file's first line gives its format: `#!` and words, the last word
+/// after any `/` or `\` with leading dots dropped and ASCII capitals lower-cased; null when
+/// the file gives none (no `#!` at its first byte, no word, bytes that are not UTF-8).
+String? knowledgeFormat(Uint8List data) {
+  if (data.length < 2 || data[0] != 0x23 || data[1] != 0x21) return null;
+  final end = data.indexOf(0x0a);
+  final line = end < 0
+      ? Uint8List.sublistView(data, 2)
+      : Uint8List.sublistView(data, 2, end);
+  final String text;
+  try {
+    text = decodeUtf8(line);
+  } on AosError {
+    return null;
+  }
+  final words = text.split(RegExp(r'[ \t\f\r]+')).where((w) => w.isNotEmpty);
+  var word = words.isEmpty ? '' : words.last;
+  word = word.split(RegExp(r'[/\\]')).last;
+  var dots = 0;
+  while (dots < word.length && word[dots] == '.') {
+    dots += 1;
+  }
+  word = asciiLower(word.substring(dots));
+  return word.isEmpty ? null : word;
+}
+
+String _afterFirstLine(String text) {
+  final end = text.indexOf('\n');
+  return end < 0 ? '' : text.substring(end + 1);
+}
+
+const List<String> _asWritten = ['raw', 'markdown', 'md'];
+const List<String> _expanded = ['aos', 'agentic'];
+
 /// What of [overlay] is knowledge: the files under `kb/`, `flows/`, `references/`, `rules/` and
 /// `context/`, the root `CONTEXT.md` and the files `rules` and `context` name, that are not a
 /// manifest. A file is skipped, with its reason, when its name holds a character served text
-/// writes out, it is larger than `maxFileBytes`, its bytes are not UTF-8, or its front matter
-/// names an engine this edition does not define.
+/// writes out, it is larger than `maxFileBytes`, or its bytes are not UTF-8.
 KnowledgeSet knowledgeSet(
   KnowledgeOverlay overlay, [
   KnowledgeSettings? settings,
@@ -572,29 +624,19 @@ KnowledgeSet knowledgeSet(
         skipped.add((path, 'not-text'));
         continue;
       }
-      String? engine;
-      try {
-        final found = readFrontMatter(entry.bytes, Settings());
-        final data = found.data;
-        if (found.frontMatterCase == 'mapping' &&
-            data != null &&
-            data.containsKey('template')) {
-          final value = data['template'];
-          if (value is! String || !knowledgeEngines.contains(value)) {
-            skipped.add((path, 'template'));
-            continue;
-          }
-          engine = value;
-        }
-      } on AosError {
-        engine = null;
-      }
+      final lower = asciiLower(path);
+      final markdown = lower.endsWith('.md') || lower.endsWith('.markdown');
+      final name = markdown ? knowledgeFormat(entry.bytes) : null;
       files[path] = KnowledgeFile._(
         path,
         text,
-        engine,
+        name == null || _asWritten.contains(name) || _expanded.contains(name)
+            ? null
+            : name,
+        !markdown || (name != null && _asWritten.contains(name)),
         entry.size,
         entry.bytes,
+        name != null ? _afterFirstLine(text) : text,
       );
     }
   }
@@ -620,25 +662,43 @@ List<KnowledgeOverlay> knowledgeChosen(
   String? wanted,
 ) => _choose(overlays, wanted);
 
+List<String> _engineList(Iterable<String> engines) => [
+  for (final engine in knowledgeEngines)
+    if (engines.contains(engine)) engine,
+];
+
 /// What a server answers a call of `kb_list` or `kb_read`: `{'result': {...}}`, or
 /// `{'error': {'class': ..., 'message': ...}}`. [overlays] are the session's active overlays in
-/// composition order; [modes] the modes the server declares; [caller] what templates read.
+/// composition order; [modes] the search modes the server declares; [caller] what templates
+/// read; [engines] the template engines this server renders with (both of the edition's by
+/// default).
 Map<String, Object?> knowledgeCall(
   String tool,
   List<KnowledgeOverlay> overlays,
-  Object? arguments, [
+  Object? arguments, {
   Iterable<String> modes = const [],
   KnowledgeSettings? settings,
   CallerFacts caller = const CallerFacts(),
-]) {
+  Iterable<String> engines = knowledgeEngines,
+}) {
   final limit = settings ?? KnowledgeSettings();
+  final rendering = _engineList(engines);
   try {
     final args = knowledgeArguments(tool, arguments, modes, limit);
     switch (tool) {
       case 'kb_list':
-        return {'result': _list(overlays, args, modes.toList(), limit)};
+        return {
+          'result': _list(
+            overlays,
+            args,
+            modes.toList(),
+            limit,
+            rendering,
+            caller,
+          ),
+        };
       case 'kb_read':
-        return {'result': _read(overlays, args, limit, caller)};
+        return {'result': _read(overlays, args, limit, caller, rendering)};
       default:
         throw _invalid('no tool is named $tool');
     }
@@ -654,31 +714,50 @@ Map<String, Object?> _list(
   Map<String, Object?> args,
   List<String> modes,
   KnowledgeSettings limit,
+  List<String> engines,
+  CallerFacts caller,
 ) {
   final listed = <Object?>[];
   for (final overlay in _choose(overlays, args['overlay'] as String?)) {
     final found = knowledgeSet(overlay, limit);
+    final files = <Object?>[];
+    final skipped = [...found.skipped];
+    for (final item in found.files.values) {
+      final String text;
+      try {
+        text = knowledgeServe(
+          overlay,
+          found,
+          item.path,
+          const {},
+          caller,
+          limit,
+          engines,
+        );
+      } on KnowledgeError {
+        skipped.add((item.path, 'render'));
+        continue;
+      }
+      files.add({
+        'path': item.path,
+        'lines': knowledgeLines(text).length,
+        'bytes': utf8Length(text),
+        if (item.engine != null) 'template': item.engine,
+        if (item.engine != null) 'rendered': engines.contains(item.engine),
+      });
+    }
+    skipped.sort((a, b) => compareText(a.$1, b.$1));
     listed.add({
       'overlay': overlay.identity,
       'served': overlay.served,
-      'files': [
-        for (final item in found.files.values)
-          if (item.engine != null)
-            {'path': item.path, 'template': item.engine}
-          else
-            {
-              'path': item.path,
-              'lines': knowledgeLines(item.text).length,
-              'bytes': item.bytes,
-            },
-      ],
+      'files': files,
       'skipped': [
-        for (final (path, reason) in found.skipped)
+        for (final (path, reason) in skipped)
           {'path': inert(path), 'reason': reason},
       ],
     });
   }
-  final result = <String, Object?>{'overlays': listed};
+  final result = <String, Object?>{'overlays': listed, 'engines': engines};
   if (modes.isNotEmpty) {
     result['search'] = {
       'modes': [
@@ -694,27 +773,21 @@ const Map<String, String> _skipClass = {
   'name': 'invalid-path',
   'too-large': 'too-large',
   'not-text': 'not-text',
-  'template': 'unknown-template',
 };
-const List<String> _priority = [
-  'link',
-  'not-text',
-  'too-large',
-  'unknown-template',
-  'not-found',
-];
+const List<String> _priority = ['link', 'not-text', 'too-large', 'not-found'];
 
 Map<String, Object?> _read(
   List<KnowledgeOverlay> overlays,
   Map<String, Object?> args,
   KnowledgeSettings limit,
   CallerFacts caller,
+  List<String> engines,
 ) {
   final path = args['path']! as String;
   if (!validRelativePath(path) || _hiddenName(path)) {
     throw KnowledgeError('invalid-path', inert(path));
   }
-  final foundIn = <(KnowledgeOverlay, KnowledgeFile)>[];
+  final foundIn = <(KnowledgeOverlay, KnowledgeSet)>[];
   final problems = <String>[];
   final parts = path.split('/');
   for (final overlay in _choose(overlays, args['overlay'] as String?)) {
@@ -728,7 +801,7 @@ Map<String, Object?> _read(
     if (linked) {
       problems.add('link');
     } else if (held.files.containsKey(path)) {
-      foundIn.add((overlay, held.files[path]!));
+      foundIn.add((overlay, held));
     } else {
       String? reason;
       for (final (skippedPath, why) in held.skipped) {
@@ -742,21 +815,23 @@ Map<String, Object?> _read(
   }
   if (foundIn.isEmpty) {
     problems.sort((a, b) => _priority.indexOf(a) - _priority.indexOf(b));
-    throw KnowledgeError(problems.first, inert(path));
-  }
-  final (overlay, item) = foundIn.single;
-  var text = item.text;
-  final engine = item.engine;
-  if (engine != null) {
-    final context = args['context'];
-    text = _render(
-      overlay,
-      item,
-      context is Map ? Map<String, Object?>.from(context) : const {},
-      caller,
-      limit,
+    throw KnowledgeError(
+      problems.isEmpty ? 'not-found' : problems.first,
+      inert(path),
     );
   }
+  final (overlay, held) = foundIn.single;
+  final engine = held.files[path]!.engine;
+  final context = args['context'];
+  final text = knowledgeServe(
+    overlay,
+    held,
+    path,
+    context is Map ? Map<String, Object?>.from(context) : const {},
+    caller,
+    limit,
+    engines,
+  );
   final lines = knowledgeLines(text);
   final total = lines.length;
   final start = _integer(args['from'])?.toInt() ?? 1;
@@ -773,7 +848,7 @@ Map<String, Object?> _read(
     start - 1,
     last < start - 1 ? start - 1 : last,
   )) {
-    final add = utf8.encode(line).length + (chosen.isNotEmpty ? 1 : 0);
+    final add = utf8Length(line) + (chosen.isNotEmpty ? 1 : 0);
     if (chosen.isNotEmpty && most != null && size + add > most) {
       truncated = true;
       break;
@@ -790,103 +865,8 @@ Map<String, Object?> _read(
     'truncated': truncated,
     'text': inert(chosen.join('\n')),
     'template': ?engine,
+    if (engine != null) 'rendered': engines.contains(engine),
   };
-}
-
-String _optionValueText(Object declaredOption, String name, Object value) {
-  final kind = declaredOption is Map ? declaredOption['type'] : null;
-  if (kind == 'string' && value is String) return value;
-  if (kind == 'integer' && value is BigInt) return value.toString();
-  if (kind == 'boolean' && value is bool) return value ? 'true' : 'false';
-  throw KnowledgeError('invalid-option', name);
-}
-
-String _render(
-  KnowledgeOverlay overlay,
-  KnowledgeFile item,
-  Map<String, Object?> context,
-  CallerFacts call,
-  KnowledgeSettings limit,
-) {
-  final manifest = overlay.manifest;
-  final given = overlay.facts;
-  final facts = TemplateFacts(
-    root: given.root,
-    state: given.state,
-    name: given.name ?? normalizeName(overlay.identity),
-    scope: given.scope,
-    project: given.project,
-    options: given.options,
-  );
-  final split = splitFrontMatter(item.raw, Settings());
-  final body = decodeUtf8(
-    Uint8List.sublistView(item.raw, split.bodyOffset ?? 0),
-  );
-  final caller = <String, Object?>{
-    if (call.role != null) 'role': call.role,
-    if (call.profile != null) 'profile': call.profile,
-  };
-  final env = <String, String>{
-    for (final name in call.envAllow)
-      if (call.env.containsKey(name) && !isSensitiveVariable(name))
-        name: call.env[name]!,
-  };
-  final String out;
-  if (item.engine == 'envsubst') {
-    final Map<String, String> values;
-    try {
-      values = Map.of(templateValues(manifest, facts));
-    } on AosError catch (error) {
-      throw KnowledgeError('invalid-option', error.subject);
-    }
-    if (call.role != null) values['AOS_CALLER_ROLE'] = call.role!;
-    if (call.profile != null) values['AOS_CALLER_PROFILE'] = call.profile!;
-    for (final MapEntry(key: name, value: value) in env.entries) {
-      values['AOS_ENV_$name'] = value;
-    }
-    for (final MapEntry(key: key, value: value) in context.entries) {
-      if (value is bool) {
-        values['AOS_ARG_$key'] = value ? 'true' : 'false';
-      } else if (value is String || value is int || value is BigInt) {
-        values['AOS_ARG_$key'] = '$value';
-      }
-    }
-    out = template(body, values);
-  } else {
-    final options = <String, Object?>{};
-    final declaredOptions = manifest['options'];
-    if (declaredOptions is Map<String, Object>) {
-      for (final MapEntry(key: name, value: option)
-          in declaredOptions.entries) {
-        if (option is Map && option['sensitive'] == true) continue;
-        if (given.options.containsKey(name)) {
-          _optionValueText(option, name, given.options[name]!);
-          options[name] = given.options[name];
-        } else if (option is Map && option.containsKey('default')) {
-          options[name] = option['default'];
-        }
-      }
-    }
-    final data = <String, Object?>{
-      'overlay': {
-        if (facts.root != null) 'root': facts.root,
-        if (facts.state != null) 'state': facts.state,
-        if (facts.name != null) 'name': facts.name,
-        if (facts.scope != null) 'scope': facts.scope,
-      },
-      'project': {if (facts.project != null) 'root': facts.project},
-      'caller': caller,
-      'env': env,
-      'options': options,
-      'context': context,
-    };
-    out = mustache(body, data, limit);
-  }
-  final most = limit.maxRenderedBytes;
-  if (most != null && utf8.encode(out).length > most) {
-    throw KnowledgeError('too-large', 'the rendered text');
-  }
-  return out;
 }
 
 /// A handler's [outcome] as MCP's `tools/call` result: the same JSON as `structuredContent`
@@ -915,6 +895,7 @@ Map<String, Object?> kbRead(
   String? overlay,
   Map<String, Object?>? context,
   CallerFacts caller = const CallerFacts(),
+  Iterable<String> engines = knowledgeEngines,
   KnowledgeSettings? settings,
 }) => knowledgeResult(
   knowledgeCall(
@@ -927,9 +908,9 @@ Map<String, Object?> kbRead(
       'overlay': overlay,
       'context': _model(context),
     },
-    const [],
-    settings,
-    caller,
+    settings: settings,
+    caller: caller,
+    engines: engines,
   ),
 );
 
@@ -939,9 +920,19 @@ Map<String, Object?> kbList(
   List<KnowledgeOverlay> overlays, {
   String? overlay,
   Iterable<String> modes = const [],
+  CallerFacts caller = const CallerFacts(),
+  Iterable<String> engines = knowledgeEngines,
   KnowledgeSettings? settings,
 }) => knowledgeResult(
-  knowledgeCall('kb_list', overlays, {'overlay': overlay}, modes, settings),
+  knowledgeCall(
+    'kb_list',
+    overlays,
+    {'overlay': overlay},
+    modes: modes,
+    settings: settings,
+    caller: caller,
+    engines: engines,
+  ),
 );
 
 /// Whether an overlay's `rules` and `context` files are left out of the context because they

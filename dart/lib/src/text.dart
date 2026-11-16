@@ -185,3 +185,6 @@ Iterable<int> _codePoints(String text) sync* {
     yield unit;
   }
 }
+
+/// The number of bytes [text] is as UTF-8.
+int utf8Length(String text) => utf8.encode(text).length;
