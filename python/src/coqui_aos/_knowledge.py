@@ -19,8 +19,9 @@ from typing import Any, Dict, Iterable, List, Mapping, NamedTuple, Optional, Seq
 from ._data import Document
 from ._defaults import context_of, declared, named, rules_of
 from ._digest import EntryKind, TreeEntry
+from ._document import split_format_line
 from ._errors import Error
-from ._front_matter import Case, ManifestFile, read_front_matter, split_front_matter
+from ._front_matter import ManifestFile, SplitCase, split_front_matter
 from ._fs import FileKind, FileSystem
 from ._names import EXCLUDED_COMPONENTS, is_sensitive_variable, normalize_name, valid_relative_path
 from ._settings import NonDefault, Settings
@@ -42,12 +43,14 @@ __all__ = [
     "kb_list",
     "kb_read",
     "knowledge_arguments",
+    "knowledge_engines",
     "knowledge_call",
     "knowledge_lines",
     "knowledge_plan",
     "knowledge_result",
     "knowledge_set",
     "knowledge_tools",
+    "envsubst",
     "mustache",
     "search_check",
     "search_order",
@@ -81,6 +84,7 @@ class KnowledgeSettings:
     max_context_bytes: Optional[int] = 16 * _KIB
     max_context_depth: Optional[int] = 8
     max_template_depth: Optional[int] = 32
+    max_include_depth: Optional[int] = 5
 
     def replace(self, **limits: "Optional[int]") -> "KnowledgeSettings":
         """A copy with the named limits changed; an unknown name is a ``TypeError``."""
@@ -400,13 +404,16 @@ def _hidden_name(path: str) -> bool:
 
 
 class KnowledgeFile(NamedTuple):
-    """A served file: its text as stored, its template engine (``None`` for a plain file), its size
-    in bytes and its bytes."""
+    """A file of the knowledge: its text as stored, the engine its first line names (``None`` for a
+    file that names none, or names a format AOS defines), its size in bytes, whether it is served
+    as written (a raw or markdown file, or one that is not markdown) and its text after the first
+    line that names a format."""
 
     text: str
     engine: Optional[str]
     size: int
-    raw: bytes
+    as_written: bool
+    rest: str
 
 
 class KnowledgeSet(NamedTuple):
@@ -417,9 +424,28 @@ class KnowledgeSet(NamedTuple):
     skipped: "List[Tuple[str, str]]"
 
 
+def _ascii_lower(text: str) -> str:
+    return "".join(char.lower() if "A" <= char <= "Z" else char for char in text)
+
+
+def _format_name(data: bytes) -> Optional[str]:
+    """The name a first line gives a file's format, or ``None`` when it gives none."""
+    if not data.startswith(b"#!"):
+        return None
+    try:
+        return split_format_line(data, "")[0]
+    except Error:
+        return None
+
+
+def _after_first_line(text: str) -> str:
+    end = text.find("\n")
+    return "" if end < 0 else text[end + 1 :]
+
+
 def knowledge_set(overlay: KnowledgeOverlay, settings: "Optional[KnowledgeSettings]" = None) -> KnowledgeSet:
-    """What is served of ``overlay`` and what is skipped, with the reason (``name``, ``too-large``,
-    ``not-text`` or ``template``)."""
+    """What is served of ``overlay`` and what is skipped, with the reason (``name``, ``too-large`` or
+    ``not-text``). Only a markdown file (``.md`` or ``.markdown``) names its format on its first line."""
     limit = _mapping(settings)
     files: "Dict[str, KnowledgeFile]" = {}
     skipped: "List[Tuple[str, str]]" = []
@@ -438,16 +464,40 @@ def knowledge_set(overlay: KnowledgeOverlay, settings: "Optional[KnowledgeSettin
             except UnicodeDecodeError:
                 skipped.append((path, "not-text"))
                 continue
-            engine = None
-            found = read_front_matter(data)
-            if found.case is Case.MAPPING and found.data is not None and "template" in found.data:
-                value = found.data["template"]
-                if not isinstance(value, str) or value not in KNOWLEDGE_ENGINES:
-                    skipped.append((path, "template"))
-                    continue
-                engine = value
-            files[path] = KnowledgeFile(text, engine, len(data), data)
+            markdown = _ascii_lower(path).endswith(_MARKDOWN_SUFFIXES)
+            name = _format_name(data) if markdown else None
+            engine = None if name in (None,) + _AS_WRITTEN + _EXPANDED else name
+            files[path] = KnowledgeFile(
+                text,
+                engine,
+                len(data),
+                not markdown or name in _AS_WRITTEN,
+                _after_first_line(text) if name else text,
+            )
     return KnowledgeSet(files, skipped)
+
+
+_MARKDOWN_SUFFIXES = (".md", ".markdown")
+_EXPANDED = ("aos", "agentic")
+_AS_WRITTEN = ("raw", "markdown", "md")
+
+
+def knowledge_engines() -> "List[str]":
+    """The template engines this installation renders with: ``envsubst``, and ``mustache`` when the
+    optional ``templates`` extra (``tplx``) is installed."""
+    found = ["envsubst"]
+    try:
+        import tplx  # noqa: F401
+        from tplx.engines import MustacheTemplate  # noqa: F401
+        import chevron  # noqa: F401
+    except ImportError:
+        return found
+    return found + ["mustache"]
+
+
+def _engines(engines: "Optional[Iterable[str]]") -> "List[str]":
+    wanted = set(knowledge_engines() if engines is None else engines)
+    return [engine for engine in KNOWLEDGE_ENGINES if engine in wanted]
 
 
 def _choose(overlays: "Sequence[KnowledgeOverlay]", wanted: Optional[str]) -> "List[KnowledgeOverlay]":
@@ -466,17 +516,22 @@ def knowledge_call(
     modes: "Iterable[str]" = (),
     settings: "Optional[KnowledgeSettings]" = None,
     caller: "Optional[CallerFacts]" = None,
+    engines: "Optional[Iterable[str]]" = None,
 ) -> "Dict[str, Any]":
     """What a server answers a call of ``kb_list`` or ``kb_read``: ``{"result": ...}`` or
     ``{"error": {"class", "message"}}``. ``overlays`` are the session's active overlays in
-    composition order; ``kb_search`` is the consumer's own (``search_check`` checks its answer)."""
+    composition order; ``engines`` the template engines this server renders with (by default those
+    ``knowledge_engines()`` finds); ``kb_search`` is the consumer's own (``search_check`` checks its
+    answer)."""
     modes = list(modes)
+    names = _engines(engines)
     try:
         args = knowledge_arguments(tool, arguments, modes, settings)
+        facts = caller or CallerFacts()
         if tool == "kb_list":
-            return {"result": _list(overlays, args, modes, settings)}
+            return {"result": _list(overlays, args, modes, settings, names, facts)}
         if tool == "kb_read":
-            return {"result": _read(overlays, args, settings, caller or CallerFacts())}
+            return {"result": _read(overlays, args, settings, facts, names)}
         raise KnowledgeError("invalid-arguments", "no tool is named " + tool)
     except KnowledgeError as error:
         return {"error": {"class": error.code, "message": error.message}}
@@ -499,11 +554,14 @@ def kb_list(
     *,
     overlay: Optional[str] = None,
     modes: "Iterable[str]" = (),
+    caller: "Optional[CallerFacts]" = None,
+    engines: "Optional[Iterable[str]]" = None,
     settings: "Optional[KnowledgeSettings]" = None,
 ) -> "Dict[str, Any]":
-    """``kb_list`` as an MCP result: each active overlay's served files and what is skipped."""
+    """``kb_list`` as an MCP result: each active overlay's served files (their lines and bytes are
+    those of the served text) and what is skipped, and the engines this server renders with."""
     arguments = {} if overlay is None else {"overlay": overlay}
-    return knowledge_result(knowledge_call("kb_list", overlays, arguments, modes, settings))
+    return knowledge_result(knowledge_call("kb_list", overlays, arguments, modes, settings, caller, engines))
 
 
 def kb_read(
@@ -515,16 +573,23 @@ def kb_read(
     overlay: Optional[str] = None,
     context: "Optional[Dict[str, Any]]" = None,
     caller: "Optional[CallerFacts]" = None,
+    engines: "Optional[Iterable[str]]" = None,
     settings: "Optional[KnowledgeSettings]" = None,
 ) -> "Dict[str, Any]":
-    """``kb_read`` as an MCP result. A file whose front matter names a template engine is rendered
-    for this call from ``caller`` (role, profile, the allowed environment) and ``context``, so a
-    consumer never applies ``envsubst`` or Mustache itself; any other file is served as it is."""
+    """``kb_read`` as an MCP result. The file is served as its first line says: expanded (``${NAME}``
+    and ``@path``) by default, as written for ``raw``, ``markdown`` and ``md``, rendered for an engine
+    this server has (``envsubst``, ``mustache``), from ``caller`` (role, profile, the allowed
+    environment) and ``context``; so a consumer never applies any of them itself."""
     arguments: "Dict[str, Any]" = {"path": path}
     for key, value in (("from", from_line), ("to", to_line), ("overlay", overlay), ("context", context)):
         if value is not None:
             arguments[key] = value
-    return knowledge_result(knowledge_call("kb_read", overlays, arguments, (), settings, caller))
+    return knowledge_result(knowledge_call("kb_read", overlays, arguments, (), settings, caller, engines))
+
+
+class _Held(NamedTuple):
+    overlay: KnowledgeOverlay
+    found: KnowledgeSet
 
 
 def _list(
@@ -532,37 +597,47 @@ def _list(
     args: "Dict[str, Any]",
     modes: "List[str]",
     settings: "Optional[KnowledgeSettings]",
+    engines: "List[str]",
+    caller: CallerFacts,
 ) -> "Dict[str, Any]":
+    limit = _mapping(settings)
     listed = []
     for overlay in _choose(overlays, args.get("overlay")):
-        found = knowledge_set(overlay, settings)
+        found = knowledge_set(overlay, limit)
         files: "List[Dict[str, Any]]" = []
+        skipped = list(found.skipped)
         for path, item in found.files.items():
+            try:
+                text = _serve(_Held(overlay, found), path, {}, caller, limit, engines)
+            except KnowledgeError:
+                skipped.append((path, "render"))
+                continue
+            entry: "Dict[str, Any]" = {
+                "path": path,
+                "lines": len(knowledge_lines(text)),
+                "bytes": len(text.encode("utf-8", "surrogatepass")),
+            }
             if item.engine:
-                files.append({"path": path, "template": item.engine})
-            else:
-                files.append({"path": path, "lines": len(knowledge_lines(item.text)), "bytes": item.size})
+                entry["template"] = item.engine
+                entry["rendered"] = item.engine in engines
+            files.append(entry)
+        skipped.sort(key=lambda pair: _bytes_key(pair[0]))
         listed.append(
             {
                 "overlay": overlay.identity,
                 "served": bool(overlay.served),
                 "files": files,
-                "skipped": [{"path": inert(path), "reason": reason} for path, reason in found.skipped],
+                "skipped": [{"path": inert(path), "reason": reason} for path, reason in skipped],
             }
         )
-    result: "Dict[str, Any]" = {"overlays": listed}
+    result: "Dict[str, Any]" = {"overlays": listed, "engines": engines}
     if modes:
         result["search"] = {"modes": [mode for mode in KNOWLEDGE_MODES if mode in set(modes)]}
     return result
 
 
-_SKIP_CLASS = {
-    "name": "invalid-path",
-    "too-large": "too-large",
-    "not-text": "not-text",
-    "template": "unknown-template",
-}
-_PRIORITY = ("link", "not-text", "too-large", "unknown-template", "not-found")
+_SKIP_CLASS = {"name": "invalid-path", "too-large": "too-large", "not-text": "not-text"}
+_PRIORITY = ("link", "not-text", "too-large", "not-found")
 
 
 def _read(
@@ -570,12 +645,13 @@ def _read(
     args: "Dict[str, Any]",
     settings: "Optional[KnowledgeSettings]",
     caller: CallerFacts,
+    engines: "List[str]",
 ) -> "Dict[str, Any]":
     limit = _mapping(settings)
     path = args["path"]
     if not valid_relative_path(path) or _hidden_name(path):
         raise KnowledgeError("invalid-path", inert(path))
-    found_in: "List[Tuple[KnowledgeOverlay, KnowledgeFile]]" = []
+    found_in: "List[_Held]" = []
     problems: "List[str]" = []
     for overlay in _choose(overlays, args.get("overlay")):
         held = knowledge_set(overlay, limit)
@@ -588,18 +664,17 @@ def _read(
         if linked:
             problems.append("link")
         elif path in held.files:
-            found_in.append((overlay, held.files[path]))
+            found_in.append(_Held(overlay, held))
         else:
             reason = dict(held.skipped).get(path)
             problems.append(_SKIP_CLASS[reason] if reason else "not-found")
     if len(found_in) > 1:
         raise KnowledgeError("ambiguous", "more than one overlay has that path")
     if not found_in:
-        raise KnowledgeError(min(problems, key=_PRIORITY.index), inert(path))
-    overlay, item = found_in[0]
-    text = item.text
-    if item.engine:
-        text = _render(overlay, item, args.get("context", {}), caller, limit)
+        raise KnowledgeError(min(problems, key=_PRIORITY.index) if problems else "not-found", inert(path))
+    held = found_in[0]
+    engine = held.found.files[path].engine
+    text = _serve(held, path, args.get("context", {}), caller, limit, engines)
     lines = knowledge_lines(text)
     total = len(lines)
     start = args.get("from", 1)
@@ -618,7 +693,7 @@ def _read(
         chosen.append(line)
         size += add
     result: "Dict[str, Any]" = {
-        "overlay": overlay.identity,
+        "overlay": held.overlay.identity,
         "path": path,
         "from_line": start,
         "to_line": start - 1 + len(chosen),
@@ -626,8 +701,9 @@ def _read(
         "truncated": truncated,
         "text": inert("\n".join(chosen)),
     }
-    if item.engine:
-        result["template"] = item.engine
+    if engine:
+        result["template"] = engine
+        result["rendered"] = engine in engines
     return result
 
 
@@ -637,69 +713,60 @@ def _facts(overlay: KnowledgeOverlay) -> TemplateFacts:
     return dataclasses.replace(overlay.facts, name=normalize_name(overlay.identity))
 
 
-def _render(
-    overlay: KnowledgeOverlay,
-    item: KnowledgeFile,
-    context: "Dict[str, Any]",
-    call: CallerFacts,
-    limit: KnowledgeSettings,
-) -> str:
+def _data(overlay: KnowledgeOverlay, context: "Dict[str, Any]", call: CallerFacts) -> "Dict[str, Any]":
+    """What a template reads: the roots ``overlay``, ``project``, ``caller``, ``env``, ``options`` and
+    ``context``, each only with what it holds. A sensitive option or variable is never in it."""
     facts = _facts(overlay)
-    split = split_front_matter(item.raw)
-    body = item.raw[split.body_offset or 0 :].decode("utf-8")
-    caller = call.caller()
-    env = call.allowed_env()
+    options: "Dict[str, Any]" = {}
+    declared_options = overlay.manifest.get("options")
+    for name, spec in (declared_options if isinstance(declared_options, dict) else {}).items():
+        if not isinstance(spec, dict) or spec.get("sensitive") is True:
+            continue
+        if name in facts.options:
+            options[name] = facts.options[name]
+        elif "default" in spec:
+            options[name] = spec["default"]
+        else:
+            continue
+        if not _option_fits(spec.get("type"), options[name]):
+            raise KnowledgeError("invalid-option", name)
+    return {
+        "overlay": {
+            key: value
+            for key, value in (
+                ("root", facts.root),
+                ("state", facts.state),
+                ("name", facts.name),
+                ("scope", facts.scope),
+            )
+            if value is not None
+        },
+        "project": {"root": facts.project} if facts.project is not None else {},
+        "caller": call.caller(),
+        "env": call.allowed_env(),
+        "options": options,
+        "context": context,
+    }
+
+
+def _envsubst_values(
+    overlay: KnowledgeOverlay, data: "Dict[str, Any]", context: "Dict[str, Any]"
+) -> "Dict[str, str]":
     try:
-        values = template_values(overlay.manifest, facts)
+        values = template_values(overlay.manifest, _facts(overlay))
     except Error as error:
         raise KnowledgeError("invalid-option", error.subject) from None
-    if item.engine == "envsubst":
-        for key, name in (("role", "AOS_CALLER_ROLE"), ("profile", "AOS_CALLER_PROFILE")):
-            if key in caller:
-                values[name] = caller[key]
-        for name, value in env.items():
-            values["AOS_ENV_" + name] = value
-        for key, value in context.items():
-            if isinstance(value, bool):
-                values["AOS_ARG_" + key] = "true" if value else "false"
-            elif isinstance(value, (int, str)):
-                values["AOS_ARG_" + key] = str(value)
-        out = template(body, values)
-    else:
-        options: "Dict[str, Any]" = {}
-        declared_options = overlay.manifest.get("options")
-        for name, spec in (declared_options if isinstance(declared_options, dict) else {}).items():
-            if not isinstance(spec, dict) or spec.get("sensitive") is True:
-                continue
-            if name in facts.options:
-                options[name] = facts.options[name]
-            elif "default" in spec:
-                options[name] = spec["default"]
-            else:
-                continue
-            if not _option_fits(spec.get("type"), options[name]):
-                raise KnowledgeError("invalid-option", name)
-        data: "Dict[str, Any]" = {
-            "overlay": {
-                key: value
-                for key, value in (
-                    ("root", facts.root),
-                    ("state", facts.state),
-                    ("name", facts.name),
-                    ("scope", facts.scope),
-                )
-                if value is not None
-            },
-            "project": {"root": facts.project} if facts.project is not None else {},
-            "caller": caller,
-            "env": env,
-            "options": options,
-            "context": context,
-        }
-        out = mustache(body, data, limit)
-    if not _within(limit.max_rendered_bytes, len(out.encode("utf-8", "surrogatepass"))):
-        raise KnowledgeError("too-large", "the rendered text")
-    return out
+    for key, name in (("role", "AOS_CALLER_ROLE"), ("profile", "AOS_CALLER_PROFILE")):
+        if key in data["caller"]:
+            values[name] = data["caller"][key]
+    for name, value in data["env"].items():
+        values["AOS_ENV_" + name] = value
+    for key, value in context.items():
+        if isinstance(value, bool):
+            values["AOS_ARG_" + key] = "true" if value else "false"
+        elif isinstance(value, (int, str)):
+            values["AOS_ARG_" + key] = str(value)
+    return values
 
 
 def _option_fits(kind: Any, value: Any) -> bool:
@@ -712,27 +779,280 @@ def _option_fits(kind: Any, value: Any) -> bool:
     return False
 
 
-_NEEDS_EXTRA = "a mustache template needs the 'templates' extra: pip install coqui-aos[templates]"
+def _flow(value: Any) -> str:
+    """A value as one line of flow YAML (JSON's shapes): keys in UTF-8 byte order, ``, `` and ``: ``
+    between, and in a string only ``"``, ``\\`` and U+0000-U+001F escaped, those as ``\\u00xx``."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, str):
+        out = []
+        for char in value:
+            if char in '"\\':
+                out.append("\\" + char)
+            elif ord(char) < 0x20:
+                out.append("\\u%04x" % ord(char))
+            else:
+                out.append(char)
+        return '"' + "".join(out) + '"'
+    if isinstance(value, list):
+        return "[" + ", ".join(_flow(item) for item in value) + "]"
+    keys = sorted(value, key=_bytes_key)
+    return "{" + ", ".join("%s: %s" % (_flow(key), _flow(value[key])) for key in keys) + "}"
+
+
+def _context_block(engine: str, data: "Dict[str, Any]") -> str:
+    """The front matter a file gets when its engine is not here: the engine's name and the roots,
+    which are left out when empty."""
+    parts = ['"engine": ' + _flow(engine)]
+    for root_name in ("overlay", "project", "caller", "env", "options", "context"):
+        if data[root_name]:
+            parts.append('"%s": %s' % (root_name, _flow(data[root_name])))
+    return "---\naos_template_context: {" + ", ".join(parts) + "}\n---\n"
+
+
+def _render(
+    held: _Held,
+    item: KnowledgeFile,
+    context: "Dict[str, Any]",
+    call: CallerFacts,
+    limit: KnowledgeSettings,
+    here: bool,
+) -> str:
+    data = _data(held.overlay, context, call)
+    engine = item.engine
+    if not here:
+        end = item.text.find("\n")
+        first, rest = (item.text + "\n", "") if end < 0 else (item.text[: end + 1], item.text[end + 1 :])
+        out = first + _context_block(engine or "", data) + rest
+    elif engine == "envsubst":
+        out = envsubst(item.rest, _envsubst_values(held.overlay, data, context))
+    else:
+        out = mustache(item.rest, data, limit)
+    if not _within(limit.max_rendered_bytes, len(out.encode("utf-8", "surrogatepass"))):
+        raise KnowledgeError("too-large", "the rendered text")
+    return out
+
+
+class _Expansion:
+    """What expanding one file shares along its includes."""
+
+    def __init__(
+        self,
+        held: _Held,
+        context: "Dict[str, Any]",
+        call: CallerFacts,
+        limit: KnowledgeSettings,
+        engines: "List[str]",
+    ) -> None:
+        self.held = held
+        self.context = context
+        self.call = call
+        self.limit = limit
+        self.engines = engines
+        self.values: "Optional[Dict[str, str]]" = None
+        self.added = 0
+
+    def names(self) -> "Dict[str, str]":
+        """The names ``${NAME}`` replaces, made the first time one is met."""
+        if self.values is None:
+            data = _data(self.held.overlay, self.context, self.call)
+            self.values = _envsubst_values(self.held.overlay, data, self.context)
+        return self.values
+
+
+def _serve(
+    held: _Held,
+    path: str,
+    context: "Dict[str, Any]",
+    call: CallerFacts,
+    limit: KnowledgeSettings,
+    engines: "List[str]",
+) -> str:
+    """The text ``kb_read`` serves for a file of the knowledge, before it is cut into lines."""
+    item = held.found.files[path]
+    if item.as_written:
+        return item.rest
+    if item.engine:
+        return _render(held, item, context, call, limit, item.engine in engines)
+    out = _expand(item.rest, path, _Expansion(held, context, call, limit, engines), (path,))
+    if not _within(limit.max_rendered_bytes, len(out.encode("utf-8", "surrogatepass"))):
+        raise KnowledgeError("too-large", "the served text")
+    return out
+
+
+_FENCE = re.compile(r"( {0,3})(`{3,}|~{3,})")
+_PLACEHOLDER = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+_INCLUDE_NAME = re.compile(r"[^ \t\r\n\f\v]+")
+_DRIVE = re.compile(r"[A-Za-z]:")
+_TRAILING = ".,;:!?)]}'\""
+
+
+def _opens_fence(line: str) -> "Optional[Tuple[str, int]]":
+    found = _FENCE.match(line)
+    return (found.group(2)[0], len(found.group(2))) if found else None
+
+
+def _closes_fence(line: str, fence: "Tuple[str, int]") -> bool:
+    found = _FENCE.match(line)
+    return bool(
+        found
+        and found.group(2)[0] == fence[0]
+        and len(found.group(2)) >= fence[1]
+        and line[found.end() :].strip(" \t\r\n") == ""
+    )
+
+
+def _code_mask(line: str) -> "List[bool]":
+    """Which characters of a line are in a code span: a run of backticks, to the next run of as many
+    on the same line; a run with none is itself."""
+    mask = [False] * len(line)
+    i = 0
+    while i < len(line):
+        if line[i] != "`":
+            i += 1
+            continue
+        j = i
+        while j < len(line) and line[j] == "`":
+            j += 1
+        k = j
+        end = None
+        while k < len(line):
+            if line[k] == "`":
+                m = k
+                while m < len(line) and line[m] == "`":
+                    m += 1
+                if m - k == j - i:
+                    end = m
+                    break
+                k = m
+            else:
+                k += 1
+        if end is None:
+            i = j
+        else:
+            for n in range(i, end):
+                mask[n] = True
+            i = end
+    return mask
+
+
+def _expand(text: str, path: str, state: _Expansion, chain: "Tuple[str, ...]") -> str:
+    out = []
+    fence: "Optional[Tuple[str, int]]" = None
+    for line in re.findall(r"[^\n]*\n|[^\n]+", text):
+        if fence is not None:
+            out.append(_expand_line(line, [True] * len(line), path, state, chain))
+            if _closes_fence(line, fence):
+                fence = None
+            continue
+        fence = _opens_fence(line)
+        if fence:
+            out.append(_expand_line(line, [True] * len(line), path, state, chain))
+        else:
+            out.append(_expand_line(line, _code_mask(line), path, state, chain))
+    return "".join(out)
+
+
+def _expand_line(
+    line: str, in_code: "List[bool]", path: str, state: _Expansion, chain: "Tuple[str, ...]"
+) -> str:
+    out = []
+    i = 0
+    while i < len(line):
+        if not in_code[i] and line.startswith("$${", i):
+            out.append("${")
+            i += 3
+            continue
+        found = None if in_code[i] else _PLACEHOLDER.match(line, i)
+        if found:
+            values = state.names()
+            if found.group(1) in values:
+                out.append(values[found.group(1)])
+                i = found.end()
+                continue
+        if line[i] == "@" and not in_code[i] and (i == 0 or line[i - 1] in " \t\r\f\v"):
+            token = _INCLUDE_NAME.match(line, i + 1)
+            name = token.group() if token else ""
+            while name and name[-1] in _TRAILING:
+                name = name[:-1]
+            target = _resolve(path, name, state.held.found) if name else None
+            included = _include(target, state, chain) if target else None
+            if included is not None:
+                out.append(included)
+                i += 1 + len(name)
+                continue
+        out.append(line[i])
+        i += 1
+    return "".join(out)
+
+
+def _resolve(path: str, name: str, found: KnowledgeSet) -> Optional[str]:
+    """The file of the knowledge an include names, or ``None``: the name is resolved from the including
+    file's folder, ``..`` may rise only to the root, and what is not a served file is not an include."""
+    if name[0] in "/~" or "\\" in name or _DRIVE.match(name):
+        return None
+    parts = path.split("/")[:-1]
+    for part in name.split("/"):
+        if part == "":
+            return None
+        if part == ".":
+            continue
+        if part == "..":
+            if not parts:
+                return None
+            parts.pop()
+        else:
+            parts.append(part)
+    target = "/".join(parts)
+    return target if valid_relative_path(target) and target in found.files else None
+
+
+def _include(target: str, state: _Expansion, chain: "Tuple[str, ...]") -> Optional[str]:
+    item = state.held.found.files[target]
+    limit = state.limit
+    if item.as_written:
+        text = item.rest
+    elif item.engine:
+        if item.engine not in state.engines:
+            return None
+        text = _render(state.held, item, state.context, state.call, limit, True)
+    else:
+        if target in chain:
+            raise KnowledgeError("include-error", "an include comes back to " + target)
+        if limit.max_include_depth is not None and len(chain) > limit.max_include_depth:
+            raise KnowledgeError("include-error", "includes are nested too deep")
+        body = item.rest
+        data = body.encode("utf-8", "surrogatepass")
+        split = split_front_matter(data)
+        if split.case in (SplitCase.PRESENT, SplitCase.EMPTY):
+            body = data[split.body_offset or 0 :].decode("utf-8")
+        text = _expand(body, target, state, chain + (target,))
+    state.added += len(text.encode("utf-8", "surrogatepass"))
+    if not _within(limit.max_rendered_bytes, state.added):
+        raise KnowledgeError("too-large", "the included text")
+    if text.endswith("\r\n"):
+        return text[:-2]
+    return text[:-1] if text.endswith("\n") else text
 
 
 def mustache(text: str, data: "Dict[str, Any]", settings: "Optional[KnowledgeSettings]" = None) -> str:
-    """The Mustache subset of the knowledge section, over ``data``, rendered by ``tplx`` in its
-    sandbox (the ``templates`` extra, imported only here). Raises ``KnowledgeError`` of class
-    ``template-error`` for a tag the subset does not define, or when ``tplx`` is not installed, and
-    ``too-large`` past ``max_rendered_bytes``."""
+    """The text of a ``mustache`` file, rendered over ``data``: the one place Mustache is rendered,
+    by ``tplx``'s Mustache engine (the ``templates`` extra, imported only here). Raises
+    ``KnowledgeError`` of class ``template-error`` for a template the engine refuses, or when it is
+    not installed, and ``too-large`` past ``max_rendered_bytes``."""
     limit = _mapping(settings)
     try:
         import tplx
         from tplx.engines import MustacheTemplate
     except ImportError:
         raise KnowledgeError("template-error", _NEEDS_EXTRA) from None
-    limits = {}
-    if limit.max_template_depth is not None:
-        limits["max_depth"] = limit.max_template_depth
+    bounds: "Dict[str, int]" = {}
     if limit.max_rendered_bytes is not None:
-        limits["max_output"] = limit.max_rendered_bytes
+        bounds["max_output"] = limit.max_rendered_bytes
     try:
-        loader = tplx.Loader(sandbox=tplx.SandboxLimits(**limits), engines=(MustacheTemplate,))
+        loader = tplx.Loader(sandbox=tplx.SandboxLimits(**bounds), engines=(MustacheTemplate,))
         out = loader.compile(text, engine=MustacheTemplate).render(data)
     except tplx.exceptions.SandboxError:
         raise KnowledgeError("too-large", "the rendered text") from None
@@ -743,6 +1063,15 @@ def mustache(text: str, data: "Dict[str, Any]", settings: "Optional[KnowledgeSet
     ):
         raise KnowledgeError("too-large", "the rendered text")
     return out
+
+
+def envsubst(text: str, values: "Dict[str, str]") -> str:
+    """The text of an ``envsubst`` file with each ``${NAME}`` that has a value replaced: the one place
+    envsubst is rendered. Anything else, an unknown name included, stays as written."""
+    return template(text, values)
+
+
+_NEEDS_EXTRA = "a mustache template needs the 'templates' extra: pip install coqui-aos[templates]"
 
 
 def search_order(passages: "List[Dict[str, Any]]") -> "List[Dict[str, Any]]":
@@ -767,6 +1096,8 @@ def search_check(
     response: Any,
     modes: "Iterable[str]",
     settings: "Optional[KnowledgeSettings]" = None,
+    caller: "Optional[CallerFacts]" = None,
+    engines: "Optional[Iterable[str]]" = None,
 ) -> "List[str]":
     """The rules a ``kb_search`` answer breaks, as sorted ids (``overlays``, ``mode``, ``top``,
     ``path-limit``, ``not-knowledge``, ``range``, ``text``, ``inert``, ``shape``, ``order``); empty
@@ -774,6 +1105,7 @@ def search_check(
     Raises ``KnowledgeError`` for arguments that are not a search's."""
     modes = list(modes)
     limit = _mapping(settings)
+    names = _engines(engines)
     args = knowledge_arguments("kb_search", arguments, modes, limit)
     broken: "set[str]" = set()
     if not isinstance(response, dict) or set(response) != {"results"}:
@@ -814,7 +1146,7 @@ def search_check(
             continue
         if len(passages) > args["top"]:
             broken.add("top")
-        held = knowledge_set(overlay, limit).files
+        held = _Held(overlay, knowledge_set(overlay, limit))
         for passage in passages:
             if not isinstance(passage, dict) or set(passage) != _PASSAGE_KEYS:
                 broken.add("shape")
@@ -829,11 +1161,11 @@ def search_check(
                 continue
             if prefix is not None and not (path == prefix or path.startswith(prefix + "/")):
                 broken.add("path-limit")
-            item = held.get(path)
-            if item is None or item.engine:
+            try:
+                lines = knowledge_lines(_serve(held, path, {}, caller or CallerFacts(), limit, names))
+            except (KeyError, KnowledgeError):
                 broken.add("not-knowledge")
                 continue
-            lines = knowledge_lines(item.text)
             first, last = passage["from_line"], passage["to_line"]
             if not (
                 isinstance(first, int)

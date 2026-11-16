@@ -34,7 +34,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Mustache templates in a served knowledge file are rendered by tplx, in its sandbox.
+# Mustache templates in a served knowledge file are rendered by tplx (its Mustache engine, chevron), in its sandbox.
 templates = ["tplx[mustache]>=0.2.1,<0.3"]
 dev = ["black", "build", "pytest", "tplx[mustache]>=0.2.1,<0.3"]
 

@@ -23,6 +23,7 @@ from coqui_aos import (
     kb_read,
     knowledge_arguments,
     knowledge_call,
+    knowledge_engines,
     knowledge_lines,
     knowledge_plan,
     knowledge_result,
@@ -34,6 +35,7 @@ from coqui_aos import (
 )
 
 KNOWLEDGE = cases("knowledge.json")
+ENGINES = ("envsubst", "mustache")
 KNOWLEDGE_SEARCH = cases("knowledge_search.json")
 
 
@@ -73,26 +75,6 @@ def caller_of(facts):
     )
 
 
-# Cases the Mustache engine behind the `templates` extra does not meet yet, each named with what
-# differs. They are run by `test_the_engine_gaps_still_differ`, which fails once one is met.
-ENGINE_GAPS = {
-    "mustache-facts": "booleans are written True and False, and {{x}} is HTML-escaped",
-    "mustache-no-caller": "a boolean is written True",
-    "mustache-implicit-iterator": "{{.}} of a boolean is an object's text, and is HTML-escaped",
-    "mustache-empty-string-is-truthy": "an empty string and 0 are false as section names",
-    "mustache-bool-and-int": "booleans are written True and False; an object and a list are inserted as text",
-    "mustache-no-escaping": "{{x}} is HTML-escaped",
-    "mustache-spaces-in-tag": "{{ & name }} (white space after the sigil) writes nothing",
-    "mustache-delimiter-refused": "a change of delimiters is accepted",
-    "mustache-lambda-refused": "a name with parentheses is accepted",
-    "mustache-bad-name": "a name with a space is accepted",
-    "mustache-dash-name": "a name with a dash is accepted",
-    "mustache-tag-over-two-lines": "a tag over two lines is accepted",
-    "mustache-unknown-sigil": "an unknown sigil is accepted",
-    "mustache-too-deep": "sections nested past max_template_depth are accepted",
-}
-
-
 def outcome_of(case):
     out = knowledge_call(
         case["tool"],
@@ -101,16 +83,12 @@ def outcome_of(case):
         case.get("modes", []),
         settings_of(case),
         caller_of(case.get("facts")),
+        case.get("engines", ENGINES),
     )
     return {"error": out["error"]["class"]} if "error" in out else {"result": out["result"]}
 
 
-@pytest.mark.parametrize("case", [c for c in KNOWLEDGE if c["id"] in ENGINE_GAPS], ids=lambda c: c["id"])
-def test_the_engine_gaps_still_differ(case):
-    assert strict(json.loads(json.dumps(outcome_of(case)))) != strict(case["expect"])
-
-
-@pytest.mark.parametrize("case", [c for c in KNOWLEDGE if c["id"] not in ENGINE_GAPS], ids=lambda c: c["id"])
+@pytest.mark.parametrize("case", KNOWLEDGE, ids=ids(KNOWLEDGE))
 def test_knowledge(case):
     limits = settings_of(case)
     if case["id"].startswith("tools-"):
@@ -144,6 +122,8 @@ def test_knowledge_search(case):
                 case["response"],
                 case["modes"],
                 settings_of(case),
+                caller_of(case.get("facts")),
+                case.get("engines", ENGINES),
             )
         }
     assert strict(json.loads(json.dumps(got))) == strict(case["expect"])
@@ -160,7 +140,7 @@ def one(files, manifest=None, **extra):
 
 def test_kb_read_renders_a_template_from_the_callers_facts():
     overlay = one(
-        {"kb/t.md": "---\ntemplate: mustache\n---\n{{caller.role}} {{context.topic}} {{env.USER}}\n"},
+        {"kb/t.md": "#!mustache\n{{caller.role}} {{context.topic}} {{env.USER}}\n"},
         facts=TemplateFacts(name="team"),
     )
     result = kb_read(
@@ -172,6 +152,7 @@ def test_kb_read_renders_a_template_from_the_callers_facts():
     assert result["isError"] is False
     assert result["structuredContent"]["text"] == "reviewer cache ana"
     assert result["structuredContent"]["template"] == "mustache"
+    assert result["structuredContent"]["rendered"] is True
     assert json.loads(result["content"][0]["text"]) == result["structuredContent"]
 
 
@@ -202,15 +183,47 @@ def test_lines_drop_a_carriage_return_only_before_a_line_feed():
     assert knowledge_lines("") == []
 
 
-def test_a_mustache_template_without_the_extra_is_a_template_error(monkeypatch):
+def test_without_the_extra_mustache_is_not_rendered_and_the_file_carries_its_context(monkeypatch):
     monkeypatch.setitem(sys.modules, "tplx", None)
+    assert knowledge_engines() == ["envsubst"]
     with pytest.raises(KnowledgeError) as raised:
         mustache("{{a}}", {"a": 1})
     assert raised.value.code == "template-error"
     assert "templates" in raised.value.message
-    overlay = one({"kb/t.md": "---\ntemplate: mustache\n---\n{{a}}\n"})
-    result = kb_read([overlay], "kb/t.md")
-    assert result["isError"] and result["structuredContent"]["error"]["class"] == "template-error"
+    overlay = one({"kb/t.md": "#!mustache\nHi {{a}}\n"}, facts=TemplateFacts(name="team"))
+    got = kb_read([overlay], "kb/t.md", context={"a": 1})["structuredContent"]
+    assert got["rendered"] is False and got["template"] == "mustache"
+    assert got["text"].startswith('#!mustache\n---\naos_template_context: {"engine": "mustache"')
+    assert got["text"].endswith("---\nHi {{a}}")
+    assert kb_list([overlay])["structuredContent"]["engines"] == ["envsubst"]
+
+
+def test_a_file_expands_by_default_and_a_raw_file_is_not_touched():
+    overlay = one(
+        {
+            "kb/a.md": "name ${AOS_OVERLAY_NAME} `${AOS_OVERLAY_NAME}`\n@part.md\n",
+            "kb/part.md": "part\n",
+            "kb/r.md": "#!raw\n${AOS_OVERLAY_NAME} @part.md\n",
+            "kb/p.txt": "#!raw\n${AOS_OVERLAY_NAME}\n",
+        },
+        {"context": ["kb/p.txt"]},
+        facts=TemplateFacts(name="team"),
+    )
+    assert (
+        kb_read([overlay], "kb/a.md")["structuredContent"]["text"] == "name team `${AOS_OVERLAY_NAME}`\npart"
+    )
+    assert kb_read([overlay], "kb/r.md")["structuredContent"]["text"] == "${AOS_OVERLAY_NAME} @part.md"
+    assert kb_read([overlay], "kb/p.txt")["structuredContent"]["text"] == "#!raw\n${AOS_OVERLAY_NAME}"
+
+
+def test_a_cycle_of_includes_is_an_include_error_and_the_files_are_skipped_in_the_list():
+    overlay = one({"kb/a.md": "@b.md\n", "kb/b.md": "@a.md\n"})
+    assert kb_read([overlay], "kb/a.md")["structuredContent"]["error"]["class"] == "include-error"
+    listed = kb_list([overlay])["structuredContent"]["overlays"][0]
+    assert listed["skipped"] == [
+        {"path": "kb/a.md", "reason": "render"},
+        {"path": "kb/b.md", "reason": "render"},
+    ]
 
 
 def test_settings_report_what_differs_from_the_default():
