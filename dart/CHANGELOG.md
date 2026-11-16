@@ -16,14 +16,18 @@ All notable changes to this package are documented in this file; the repository'
   `match` may allow it: `HookRun` gains `select` and `fireEvent` a `toolKind`; another hook's allow and
   `input` are not counted and are reported `hook-not-applied` `allow`, and its deny and ask still count.
 
-- From specification revision 7f44576, an overlay's knowledge served through MCP: `knowledgeTools`,
-  `knowledgeArguments`, `kbList`, `kbRead` (the served text of a file: a markdown file names its format on its first
-  line; expanded by default, `${NAME}` and `@path` includes outside code; `markdown`, `md` and `raw` as written;
-  `envsubst` and the `mustache` subset rendered per call from the caller's role, profile, allowed environment names
-  and the call's `context`; any other engine kept with an `aos_template_context` block), `knowledgeResult`,
-  `knowledgeSet`, `knowledgeServe`, `knowledgeFormat`, `readKnowledgeTree`, `knowledgePlan` and the `[knowledge]`
-  table's validation; `searchCheck` and `searchOrder` check a `kb_search` answer. Every limit is a
-  `KnowledgeSettings` field with no floor, `maxIncludeDepth` included.
+- From specification revision ab00884, an overlay's knowledge served through MCP: `knowledgeTools`,
+  `knowledgeArguments`, `kbList`, `kbRead` (the served text of a file: a markdown file names its format and its
+  `name=value` options on its first line; expanded by default, `${NAME}`, `$$` and `@path` includes outside code;
+  `markdown`, `md` and `raw` as written; standard Mustache with `escape` and partials from the overlay, through the
+  `mustache_template` package; envsubst with `dialect`, `pattern`, `features` and `undefined`, its own small
+  implementation of GNU's behaviour and the `escape` and `default` features; any other engine kept with an
+  `aos_template_context` block), `knowledgeResult`, `knowledgeSet`, `knowledgeServe`, `knowledgeFormat`,
+  `readKnowledgeTree`, `knowledgePlan` and the `[knowledge]` table's validation; `searchCheck` and `searchOrder` check
+  a `kb_search` answer. Every limit is a `KnowledgeSettings` field with no floor, `maxIncludeDepth` included. New
+  dependency: `mustache_template` 2.0.4 (BSD-3-Clause, pure Dart, VM and web). Two vector cases, `mustache-facts` and
+  `mustache-spaces-in-tag`, are named as not run, since that package escapes `/` and reads `{{ & x }}` as the
+  specification does.
 
 ## 0.0.0-alpha.0
 

@@ -66,7 +66,6 @@ const List<(String, String, int)> _knowledgeDefinitions = [
   ('max_top', 'maxTop', 100),
   ('max_context_bytes', 'maxContextBytes', 16 * 1024),
   ('max_context_depth', 'maxContextDepth', 8),
-  ('max_template_depth', 'maxTemplateDepth', 32),
   ('max_include_depth', 'maxIncludeDepth', 5),
 ];
 
@@ -157,10 +156,7 @@ class KnowledgeSettings {
   /// Levels a `context` may nest.
   Limit get maxContextDepth => _values['maxContextDepth'];
 
-  /// Mustache sections one in another.
-  Limit get maxTemplateDepth => _values['maxTemplateDepth'];
-
-  /// `@path` includes one in another.
+  /// `@path` includes, and Mustache partials, one in another.
   Limit get maxIncludeDepth => _values['maxIncludeDepth'];
 }
 
@@ -502,6 +498,7 @@ class KnowledgeFile {
     this.text,
     this.engine,
     this.asWritten,
+    this.options,
     this.bytes,
     this.data,
     this.rest,
@@ -520,6 +517,9 @@ class KnowledgeFile {
   /// Whether the file is served as written: not a markdown file, or one that names `markdown`,
   /// `md` or `raw`.
   final bool asWritten;
+
+  /// The options of its first line (`name=value` words), by name.
+  final Map<String, String> options;
 
   /// Its size as stored.
   final int bytes;
@@ -563,10 +563,13 @@ bool _selected(String path, Document manifest) {
 
 bool _hiddenName(String path) => path.runes.any(_hides);
 
-/// The name a markdown file's first line gives its format: `#!` and words, the last word
-/// after any `/` or `\` with leading dots dropped and ASCII capitals lower-cased; null when
-/// the file gives none (no `#!` at its first byte, no word, bytes that are not UTF-8).
-String? knowledgeFormat(Uint8List data) {
+final RegExp _option = RegExp(r'^([a-z][a-z_]*)=(\S+)$');
+
+/// The name and the options a markdown file's first line gives its format: `#!` and words,
+/// the options the words of the form `name=value`, the name the last word that is not one,
+/// after any `/` or `\`, with leading dots dropped and ASCII capitals lower-cased. Null when
+/// the file gives no name (no `#!` at its first byte, no word, bytes that are not UTF-8).
+({String name, Map<String, String> options})? knowledgeFormat(Uint8List data) {
   if (data.length < 2 || data[0] != 0x23 || data[1] != 0x21) return null;
   final end = data.indexOf(0x0a);
   final line = end < 0
@@ -578,15 +581,25 @@ String? knowledgeFormat(Uint8List data) {
   } on AosError {
     return null;
   }
-  final words = text.split(RegExp(r'[ \t\f\r]+')).where((w) => w.isNotEmpty);
-  var word = words.isEmpty ? '' : words.last;
-  word = word.split(RegExp(r'[/\\]')).last;
+  final options = <String, String>{};
+  final names = <String>[];
+  for (final word in text.split(RegExp(r'[ \t\f\r]+'))) {
+    if (word.isEmpty) continue;
+    final found = _option.firstMatch(word);
+    if (found != null) {
+      options[found.group(1)!] = found.group(2)!;
+    } else {
+      names.add(word);
+    }
+  }
+  if (names.isEmpty) return null;
+  var name = names.last.split(RegExp(r'[/\\]')).last;
   var dots = 0;
-  while (dots < word.length && word[dots] == '.') {
+  while (dots < name.length && name[dots] == '.') {
     dots += 1;
   }
-  word = asciiLower(word.substring(dots));
-  return word.isEmpty ? null : word;
+  name = asciiLower(name.substring(dots));
+  return name.isEmpty ? null : (name: name, options: options);
 }
 
 String _afterFirstLine(String text) {
@@ -626,7 +639,8 @@ KnowledgeSet knowledgeSet(
       }
       final lower = asciiLower(path);
       final markdown = lower.endsWith('.md') || lower.endsWith('.markdown');
-      final name = markdown ? knowledgeFormat(entry.bytes) : null;
+      final line = markdown ? knowledgeFormat(entry.bytes) : null;
+      final name = line?.name;
       files[path] = KnowledgeFile._(
         path,
         text,
@@ -634,6 +648,7 @@ KnowledgeSet knowledgeSet(
             ? null
             : name,
         !markdown || (name != null && _asWritten.contains(name)),
+        line?.options ?? const {},
         entry.size,
         entry.bytes,
         name != null ? _afterFirstLine(text) : text,
@@ -743,7 +758,7 @@ Map<String, Object?> _list(
         'lines': knowledgeLines(text).length,
         'bytes': utf8Length(text),
         if (item.engine != null) 'template': item.engine,
-        if (item.engine != null) 'rendered': engines.contains(item.engine),
+        if (item.engine != null) 'rendered': knowledgeRenders(item, engines),
       });
     }
     skipped.sort((a, b) => compareText(a.$1, b.$1));
@@ -865,7 +880,8 @@ Map<String, Object?> _read(
     'truncated': truncated,
     'text': inert(chosen.join('\n')),
     'template': ?engine,
-    if (engine != null) 'rendered': engines.contains(engine),
+    if (engine != null)
+      'rendered': knowledgeRenders(held.files[path]!, engines),
   };
 }
 

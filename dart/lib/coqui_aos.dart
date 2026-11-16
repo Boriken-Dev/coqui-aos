@@ -18,7 +18,9 @@ export 'src/hooks.dart';
 export 'src/kinds.dart';
 export 'src/knowledge_core.dart';
 export 'src/knowledge_search.dart';
-export 'src/knowledge_template.dart' show mustache;
+export 'src/knowledge_envsubst.dart';
+export 'src/knowledge_mustache.dart'
+    show MustachePartial, MustachePartials, renderMustache;
 export 'src/limits.dart';
 export 'src/names.dart';
 export 'src/overlay.dart';

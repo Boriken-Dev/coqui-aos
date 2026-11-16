@@ -9,7 +9,7 @@ import 'error.dart';
 import 'front_matter.dart';
 import 'knowledge_core.dart';
 import 'knowledge_envsubst.dart';
-import 'knowledge_template.dart';
+import 'knowledge_mustache.dart';
 import 'limits.dart';
 import 'names.dart';
 import 'template.dart';
@@ -154,8 +154,26 @@ String _contextBlock(String engine, Map<String, Object?> data) {
   return '---\naos_template_context: {${parts.join(', ')}}\n---\n';
 }
 
+/// Whether this server renders the file's engine with the options its first line asks for.
+/// A file whose options it cannot honour, or an engine it lacks, is kept with its context.
+bool knowledgeRenders(KnowledgeFile item, List<String> engines) {
+  final engine = item.engine;
+  if (engine == null || !engines.contains(engine)) return false;
+  if (engine == 'envsubst') {
+    try {
+      return knowledgeImplementedFeatures.containsAll(
+        envsubstOptions(item.options).features,
+      );
+    } on KnowledgeError {
+      return true;
+    }
+  }
+  return true;
+}
+
 String _render(
   KnowledgeOverlay overlay,
+  KnowledgeSet held,
   KnowledgeFile item,
   Map<String, Object?> context,
   CallerFacts call,
@@ -172,9 +190,32 @@ String _render(
     final rest = end < 0 ? '' : text.substring(end + 1);
     out = first + _contextBlock(engine, data) + rest;
   } else if (engine == 'envsubst') {
-    out = renderEnvsubst(item.rest, _envsubstValues(overlay, data, context));
+    final asked = envsubstOptions(item.options);
+    out = renderEnvsubst(
+      item.rest,
+      _envsubstValues(overlay, data, context),
+      pattern: asked.pattern,
+      features: asked.features,
+      undefined: asked.undefined,
+    );
   } else {
-    out = mustache(item.rest, data, limit);
+    final escape = item.options['escape'] ?? 'html';
+    if (escape != 'html' && escape != 'none') {
+      throw KnowledgeError('template-error', 'escape is html or none');
+    }
+    out = renderMustache(
+      item.rest,
+      data,
+      path: item.path,
+      escape: escape,
+      settings: limit,
+      partials: (name, fromPath) {
+        final target = name.isEmpty ? null : _resolve(fromPath, name, held);
+        return target == null
+            ? null
+            : (path: target, text: held.files[target]!.rest);
+      },
+    );
   }
   if (_over(utf8Length(out), limit.maxRenderedBytes)) {
     throw KnowledgeError('too-large', 'the rendered text');
@@ -226,11 +267,12 @@ String knowledgeServe(
   if (item.engine != null) {
     return _render(
       overlay,
+      held,
       item,
       context,
       call,
       limit,
-      engines.contains(item.engine),
+      knowledgeRenders(item, engines),
     );
   }
   final ctx = _Context(overlay, held, context, call, limit, engines);
@@ -341,9 +383,9 @@ String _line(
   final out = StringBuffer();
   var i = 0;
   while (i < line.length) {
-    if (!inCode[i] && line.startsWith(r'$${', i)) {
-      out.write(r'${');
-      i += 3;
+    if (!inCode[i] && line.startsWith(r'$$', i)) {
+      out.write(r'$');
+      i += 2;
       continue;
     }
     final found = inCode[i] ? null : _placeholder.matchAsPrefix(line, i);
@@ -415,8 +457,16 @@ String? _include(String target, _Context ctx, List<String> chain) {
   if (item.asWritten) {
     text = item.rest;
   } else if (item.engine != null) {
-    if (!ctx.engines.contains(item.engine)) return null;
-    text = _render(ctx.overlay, item, ctx.context, ctx.call, limit, true);
+    if (!knowledgeRenders(item, ctx.engines)) return null;
+    text = _render(
+      ctx.overlay,
+      ctx.held,
+      item,
+      ctx.context,
+      ctx.call,
+      limit,
+      true,
+    );
   } else {
     if (chain.contains(target)) {
       throw KnowledgeError('include-error', 'an include comes back to $target');

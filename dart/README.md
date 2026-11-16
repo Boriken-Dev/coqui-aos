@@ -62,7 +62,7 @@ Future<void> main() async {
 | Trees and digests | `OverlayTree`, `FileSystem`, `readTree`, `treeDigest`, `digestEntries`, `Digest` |
 | Composition | `resolve`, `compose`, `environments`, `effective`, `Facts`, `Environment`, `preparation` |
 | Catalogs, skills, hooks | `readCatalog`, `listCatalogs`, `resolveSkills`, `fetchPlanned`, `hookPlan`, `fireEvent` |
-| Knowledge through MCP | `kbRead`, `kbList`, `knowledgeCall`, `knowledgeTools`, `KnowledgeOverlay`, `KnowledgeSettings` |
+| Knowledge through MCP | `kbRead`, `kbList`, `knowledgeCall`, `knowledgeTools`, `KnowledgeOverlay`, `KnowledgeSettings`, `renderMustache`, `renderEnvsubst` |
 | Bounds | `Settings`, `Settings.nonDefaults()` |
 
 [`AGENTS.md`](AGENTS.md) is the API header: every public item with its contract and gotchas.
