@@ -81,6 +81,33 @@ skillText(data: Uint8Array, values, settings: Settings): string     // front mat
 
 `${NAME}` is replaced in the context a consumer assembles and in the body of a bundled skill it serves, never in an installed file, and only for `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_STATE`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_SCOPE`, `AOS_PROJECT_ROOT` and the overlay's `options` that have a value; a name with no value, an unknown name, one with an operator and a sensitive option are left as written, `$${` is `${`, and a value is never read again. A skill's front matter is served as written. A configured value of the wrong type is `invalid-option`, never converted. The bound on the context counts the text after replacing: the caller checks it.
 
+## Knowledge served through MCP
+
+The knowledge section of the specification: `kb_list` and `kb_read` for every consumer with a session, `kb_search` when it declares a search mode. Everything here is pure and synchronous except `readKnowledgeTree`; the transport is the consumer's.
+
+```ts
+// the call a consumer serves: a request in, an MCP result out
+kbRead(overlays: readonly KnowledgeOverlay[], request: { path; from?; to?; overlay?; context? }, options?: { caller?: CallerFacts; settings?: KnowledgeSettings }): KnowledgeResult
+kbList(overlays, request?: { overlay?; modes?: Iterable<string> }, options?: { settings? }): KnowledgeResult
+interface KnowledgeResult { content: [{ type: "text", text }]; structuredContent: Record<string, unknown>; isError: boolean }   // text is the same JSON as structuredContent
+interface KnowledgeOverlay { identity: string; manifest: Document; tree: readonly KnowledgeEntry[]; served: boolean; facts: TemplateFacts }
+interface KnowledgeEntry { path: string; kind: "file" | "directory" | "symlink" | "other"; bytes?: Uint8Array }
+interface CallerFacts { caller?: { role?: string; profile?: string }; env?: Map<string, string> | Record<string, string>; envAllow?: readonly string[] }
+readKnowledgeTree(files: FileSystem, root: string, settings?): Promise<KnowledgeEntry[]>   // never follows a link; excluded names not entered
+
+// the pieces
+knowledgeTools(modes, settings?): KnowledgeTool[];  knowledgeArguments(tool, args: Map, modes, settings?): Record<string, unknown>   // invalid-arguments
+knowledgeSet(overlay, settings?): KnowledgeSet     // { files, skipped: [path, "name" | "too-large" | "not-text" | "template"][], entries }
+knowledgeCall(tool, overlays, args: Map, modes?, settings?, caller?): { result } | { error: { class, message } }
+knowledgeResult(outcome): KnowledgeResult;  knowledgePlan(manifest, files: Map<path, text> | Iterable<path>, user?: boolean): { served, leftOut }
+mustache(text, data: Document, settings?): string;  inert(text): string;  knowledgeLines(text): string[]
+searchOrder(passages: Map[]): Map[];  searchCheck(overlays, args: Map, response: Map, modes, settings?): string[]   // sorted rule ids; empty conforms
+class KnowledgeSettings { maxFileBytes, maxReadBytes, maxRenderedBytes, maxQueryCharacters, maxTop, maxContextBytes, maxContextDepth, maxTemplateDepth: Limit;  with(), values(), nonDefaults(), static fromData() }   // defaults 1 MiB, 64 KiB, 1 MiB, 1000, 100, 16 KiB, 8, 32
+class KnowledgeError extends Error { class: KnowledgeErrorClass; detail: string }
+```
+
+`kbRead` renders a template **per call**: the file's front matter names `envsubst` or `mustache`, and the body is rendered from the overlay's facts, the caller's (`role`, `profile`, the allowed environment names with their values, a sensitive name never) and the call's `context`, so a consumer never writes either engine. A file with no `template` key is served byte for byte; an unknown engine is `unknown-template`. A refusal is a result with `isError` true, not a throw. `request.context` is a `Map` or a plain object whose whole numbers are integers; `from`, `to` must be whole numbers (a float is `invalid-arguments`). The `args` of the lower-level functions follow the package's data model: integers are `bigint`s, a float is a `number` (so `2.0` is refused), `null` is the argument absent; `fromPlain` converts a `JSON.parse` result. Text served is written out (`<U+XXXX>`) and paths are listed in UTF-8 byte order. The package searches nothing: `searchCheck` and `searchOrder` check the answer of a server a consumer has. The manifest's `[knowledge] serve` hint is validated and read by `knowledgePlan`.
+
 ## Names, sources, digests
 
 ```ts

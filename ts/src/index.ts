@@ -23,3 +23,5 @@ export * from "./catalog.ts";
 export * from "./skills.ts";
 export { HOOK_EVENTS, hookEvent, DECISIONS, decision, ON_FAILURES, onFailure, HOOK_SCOPES, hookScope, HOOK_FAILURES, hookFailure, HookFailed, hooksDeclared, hooksOf, hookFacts, hookPlan, hookMatches, hookPayload, HookOutput, readHookOutput, HookRun, hookRun, hookResult, FiredEvent, fireEvent, type HookEvent, type Decision, type OnFailure, type HookScope, type HookFailure, type Hook, type HookFacts, type HookPlan, type HookReport } from "./hooks.ts";
 export { decodeUtf8, encodeUtf8 } from "./text.ts";
+export * from "./knowledge.ts";
+export { searchOrder, searchCheck } from "./knowledge_search.ts";

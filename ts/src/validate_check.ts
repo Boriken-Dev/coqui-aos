@@ -250,6 +250,11 @@ export class Check {
         case "about":
           this.about(value, at);
           break;
+        case "knowledge": {
+          const map = this.object(value, at, ["serve"]);
+          if (map?.has("serve") === true) this.boolean(map.get("serve"), join(at, "serve"));
+          break;
+        }
         default:
       }
     }
