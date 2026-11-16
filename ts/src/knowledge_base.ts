@@ -13,7 +13,6 @@ const DEFINITIONS = [
   ["max_top", "maxTop", 100],
   ["max_context_bytes", "maxContextBytes", 16 * 1024],
   ["max_context_depth", "maxContextDepth", 8],
-  ["max_template_depth", "maxTemplateDepth", 32],
   ["max_include_depth", "maxIncludeDepth", 5],
 ] as const;
 
@@ -32,8 +31,8 @@ export interface KnowledgeNonDefault {
 
 /**
  * The limits of serving knowledge, each with a default and no floor: a file served (1 MiB), the text of one read (64 KiB), a
- * rendered template (1 MiB), a query (1000 characters), `top` (100), a call's context (16 KiB and 8 levels), Mustache
- * sections nested (32) and `@path` includes nested (5). Immutable.
+ * rendered template (1 MiB), a query (1000 characters), `top` (100), a call's context (16 KiB and 8 levels) and `@path` includes and
+ * Mustache partials nested (5). Immutable.
  */
 export class KnowledgeSettings implements KnowledgeSettingsValues {
   readonly maxFileBytes!: Limit;
@@ -43,7 +42,6 @@ export class KnowledgeSettings implements KnowledgeSettingsValues {
   readonly maxTop!: Limit;
   readonly maxContextBytes!: Limit;
   readonly maxContextDepth!: Limit;
-  readonly maxTemplateDepth!: Limit;
   readonly maxIncludeDepth!: Limit;
 
   constructor(changes: Partial<KnowledgeSettingsValues> = {}) {

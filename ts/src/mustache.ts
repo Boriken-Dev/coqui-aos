@@ -1,170 +1,88 @@
-/** The Mustache subset of the knowledge section: variables, sections, inverted sections and comments. No partial, no change of delimiters, no lambda, no escaping. */
-import { DEFAULT_KNOWLEDGE_SETTINGS, KnowledgeError, type KnowledgeSettings, byteLength, within } from "./knowledge_base.ts";
+/** The Mustache renderer of the knowledge section: the stock `mustache` package (mustache.js), which follows the official specification, behind one function so another library can replace it. Partials are served files of the overlay, found by the caller. */
+import Mustache from "mustache";
+import { KnowledgeError } from "./knowledge_base.ts";
+import type { Limit } from "./limits.ts";
 import type { Document, Value } from "./value.ts";
 
-const NAME = /^(?:\.|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)$/;
-const STANDALONE = /^[ \t]*\r?\n?$/;
-const MISSING = Symbol("missing");
-
-type Item = readonly [kind: "text" | "var" | "sec" | "inv" | "end" | "comment", text: string];
-type Node = readonly ["text" | "var", string] | { kind: "sec" | "inv"; name: string; children: Node[] };
-
-const strip = (text: string): string => text.replace(/^[ \t]+/, "").replace(/[ \t]+$/, "");
-
-function lineItems(line: string): Item[] {
-  const items: Item[] = [];
-  let index = 0;
-  while (index < line.length) {
-    const found = line.indexOf("{{", index);
-    if (found < 0) {
-      items.push(["text", line.slice(index)]);
-      break;
-    }
-    if (found > index) items.push(["text", line.slice(index, found)]);
-    if (line.startsWith("{{{", found)) {
-      const end = line.indexOf("}}}", found + 3);
-      if (end < 0) throw new KnowledgeError("template-error", "a tag is not closed");
-      items.push(["var", strip(line.slice(found + 3, end))]);
-      index = end + 3;
-    } else {
-      const end = line.indexOf("}}", found + 2);
-      if (end < 0) throw new KnowledgeError("template-error", "a tag is not closed");
-      const inner = strip(line.slice(found + 2, end));
-      index = end + 2;
-      const sigil = inner.slice(0, 1);
-      if (sigil === "#" || sigil === "^" || sigil === "/" || sigil === "&") {
-        const kind = { "#": "sec", "^": "inv", "/": "end", "&": "var" }[sigil] as "sec" | "inv" | "end" | "var";
-        items.push([kind, strip(inner.slice(1))]);
-      } else if (sigil === "!") items.push(["comment", ""]);
-      else if (">{<={}$%*".includes(sigil) && sigil !== "") throw new KnowledgeError("template-error", "a tag of this kind is not defined");
-      else items.push(["var", inner]);
-    }
-    const last = items[items.length - 1]!;
-    if (last[0] !== "text" && last[0] !== "comment") {
-      if (!NAME.test(last[1]) || ((last[0] === "sec" || last[0] === "inv" || last[0] === "end") && last[1] === ".")) {
-        throw new KnowledgeError("template-error", "a name is not usable");
-      }
-    }
-  }
-  const tags = items.filter((item) => item[0] !== "text");
-  if (tags.length === 1 && ["sec", "inv", "end", "comment"].includes(tags[0]![0])) {
-    const texts = items.filter((item) => item[0] === "text");
-    if (texts.every((item) => STANDALONE.test(item[1])) && STANDALONE.test(texts.map((item) => item[1]).join(""))) return tags;
-  }
-  return items;
+/** A partial the caller found: the file it is (to resolve the partials inside it from) and its text. */
+export interface MustachePartial {
+  readonly path: string;
+  readonly text: string;
 }
 
-/** Whether a comment tag in `text` is not closed. */
-function openComment(text: string): boolean {
-  let at = 0;
-  for (;;) {
-    const found = text.indexOf("{{", at);
-    if (found < 0) return false;
-    if (text.startsWith("{{{", found)) {
-      const end = text.indexOf("}}}", found + 3);
-      if (end < 0) return false;
-      at = end + 3;
-      continue;
-    }
-    const end = text.indexOf("}}", found + 2);
-    if (end < 0) return text.startsWith("{{!", found);
-    at = end + 2;
-  }
+/** What `mustache` is given besides the template and its data. */
+export interface MustacheOptions {
+  /** `html` (the default) escapes `& < > "` in `{{x}}`; `none` inserts every value as it is. */
+  readonly escape?: "html" | "none" | undefined;
+  /** Finds the partial `name` named by a tag in the file `from`, or `null` for none, which renders as nothing. */
+  readonly partial?: ((name: string, from: string | undefined) => MustachePartial | null) | undefined;
+  /** The file the template is, given to `partial` as `from`. */
+  readonly path?: string | undefined;
+  /** Partials one in another; one more is `include-error`. `null` is no bound. */
+  readonly maxIncludeDepth?: Limit | undefined;
 }
 
-/** The lines of `text`, a line that ends inside a comment joined to the next. */
-function logicalLines(text: string): string[] {
-  const out: string[] = [];
-  let buffer = "";
-  for (const line of text.match(/[^\n]*\n|[^\n]+/g) ?? []) {
-    buffer += line;
-    if (!openComment(buffer)) {
-      out.push(buffer);
-      buffer = "";
-    }
-  }
-  if (buffer !== "") out.push(buffer);
-  return out;
+const HTML: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
+
+/** A value as the reference writes it: text as it is, an integer in decimal, a boolean `true` or `false`, anything else as nothing. */
+function text(value: unknown): string {
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  return "";
 }
 
-function parse(text: string, settings: KnowledgeSettings): Node[] {
-  const root: Node[] = [];
-  const stack: Array<{ name: string | null; children: Node[] }> = [{ name: null, children: root }];
-  for (const line of logicalLines(text)) {
-    for (const item of lineItems(line)) {
-      const top = stack[stack.length - 1]!;
-      if (item[0] === "text" || item[0] === "var") top.children.push([item[0], item[1]]);
-      else if (item[0] === "sec" || item[0] === "inv") {
-        const node = { kind: item[0], name: item[1], children: [] as Node[] };
-        top.children.push(node);
-        stack.push({ name: item[1], children: node.children });
-        if (settings.maxTemplateDepth !== null && stack.length > settings.maxTemplateDepth) {
-          throw new KnowledgeError("template-error", "sections nest too deep");
-        }
-      } else if (item[0] === "end") {
-        if (stack.length === 1 || top.name !== item[1]) throw new KnowledgeError("template-error", "a section is closed wrongly");
-        stack.pop();
-      }
-    }
+/** The data as plain JavaScript for the library: mappings as objects with no prototype, integers as numbers. */
+function plain(value: Value): unknown {
+  if (value instanceof Map) {
+    const out = Object.create(null) as Record<string, unknown>;
+    for (const [key, item] of value) Object.defineProperty(out, key, { value: plain(item), enumerable: true, writable: true, configurable: true });
+    return out;
   }
-  if (stack.length !== 1) throw new KnowledgeError("template-error", "a section is not closed");
-  return root;
+  if (Array.isArray(value)) return value.map(plain);
+  return typeof value === "bigint" ? Number(value) : value;
 }
-
-function lookup(name: string, stack: readonly unknown[]): unknown {
-  if (name === ".") return stack[stack.length - 1];
-  const [first, ...rest] = name.split(".") as [string, ...string[]];
-  let value: unknown = MISSING;
-  for (let at = stack.length - 1; at >= 0; at -= 1) {
-    const context = stack[at];
-    if (context instanceof Map && context.has(first)) {
-      value = context.get(first);
-      break;
-    }
-  }
-  for (const key of rest) {
-    if (value === MISSING) break;
-    value = value instanceof Map && value.has(key) ? value.get(key) : MISSING;
-  }
-  return value;
-}
-
-const truthy = (value: unknown): boolean =>
-  !(value === MISSING || value === null || value === undefined || value === false || (Array.isArray(value) && value.length === 0));
 
 /**
- * `text` rendered over `data`, a mapping of the roots `overlay`, `project`, `caller`, `env`, `options` and `context` (values are text, integers as `bigint`, booleans, lists and mappings). Throws `KnowledgeError` `template-error` for what the subset refuses and `too-large` past `maxRenderedBytes`.
+ * `template` rendered by Mustache over `data`, a mapping of the roots `overlay`, `project`, `caller`, `env`, `options` and `context`. Throws `KnowledgeError` `template-error` where the library refuses the template and `include-error` for partials nested past `maxIncludeDepth`.
  */
-export function mustache(text: string, data: Document, settings: KnowledgeSettings = DEFAULT_KNOWLEDGE_SETTINGS): string {
-  const tree = parse(text, settings);
-  const out: string[] = [];
-  let size = 0;
-  const emit = (piece: string): void => {
-    size += byteLength(piece);
-    if (!within(settings.maxRenderedBytes, size)) throw new KnowledgeError("too-large", "the rendered text");
-    out.push(piece);
+export function mustache(template: string, data: Document, options: MustacheOptions = {}): string {
+  const writer = new Mustache.Writer();
+  const html = (options.escape ?? "html") === "html";
+  const escape = (value: unknown): string => (html ? text(value).replace(/[&<>"]/g, (char) => HTML[char]!) : text(value));
+  // The reference's text for a value, whatever the library would print for a list or an object.
+  writer.escapedValue = (token, context) => {
+    const value: unknown = context.lookup(token[1]!);
+    return value == null ? (undefined as never) : escape(value);
   };
-  const walk = (nodes: readonly Node[], stack: readonly unknown[]): void => {
-    for (const node of nodes) {
-      if (Array.isArray(node)) {
-        const [kind, body] = node as readonly ["text" | "var", string];
-        if (kind === "text") emit(body);
-        else {
-          const value = lookup(body, stack);
-          if (typeof value === "boolean") emit(value ? "true" : "false");
-          else if (typeof value === "bigint" || typeof value === "string") emit(String(value));
-        }
-      } else {
-        const section = node as { kind: "sec" | "inv"; name: string; children: Node[] };
-        const value = lookup(section.name, stack);
-        if (section.kind === "inv") {
-          if (!truthy(value)) walk(section.children, stack);
-        } else if (truthy(value)) {
-          for (const item of Array.isArray(value) ? (value as Value[]) : [value]) walk(section.children, [...stack, item]);
-        }
-      }
+  writer.unescapedValue = (token, context) => {
+    const value: unknown = context.lookup(token[1]!);
+    return value == null ? (undefined as never) : text(value);
+  };
+  const files: Array<string | undefined> = [options.path];
+  const resolve = options.partial;
+  const partials = (name: string): string | undefined => {
+    if (resolve === undefined || name === "") return undefined;
+    const found = resolve(name, files[files.length - 1]);
+    if (found === null) return undefined;
+    if (options.maxIncludeDepth !== undefined && options.maxIncludeDepth !== null && files.length > options.maxIncludeDepth) {
+      throw new KnowledgeError("include-error", "partials are nested too deep");
+    }
+    files.push(found.path);
+    return found.text;
+  };
+  const inner = writer.renderPartial.bind(writer);
+  writer.renderPartial = (token, context, partialsArg, config) => {
+    const before = files.length;
+    try {
+      return inner(token, context, partialsArg, config);
+    } finally {
+      files.length = before;
     }
   };
-  walk(tree, [data]);
-  return out.join("");
+  try {
+    return writer.render(template, plain(data) as object, partials, { escape });
+  } catch (error) {
+    if (error instanceof KnowledgeError) throw error;
+    throw new KnowledgeError("template-error", error instanceof Error ? error.message : "the template is refused");
+  }
 }

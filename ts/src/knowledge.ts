@@ -8,7 +8,7 @@ import { MANIFEST_FILES } from "./kinds.ts";
 import { DEFAULT_SETTINGS } from "./limits.ts";
 import { EXCLUDED_COMPONENTS, asciiLower, isSensitiveVariable, normalizeName, validRelativePath } from "./names.ts";
 import { DEFAULT_KNOWLEDGE_SETTINGS, KnowledgeError, type KnowledgeErrorClass, type KnowledgeSettings, SEARCH_MODES, type SearchMode, byteLength, hidesCharacter, inert, knowledgeLines, within } from "./knowledge_base.ts";
-import { envsubst } from "./envsubst.ts";
+import { IMPLEMENTED_FEATURES, envsubst, envsubstOptions } from "./envsubst.ts";
 import { mustache } from "./mustache.ts";
 import { type TemplateFacts, template, templateValues } from "./template.ts";
 import { OverlayTree } from "./tree.ts";
@@ -191,6 +191,8 @@ export interface KnowledgeFile {
   readonly text: string;
   /** The engine the first line of a markdown file names, other than `markdown`, `md`, `raw`, `aos` and `agentic`; `null` for none. */
   readonly engine: string | null;
+  /** The `name=value` options of the first line, as written. */
+  readonly options: Readonly<Record<string, string>>;
   /** Whether the file is served as written: a markdown file naming `markdown`, `md` or `raw`, and every file that is not markdown. */
   readonly raw: boolean;
   /** The stored size. */
@@ -218,22 +220,35 @@ function selected(path: string, manifest: Document): boolean {
 
 const hasHidden = (path: string): boolean => [...path].some((char) => hidesCharacter(char.codePointAt(0)!));
 
-/** The name the first line of `data` gives its format, or `null`: `#!` and words, the last word after any `/` or `\` with leading dots dropped and ASCII capitals lower-cased. */
-export function formatName(data: Uint8Array): string | null {
+const OPTION = /^([a-z][a-z_]*)=([^\s]+)$/;
+
+/** The name and the options the first line of `data` gives its format, or `null` for none: `#!` and words, a word `name=value` an option, the last of the others, after any `/` or `\`, with leading dots dropped and ASCII capitals lower-cased, the name. */
+export function formatLine(data: Uint8Array): { readonly name: string; readonly options: Readonly<Record<string, string>> } | null {
   if (data.length < 2 || data[0] !== 0x23 || data[1] !== 0x21) return null;
-  let end = data.indexOf(0x0a);
-  if (end < 0) end = data.length;
+  let stop = data.indexOf(0x0a);
+  if (stop < 0) stop = data.length;
   let line: string;
   try {
-    line = decodeUtf8(data.subarray(2, end));
+    line = decodeUtf8(data.subarray(2, stop));
   } catch {
     return null;
   }
-  const words = line.split(/[ \t\x0c\r]+/).filter((word) => word !== "");
-  let word = words[words.length - 1] ?? "";
-  word = word.split(/[/\\]/).pop()!.replace(/^\.+/, "");
-  word = word.replace(/[A-Z]/g, (c) => c.toLowerCase());
-  return word === "" ? null : word;
+  const options: Record<string, string> = Object.create(null) as Record<string, string>;
+  const names: string[] = [];
+  for (const word of line.split(/[ \t\x0c\r]+/)) {
+    if (word === "") continue;
+    const found = OPTION.exec(word);
+    if (found === null) names.push(word);
+    else options[found[1]!] = found[2]!;
+  }
+  if (names.length === 0) return null;
+  const name = names[names.length - 1]!.split(/[/\\]/).pop()!.replace(/^\.+/, "").replace(/[A-Z]/g, (c) => c.toLowerCase());
+  return name === "" ? null : { name, options };
+}
+
+/** The name the first line of `data` gives its format, or `null`. */
+export function formatName(data: Uint8Array): string | null {
+  return formatLine(data)?.name ?? null;
 }
 
 const afterFirstLine = (text: string): string => {
@@ -268,9 +283,10 @@ export function knowledgeSet(overlay: KnowledgeOverlay, settings: KnowledgeSetti
     }
     const lower = asciiLower(path);
     const markdown = lower.endsWith(".md") || lower.endsWith(".markdown");
-    const name = markdown ? formatName(data) : null;
+    const line = markdown ? formatLine(data) : null;
+    const name = line?.name ?? null;
     const engine = name === null || AS_WRITTEN.includes(name) || EXPANDED.includes(name) ? null : name;
-    files.set(path, { text, engine, raw: !markdown || (name !== null && AS_WRITTEN.includes(name)), bytes: data.length, rest: name === null ? text : afterFirstLine(text) });
+    files.set(path, { text, engine, options: line?.options ?? {}, raw: !markdown || (name !== null && AS_WRITTEN.includes(name)), bytes: data.length, rest: name === null ? text : afterFirstLine(text) });
   }
   return { files, skipped, entries };
 }
@@ -346,7 +362,7 @@ function listResult(
       const entry: Record<string, unknown> = { path, lines: knowledgeLines(text).length, bytes: byteLength(text) };
       if (item.engine !== null) {
         entry["template"] = item.engine;
-        entry["rendered"] = engines.includes(item.engine);
+        entry["rendered"] = renders(item, engines);
       }
       files.push(entry);
     }
@@ -429,9 +445,20 @@ function readResult(
   };
   if (engine !== null) {
     result["template"] = engine;
-    result["rendered"] = engines.includes(engine);
+    result["rendered"] = renders(held.files.get(path)!, engines);
   }
   return result;
+}
+
+/** Whether this server renders the file's engine with the options its first line asks for: an `envsubst` file asking for a feature this renderer lacks is served as for an engine the server does not have. */
+function renders(item: KnowledgeFile, engines: readonly string[]): boolean {
+  if (item.engine === null || !engines.includes(item.engine)) return false;
+  if (item.engine !== "envsubst") return true;
+  try {
+    return [...envsubstOptions(item.options).features].every((feature) => IMPLEMENTED_FEATURES.has(feature));
+  } catch {
+    return true;
+  }
 }
 
 function allowedEnv(caller: CallerFacts): Map<string, string> {
@@ -547,7 +574,7 @@ interface ServeContext {
 }
 
 /** An engine's output for a file: rendered here, or the file kept with the context for the agent to read when this server lacks the engine. */
-function renderFile(overlay: KnowledgeOverlay, item: KnowledgeFile, context: Document, caller: CallerFacts, settings: KnowledgeSettings, here: boolean): string {
+function renderFile(overlay: KnowledgeOverlay, held: KnowledgeSet, path: string, item: KnowledgeFile, context: Document, caller: CallerFacts, settings: KnowledgeSettings, here: boolean): string {
   const data = templateData(overlay, context, caller);
   const engine = item.engine!;
   let out: string;
@@ -555,8 +582,23 @@ function renderFile(overlay: KnowledgeOverlay, item: KnowledgeFile, context: Doc
     const end = item.text.indexOf("\n");
     const [first, rest] = end < 0 ? [`${item.text}\n`, ""] : [item.text.slice(0, end + 1), item.text.slice(end + 1)];
     out = first + contextBlock(engine, data) + rest;
-  } else if (engine === "envsubst") out = envsubst(item.rest, substitutionValues(overlay, data, context));
-  else out = mustache(item.rest, data, settings);
+  } else if (engine === "envsubst") {
+    const values = substitutionValues(overlay, data, context);
+    const asked = envsubstOptions(item.options);
+    out = envsubst(item.rest, values, asked.pattern, asked.features, asked.undefined);
+  } else {
+    const escape = item.options["escape"] ?? "html";
+    if (escape !== "html" && escape !== "none") throw new KnowledgeError("template-error", "escape is html or none");
+    out = mustache(item.rest, data, {
+      escape,
+      path,
+      maxIncludeDepth: settings.maxIncludeDepth,
+      partial: (name, from) => {
+        const target = from === undefined ? undefined : resolveInclude(from, name, held);
+        return target === undefined ? null : { path: target, text: held.files.get(target)!.rest };
+      },
+    });
+  }
   if (!within(settings.maxRenderedBytes, byteLength(out))) throw new KnowledgeError("too-large", "the rendered text");
   return out;
 }
@@ -573,7 +615,7 @@ function servedText(
 ): string {
   const item = held.files.get(path)!;
   if (item.raw) return item.rest;
-  if (item.engine !== null) return renderFile(overlay, item, context, caller, settings, engines.includes(item.engine));
+  if (item.engine !== null) return renderFile(overlay, held, path, item, context, caller, settings, renders(item, engines));
   const ctx: ServeContext = { overlay, held, context, caller, settings, engines, values: null, added: 0 };
   const out = expand(item.rest, path, ctx, [path]);
   if (!within(settings.maxRenderedBytes, byteLength(out))) throw new KnowledgeError("too-large", "the served text");
@@ -646,9 +688,9 @@ function expandLine(line: string, inCode: readonly boolean[], path: string, ctx:
   let out = "";
   let i = 0;
   while (i < line.length) {
-    if (!inCode[i] && line.startsWith("$${", i)) {
-      out += "${";
-      i += 3;
+    if (!inCode[i] && line.startsWith("$$", i)) {
+      out += "$";
+      i += 2;
       continue;
     }
     if (!inCode[i] && line[i] === "$") {
@@ -703,8 +745,8 @@ function include(target: string, ctx: ServeContext, chain: readonly string[]): s
   let text: string;
   if (item.raw) text = item.rest;
   else if (item.engine !== null) {
-    if (!ctx.engines.includes(item.engine)) return undefined;
-    text = renderFile(ctx.overlay, item, ctx.context, ctx.caller, settings, true);
+    if (!renders(item, ctx.engines)) return undefined;
+    text = renderFile(ctx.overlay, ctx.held, target, item, ctx.context, ctx.caller, settings, true);
   } else {
     if (chain.includes(target)) throw new KnowledgeError("include-error", `an include comes back to ${target}`);
     if (settings.maxIncludeDepth !== null && chain.length > settings.maxIncludeDepth) throw new KnowledgeError("include-error", "includes are nested too deep");

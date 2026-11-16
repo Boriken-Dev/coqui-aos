@@ -19,7 +19,7 @@ npm run build   # dist/: JavaScript and .d.ts, from a plain tsc
 
 Node 22.18 or later runs `src/` directly by type stripping, with no build (`node --test "test/*.test.ts"` does). The published form is the `tsc` output in `dist/` instead, because Node does not strip types from files under `node_modules`. The declaration files keep `.ts` import specifiers, which TypeScript resolves to the declarations beside them.
 
-Runtime dependencies: `yaml` (a YAML 1.2 parser whose tokens expose tags, anchors and aliases before anything is composed), `smol-toml` (TOML 1.0, integers as `bigint`) and `@noble/hashes` (SHA-256 that is synchronous and runs in a browser).
+Runtime dependencies: `mustache` (mustache.js, MIT, renders `#!mustache` files), `yaml` (a YAML 1.2 parser whose tokens expose tags, anchors and aliases before anything is composed), `smol-toml` (TOML 1.0, integers as `bigint`) and `@noble/hashes` (SHA-256 that is synchronous and runs in a browser).
 
 ## Quick start
 
