@@ -677,9 +677,13 @@ List<KnowledgeOverlay> knowledgeChosen(
   String? wanted,
 ) => _choose(overlays, wanted);
 
-List<String> _engineList(Iterable<String> engines) => [
+/// The engines a call renders with, in the edition's order, then the option values the
+/// server lacks (`-engine:option=value`) as given.
+List<String> knowledgeEngineList(Iterable<String> engines) => [
   for (final engine in knowledgeEngines)
     if (engines.contains(engine)) engine,
+  for (final entry in engines)
+    if (entry.startsWith('-')) entry,
 ];
 
 /// What a server answers a call of `kb_list` or `kb_read`: `{'result': {...}}`, or
@@ -697,7 +701,7 @@ Map<String, Object?> knowledgeCall(
   Iterable<String> engines = knowledgeEngines,
 }) {
   final limit = settings ?? KnowledgeSettings();
-  final rendering = _engineList(engines);
+  final rendering = knowledgeEngineList(engines);
   try {
     final args = knowledgeArguments(tool, arguments, modes, limit);
     switch (tool) {
@@ -772,7 +776,13 @@ Map<String, Object?> _list(
       ],
     });
   }
-  final result = <String, Object?>{'overlays': listed, 'engines': engines};
+  final result = <String, Object?>{
+    'overlays': listed,
+    'engines': [
+      for (final engine in engines)
+        if (!engine.startsWith('-')) engine,
+    ],
+  };
   if (modes.isNotEmpty) {
     result['search'] = {
       'modes': [

@@ -67,8 +67,13 @@ List<KnowledgeOverlay> overlaysOf(Case item) => [
     ),
 ];
 
-Iterable<String> enginesOf(Case item) =>
-    item.containsKey('engines') ? strings(item['engines']) : knowledgeEngines;
+/// The engines a case's server renders with, and the option values it lacks.
+Iterable<String> enginesOf(Case item) => [
+  ...(item.containsKey('engines')
+      ? strings(item['engines'])
+      : knowledgeEngines),
+  for (final lacked in strings(item['lacks'])) '-$lacked',
+];
 
 CallerFacts callerOf(Object? facts) {
   if (facts is! Map<String, Object?>) return const CallerFacts();
@@ -87,9 +92,6 @@ CallerFacts callerOf(Object? facts) {
 /// Cases the stock Mustache engine (`mustache_template`) does not meet, by id and why. They
 /// are skipped, never worked around.
 const _stockMisfits = <Object?, String>{
-  'mustache-facts':
-      'the engine escapes "/" in {{x}} as &#x2F; (and "\'" as &#x27;); the vector expects only '
-      r'& < > " escaped: "&lt;/b&gt;", got "&lt;&#x2F;b&gt;"',
   'mustache-spaces-in-tag':
       'the engine reads "{{ & context.x }}" as an unescaped variable, as the official '
       'specification does; the vector reads "& context.x" as a missing name: expected "vvv", '

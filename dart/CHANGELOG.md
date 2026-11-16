@@ -25,8 +25,9 @@ All notable changes to this package are documented in this file; the repository'
   `aos_template_context` block), `knowledgeResult`, `knowledgeSet`, `knowledgeServe`, `knowledgeFormat`,
   `readKnowledgeTree`, `knowledgePlan` and the `[knowledge]` table's validation; `searchCheck` and `searchOrder` check
   a `kb_search` answer. Every limit is a `KnowledgeSettings` field with no floor, `maxIncludeDepth` included. New
-  dependency: `mustache_template` 2.0.4 (BSD-3-Clause, pure Dart, VM and web). Two vector cases, `mustache-facts` and
-  `mustache-spaces-in-tag`, are named as not run, since that package escapes `/` and reads `{{ & x }}` as the
+  dependency: `mustache_template` 2.0.4 (BSD-3-Clause, pure Dart, VM and web). `engines` may also carry
+  option values the server lacks, as `-engine:option=value` (the file is then served as written, `rendered: false`).
+  One vector case, `mustache-spaces-in-tag`, is named as not run: that package reads `{{ & x }}` as the
   specification does.
 
 ## 0.0.0-alpha.0

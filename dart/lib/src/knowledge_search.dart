@@ -169,10 +169,15 @@ List<String> searchCheck(
       try {
         lines = knowledgeLines(
           held.files.containsKey(path)
-              ? knowledgeServe(overlay, held, path, const {}, caller, limit, [
-                  for (final engine in knowledgeEngines)
-                    if (engines.contains(engine)) engine,
-                ])
+              ? knowledgeServe(
+                  overlay,
+                  held,
+                  path,
+                  const {},
+                  caller,
+                  limit,
+                  knowledgeEngineList(engines),
+                )
               : throw KnowledgeError('not-found'),
         );
       } on KnowledgeError {

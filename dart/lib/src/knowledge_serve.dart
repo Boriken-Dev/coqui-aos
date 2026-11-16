@@ -155,10 +155,14 @@ String _contextBlock(String engine, Map<String, Object?> data) {
 }
 
 /// Whether this server renders the file's engine with the options its first line asks for.
-/// A file whose options it cannot honour, or an engine it lacks, is kept with its context.
+/// A file whose options it cannot honour (a value `engines` lists as `-engine:option=value`,
+/// or an envsubst feature this package lacks), or an engine it lacks, is kept with its context.
 bool knowledgeRenders(KnowledgeFile item, List<String> engines) {
   final engine = item.engine;
   if (engine == null || !engines.contains(engine)) return false;
+  for (final MapEntry(key: key, value: value) in item.options.entries) {
+    if (engines.contains('-$engine:$key=$value')) return false;
+  }
   if (engine == 'envsubst') {
     try {
       return knowledgeImplementedFeatures.containsAll(
