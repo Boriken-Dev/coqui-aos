@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- A catalog's `extensions` table, from specification revision 55041de1: pinned entries a consumer loads to extend
-  itself. Rust (`Catalog::extensions`, `ExtensionEntry`, `ExtensionDigest`, `ExtensionNeeds::fits`) and Dart
-  (`Catalog.extensions`, `ExtensionEntry`, `ExtensionNeeds.unfit`) read and validate it with the new `catalog.json`
-  vectors, `unpinned` joins the entry refusals, and a catalog with only `extensions` is a catalog. The Python and
-  TypeScript readers do not read the table yet: they name the 25 extension cases they leave out, and read every other
-  catalog as before. The vectors move to that revision.
 - A harness's `delegate` hint, from specification revision 6349e502 (`default`, `sources`, `max_running`): `validate`
   checks it in Rust and Python (a float `max_running` is `integer-required`), and Rust reads it with
   `harness_delegate_of` and `DelegateHint`. The vectors move to that revision.

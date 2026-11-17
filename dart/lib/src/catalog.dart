@@ -20,15 +20,11 @@ const entryRefusal = Words([
   'invalid-entry',
   'invalid-source',
   'invalid-pin',
-  'unpinned',
   'ref-not-allowed',
   'leaves-repository',
   'local-source',
   'source-credentials',
 ]);
-
-/// Why a consumer cannot use an extension, in the order they are checked.
-const extensionUnfit = Words(['kind', 'version', 'platform']);
 
 /// `minimal` when every entry is a source string, else `full`.
 const catalogForm = Words(['minimal', 'full']);
@@ -72,92 +68,6 @@ class CatalogSection {
   final List<(String, String)> refused = [];
 }
 
-/// What an extension needs of its consumer.
-class ExtensionNeeds {
-  /// Creates the needs of an extension; none given is no need.
-  const ExtensionNeeds({this.kind, this.version, this.platforms});
-
-  /// The kind of extension the consumer must implement, a name the consumer defines.
-  final String? kind;
-
-  /// The version of that kind the extension was made for; only with a [kind].
-  final String? version;
-
-  /// The systems it runs on, each an OS name or an OS name, `-` and an architecture; null is every system.
-  final List<String>? platforms;
-
-  /// Whether a consumer can use the extension: null when it can, else the word of [extensionUnfit]
-  /// that comes first. [kinds] maps each kind the consumer implements to the versions it has; [os]
-  /// and [arch] are its own (`windows`, `x86_64`). A kind and a version are compared as written.
-  String? unfit(Map<String, List<String>> kinds, String os, String arch) {
-    final wanted = kind;
-    if (wanted != null) {
-      final versions = kinds[wanted];
-      if (versions == null) return 'kind';
-      if (version != null && !versions.contains(version)) return 'version';
-    }
-    final systems = platforms;
-    if (systems != null &&
-        !systems.contains(os) &&
-        !systems.contains('$os-$arch')) {
-      return 'platform';
-    }
-    return null;
-  }
-}
-
-/// An extension a store lists: something a consumer loads to extend itself, always pinned. Exactly
-/// one of [pin] (a tree: a Git or directory source) and [sha256] (one file: a URL) is set.
-class ExtensionEntry {
-  /// Creates an extension entry.
-  const ExtensionEntry({
-    required this.source,
-    required this.pin,
-    required this.sha256,
-    required this.load,
-    required this.provider,
-    required this.needs,
-    required this.description,
-    required this.about,
-  });
-
-  /// Where it comes from, absolute.
-  final Source source;
-
-  /// The tree digest of the tree the source names.
-  final String? pin;
-
-  /// The SHA-256 of the file a URL source names, as 64 hexadecimal digits.
-  final String? sha256;
-
-  /// For a tree, the file or directory in it that the consumer loads; null is the tree's root.
-  final String? load;
-
-  /// The identifier under which the extension offers itself to the consumer.
-  final String provider;
-
-  /// What it needs of its consumer.
-  final ExtensionNeeds needs;
-
-  /// A stranger's description.
-  final String? description;
-
-  /// The `about` fields that are valid.
-  final Document? about;
-}
-
-/// The extensions of a catalog by name, and the names refused with the reason.
-class ExtensionSection {
-  /// Creates an empty section.
-  ExtensionSection();
-
-  /// The entries read.
-  final Map<String, ExtensionEntry> entries = {};
-
-  /// `(name, reason)`, a reason being a word of [entryRefusal].
-  final List<(String, String)> refused = [];
-}
-
 /// A catalog read.
 class Catalog {
   /// Creates a catalog.
@@ -169,7 +79,6 @@ class Catalog {
     required this.overlays,
     required this.skills,
     required this.ignored,
-    this.extensions,
   });
 
   /// A word of [catalogForm].
@@ -189,9 +98,6 @@ class Catalog {
 
   /// The skills table, if the catalog has one.
   final CatalogSection? skills;
-
-  /// The extensions table, if the catalog has one.
-  final ExtensionSection? extensions;
 
   /// JSON pointers of fields read and dropped.
   final List<String> ignored;
@@ -445,8 +351,24 @@ const List<String> _entryKeys = [
   'about',
 ];
 
-/// An entry's source, made absolute and given its `ref`.
-Source _entrySource(Document fields, Source? origin) {
+/// An entry, or the reason it is refused (thrown as a [_Refused]).
+CatalogEntry _catalogEntry(
+  Object value,
+  String at,
+  Source? origin,
+  List<String> ignored,
+) {
+  final Map<String, Object> fields;
+  if (value is String) {
+    fields = {'source': value};
+  } else if (value is Map<String, Object>) {
+    for (final key in value.keys) {
+      if (!_entryKeys.contains(key)) throw const _Refused('invalid-entry');
+    }
+    fields = value;
+  } else {
+    throw const _Refused('invalid-entry');
+  }
   final text = fields['source'];
   if (text is! String) throw const _Refused('invalid-entry');
   final Source parsed;
@@ -466,28 +388,6 @@ Source _entrySource(Document fields, Source? origin) {
     }
     source = _changed(source, setReference: true, reference: reference);
   }
-  return source;
-}
-
-/// An entry, or the reason it is refused (thrown as a [_Refused]).
-CatalogEntry _catalogEntry(
-  Object value,
-  String at,
-  Source? origin,
-  List<String> ignored,
-) {
-  final Map<String, Object> fields;
-  if (value is String) {
-    fields = {'source': value};
-  } else if (value is Map<String, Object>) {
-    for (final key in value.keys) {
-      if (!_entryKeys.contains(key)) throw const _Refused('invalid-entry');
-    }
-    fields = value;
-  } else {
-    throw const _Refused('invalid-entry');
-  }
-  final source = _entrySource(fields, origin);
   String? pin;
   final given = fields['pin'];
   if (given != null) {
@@ -513,163 +413,6 @@ CatalogEntry _catalogEntry(
     description: description,
     about: about == null ? null : _storeAbout(about, '$at/about', ignored),
   );
-}
-
-const List<String> _extensionKeys = [
-  'source',
-  'ref',
-  'pin',
-  'sha256',
-  'load',
-  'provider',
-  'needs',
-  'description',
-  'about',
-];
-
-final RegExp _version = RegExp(r'^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$');
-final RegExp _platform = RegExp(
-  r'^[a-z][a-z0-9]*(?:-[a-z0-9]+(?:_[a-z0-9]+)*)?$',
-);
-final RegExp _sha256 = RegExp(r'^[0-9a-fA-F]{64}$');
-
-/// `needs` as the schema's `extensionNeeds` has it, or null when it is not.
-ExtensionNeeds? _extensionNeeds(Object value) {
-  if (value is! Map<String, Object>) return null;
-  String? kind;
-  String? version;
-  List<String>? platforms;
-  for (final entry in value.entries) {
-    final item = entry.value;
-    switch (entry.key) {
-      case 'kind':
-        if (item is! String || !validToolName(item)) return null;
-        kind = item;
-      case 'version':
-        if (item is! String || !_version.hasMatch(item)) return null;
-        version = item;
-      case 'platforms':
-        if (item is! List || item.isEmpty) return null;
-        final list = <String>[];
-        for (final platform in item) {
-          if (platform is! String ||
-              !_platform.hasMatch(platform) ||
-              list.contains(platform)) {
-            return null;
-          }
-          list.add(platform);
-        }
-        platforms = list;
-      default:
-        return null;
-    }
-  }
-  if (version != null && kind == null) return null;
-  return ExtensionNeeds(kind: kind, version: version, platforms: platforms);
-}
-
-/// An extension's entry, or the reason it is refused (thrown as a [_Refused]).
-ExtensionEntry _extensionEntry(
-  Object value,
-  String at,
-  Source? origin,
-  List<String> ignored,
-) {
-  if (value is! Map<String, Object>) throw const _Refused('invalid-entry');
-  for (final key in value.keys) {
-    if (!_extensionKeys.contains(key)) throw const _Refused('invalid-entry');
-  }
-  final provider = value['provider'];
-  if (value['source'] is! String ||
-      provider is! String ||
-      !validToolName(provider)) {
-    throw const _Refused('invalid-entry');
-  }
-  final load = value['load'];
-  if (load != null && (load is! String || !validRelativePath(load))) {
-    throw const _Refused('invalid-entry');
-  }
-  final given = value['needs'];
-  final needs = given == null ? const ExtensionNeeds() : _extensionNeeds(given);
-  if (needs == null) throw const _Refused('invalid-entry');
-  final source = _entrySource(value, origin);
-  String? pin;
-  String? sha256;
-  if (source.kind == 'url') {
-    if (!source.isWebUrl() || source.path != null) {
-      throw const _Refused('invalid-source');
-    }
-    if (load != null || value.containsKey('pin')) {
-      throw const _Refused('invalid-entry');
-    }
-    final digest = value['sha256'];
-    if (digest == null) throw const _Refused('unpinned');
-    if (digest is! String || !_sha256.hasMatch(digest)) {
-      throw const _Refused('invalid-pin');
-    }
-    sha256 = digest;
-  } else {
-    if (value.containsKey('sha256')) throw const _Refused('invalid-entry');
-    final digest = value['pin'];
-    if (digest == null) throw const _Refused('unpinned');
-    if (digest is! String || !isDigest(digest)) {
-      throw const _Refused('invalid-pin');
-    }
-    pin = digest;
-  }
-  String? description;
-  final words = value['description'];
-  if (words != null) {
-    if (words is String) {
-      description = words;
-    } else {
-      ignored.add('$at/description');
-    }
-  }
-  final about = value['about'];
-  return ExtensionEntry(
-    source: source,
-    pin: pin,
-    sha256: sha256,
-    load: load as String?,
-    provider: provider,
-    needs: needs,
-    description: description,
-    about: about == null ? null : _storeAbout(about, '$at/about', ignored),
-  );
-}
-
-ExtensionSection _extensionSection(
-  Document table,
-  Source? origin,
-  List<String> ignored,
-) {
-  final holders = <String, int>{};
-  for (final key in table.keys) {
-    if (validOverlayName(key)) {
-      holders[normalizeName(key)] = (holders[normalizeName(key)] ?? 0) + 1;
-    }
-  }
-  final out = ExtensionSection();
-  for (final key in table.keys.toList()..sort(compareText)) {
-    if (!validOverlayName(key)) {
-      out.refused.add((key, 'invalid-name'));
-    } else if ((holders[normalizeName(key)] ?? 0) > 1) {
-      out.refused.add((key, 'duplicate-name'));
-    } else {
-      try {
-        out.entries[key] = _extensionEntry(
-          table[key]!,
-          '/extensions/${_escapeToken(key)}',
-          origin,
-          ignored,
-        );
-      } on _Refused catch (refusal) {
-        out.refused.add((key, refusal.reason));
-      }
-    }
-  }
-  return out;
 }
 
 CatalogSection _section(
@@ -723,13 +466,7 @@ Catalog readCatalog(
   final Document? skills = skillsValue is Map<String, Object>
       ? skillsValue
       : null;
-  final extensionsValue = document['extensions'];
-  final Document? extensions = extensionsValue is Map<String, Object>
-      ? extensionsValue
-      : null;
-  if (overlays == null && skills == null && extensions == null) {
-    throw AosError('not-a-catalog', '');
-  }
+  if (overlays == null && skills == null) throw AosError('not-a-catalog', '');
   Source? origin;
   if (base != null) {
     try {
@@ -743,10 +480,7 @@ Catalog readCatalog(
     ignored.add('/overlays');
   }
   final listed = [...?overlays?.values, ...?skills?.values];
-  final form =
-      listed.every((item) => item is String) && (extensions?.isEmpty ?? true)
-      ? 'minimal'
-      : 'full';
+  final form = listed.every((item) => item is String) ? 'minimal' : 'full';
   final fields = <String, String?>{};
   for (final field in const ['name', 'description', 'homepage']) {
     final value = document[field];
@@ -779,12 +513,6 @@ Catalog readCatalog(
   } else if (document.containsKey('skills')) {
     ignored.add('/skills');
   }
-  ExtensionSection? extensionSection;
-  if (extensions != null) {
-    extensionSection = _extensionSection(extensions, origin, ignored);
-  } else if (document.containsKey('extensions')) {
-    ignored.add('/extensions');
-  }
   ignored.sort(compareText);
   return Catalog(
     form: form,
@@ -793,7 +521,6 @@ Catalog readCatalog(
     homepage: fields['homepage'],
     overlays: overlaySection,
     skills: skillSection,
-    extensions: extensionSection,
     ignored: ignored,
   );
 }

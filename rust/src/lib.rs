@@ -41,9 +41,9 @@ pub use apply::{
     read_dotenv, setup_phase,
 };
 pub use catalog::{
-    Catalog, CatalogEntry, CatalogForm, CatalogSection, EntryRefusal, ExtensionDigest,
-    ExtensionEntry, ExtensionNeeds, ExtensionSection, Icon, IconFormat, ListedEntry, Listing,
-    Unfit, catalog_format, list_catalogs, read_catalog, read_catalog_document, read_icon,
+    Catalog, CatalogEntry, CatalogForm, CatalogSection, EntryRefusal, Icon, IconFormat,
+    ListedEntry, Listing, catalog_format, list_catalogs, read_catalog, read_catalog_document,
+    read_icon,
 };
 pub use compose::{
     Composition, Cycle, Environments, LeftEnvironment, PackageConflict, PackageEnvironment,

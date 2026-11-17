@@ -19,11 +19,7 @@ from coqui_aos import (
     to_data,
 )
 
-#: The cases for a catalog's `extensions` table, which this reader does not read yet: the Rust and
-#: Dart readers do. Without the table it reads the rest of such a catalog as any other.
-NOT_READ = ("extension", "fits-")
-CATALOG = [case for case in cases("catalog.json") if not case["id"].startswith(NOT_READ)]
-EXTENSION_CASES = [case for case in cases("catalog.json") if case["id"].startswith(NOT_READ)]
+CATALOG = cases("catalog.json")
 READING = [case for case in cases("reading.json") if case["format"] == "catalog"]
 
 
@@ -119,7 +115,7 @@ def test_catalog_vectors(case):
 
 
 def test_every_catalog_case_is_run():
-    assert len(CATALOG) == 55 and len(READING) == 14 and len(EXTENSION_CASES) == 25
+    assert len(CATALOG) == 55 and len(READING) == 14
 
 
 # Behaviour no vector states.

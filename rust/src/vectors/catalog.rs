@@ -4,10 +4,7 @@ use std::collections::BTreeMap;
 
 use super::support::bytes_of;
 use super::{Report, Runner};
-use crate::{
-    Catalog, CatalogEntry, CatalogSection, ExtensionDigest, ExtensionEntry, ExtensionNeeds,
-    ExtensionSection, list_catalogs, read_catalog, read_icon,
-};
+use crate::{Catalog, CatalogEntry, CatalogSection, list_catalogs, read_catalog, read_icon};
 use serde_json::{Value, json};
 
 fn entry_json(entry: &CatalogEntry) -> Value {
@@ -22,56 +19,6 @@ fn entry_json(entry: &CatalogEntry) -> Value {
         out["about"] = Value::Object(about.clone());
     }
     out
-}
-
-fn needs_json(needs: &ExtensionNeeds) -> Value {
-    let mut out = serde_json::Map::new();
-    if let Some(kind) = &needs.kind {
-        out.insert("kind".into(), json!(kind));
-    }
-    if let Some(version) = &needs.version {
-        out.insert("version".into(), json!(version));
-    }
-    if let Some(platforms) = &needs.platforms {
-        out.insert("platforms".into(), json!(platforms));
-    }
-    Value::Object(out)
-}
-
-fn extension_json(entry: &ExtensionEntry) -> Value {
-    let mut out =
-        json!({"source": super::support::source(&entry.source), "provider": entry.provider});
-    match &entry.digest {
-        ExtensionDigest::Tree(pin) => out["pin"] = json!(pin),
-        ExtensionDigest::File(sha256) => out["sha256"] = json!(sha256),
-    }
-    if let Some(load) = &entry.load {
-        out["load"] = json!(load);
-    }
-    if entry.needs != ExtensionNeeds::default() {
-        out["needs"] = needs_json(&entry.needs);
-    }
-    if let Some(description) = &entry.description {
-        out["description"] = json!(description);
-    }
-    if let Some(about) = &entry.about {
-        out["about"] = Value::Object(about.clone());
-    }
-    out
-}
-
-fn extensions_json(section: &ExtensionSection) -> Value {
-    let entries: BTreeMap<&String, Value> = section
-        .entries
-        .iter()
-        .map(|(name, entry)| (name, extension_json(entry)))
-        .collect();
-    let refused: Vec<Value> = section
-        .refused
-        .iter()
-        .map(|(name, why)| json!([name, why.as_str()]))
-        .collect();
-    json!({"entries": entries, "refused": refused})
 }
 
 fn section_json(section: &CatalogSection) -> Value {
@@ -111,9 +58,6 @@ fn catalog_json(catalog: &Catalog) -> Value {
     out.insert("refused".into(), overlays["refused"].clone());
     if let Some(skills) = &catalog.skills {
         out.insert("skills".into(), section_json(skills));
-    }
-    if let Some(extensions) = &catalog.extensions {
-        out.insert("extensions".into(), extensions_json(extensions));
     }
     out.insert("ignored".into(), json!(catalog.ignored));
     Value::Object(out)
@@ -179,61 +123,6 @@ fn catalogs_case(case: &Value) -> Result<(), String> {
     (got == *expect).then_some(()).ok_or(format!("{got}"))
 }
 
-/// A `fits` case: whether a consumer with these kinds and this system can use an extension.
-fn fits_case(case: &Value) -> Result<(), String> {
-    let fits = &case["fits"];
-    let needs = match fits["needs"].as_object() {
-        Some(map) => {
-            let strings = |key: &str| map.get(key).and_then(Value::as_str).map(str::to_owned);
-            ExtensionNeeds {
-                kind: strings("kind"),
-                version: strings("version"),
-                platforms: map.get("platforms").and_then(Value::as_array).map(|list| {
-                    list.iter()
-                        .filter_map(|item| item.as_str().map(str::to_owned))
-                        .collect()
-                }),
-            }
-        }
-        None => ExtensionNeeds::default(),
-    };
-    let offered: Vec<(String, Vec<String>)> = fits["offers"]
-        .as_object()
-        .expect("offers")
-        .iter()
-        .map(|(kind, versions)| {
-            let versions = versions.as_array().expect("versions");
-            (
-                kind.clone(),
-                versions
-                    .iter()
-                    .map(|version| version.as_str().expect("a version").to_owned())
-                    .collect(),
-            )
-        })
-        .collect();
-    let owned: Vec<(&str, Vec<&str>)> = offered
-        .iter()
-        .map(|(kind, versions)| (kind.as_str(), versions.iter().map(String::as_str).collect()))
-        .collect();
-    let kinds: Vec<(&str, &[&str])> = owned
-        .iter()
-        .map(|(kind, versions)| (*kind, versions.as_slice()))
-        .collect();
-    let platform = &fits["platform"];
-    let got = match needs.fits(
-        &kinds,
-        platform["os"].as_str().expect("os"),
-        platform["arch"].as_str().expect("arch"),
-    ) {
-        Ok(()) => json!({"fits": true}),
-        Err(reason) => json!({"fits": false, "reason": reason.as_str()}),
-    };
-    (got == case["expect"])
-        .then_some(())
-        .ok_or(format!("{got}"))
-}
-
 fn icon_case(case: &Value) -> Result<(), String> {
     let icon = &case["icon"];
     let mut settings = crate::Settings::default();
@@ -268,9 +157,6 @@ pub(super) fn catalogs_and_icons(runner: &Runner) -> Report {
         }
         if case.get("catalogs").is_some() {
             return catalogs_case(case);
-        }
-        if case.get("fits").is_some() {
-            return fits_case(case);
         }
         let item = &case["catalog"];
         let expect = &case["expect"];

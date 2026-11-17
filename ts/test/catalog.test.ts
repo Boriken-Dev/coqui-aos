@@ -130,11 +130,7 @@ runFile("catalog.json", (item) => {
     throw error;
   }
   same(catalogJson(catalog), expect);
-}, (item) =>
-  /^(extension|fits-)/.test(str(item.get("id")))
-    ? "the TypeScript reader does not read a catalog's extensions table; the Rust and Dart readers do"
-    : undefined,
-);
+});
 
 test("a catalog past catalog_bytes is too-large", () => {
   const data = utf8('[overlays]\na = "../a"\n');

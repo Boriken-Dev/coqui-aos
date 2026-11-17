@@ -17,60 +17,6 @@ Map<String, Json> entryJson(CatalogEntry entry) {
   return out;
 }
 
-Map<String, Json> extensionJson(ExtensionEntry entry) {
-  final out = <String, Json>{
-    'source': sourceJson(entry.source),
-    'provider': entry.provider,
-  };
-  if (entry.pin != null) out['pin'] = entry.pin;
-  if (entry.sha256 != null) out['sha256'] = entry.sha256;
-  if (entry.load != null) out['load'] = entry.load;
-  final needs = entry.needs;
-  if (needs.kind != null || needs.version != null || needs.platforms != null) {
-    out['needs'] = {
-      if (needs.kind != null) 'kind': needs.kind,
-      if (needs.version != null) 'version': needs.version,
-      if (needs.platforms != null) 'platforms': needs.platforms,
-    };
-  }
-  if (entry.description != null) out['description'] = entry.description;
-  if (entry.about != null) out['about'] = entry.about;
-  return out;
-}
-
-Map<String, Json> extensionsJson(ExtensionSection section) => {
-  'entries': {
-    for (final e in section.entries.entries) e.key: extensionJson(e.value),
-  },
-  'refused': [
-    for (final (name, why) in section.refused) [name, why],
-  ],
-};
-
-void fitsCase(Case item) {
-  final fits = obj(item['fits']);
-  final given = fits['needs'];
-  final needs = given is Map<String, Object?>
-      ? ExtensionNeeds(
-          kind: obj(given)['kind'] as String?,
-          version: obj(given)['version'] as String?,
-          platforms: obj(given)['platforms'] == null
-              ? null
-              : [for (final item in arr(obj(given)['platforms'])) str(item)],
-        )
-      : const ExtensionNeeds();
-  final kinds = <String, List<String>>{
-    for (final entry in obj(fits['offers']).entries)
-      entry.key: [for (final version in arr(entry.value)) str(version)],
-  };
-  final platform = obj(fits['platform']);
-  final reason = needs.unfit(kinds, str(platform['os']), str(platform['arch']));
-  same(
-    reason == null ? {'fits': true} : {'fits': false, 'reason': reason},
-    obj(item['expect']),
-  );
-}
-
 Map<String, Json> sectionJson(CatalogSection section) => {
   'entries': {
     for (final e in section.entries.entries) e.key: entryJson(e.value),
@@ -94,8 +40,6 @@ Map<String, Json> catalogJson(Catalog catalog) {
   out['refused'] = overlays['refused'];
   final skills = catalog.skills;
   if (skills != null) out['skills'] = sectionJson(skills);
-  final extensions = catalog.extensions;
-  if (extensions != null) out['extensions'] = extensionsJson(extensions);
   out['ignored'] = catalog.ignored;
   return out;
 }
@@ -191,7 +135,6 @@ void main() {
   runFile('catalog.json', (item) {
     if (item.containsKey('icon')) return iconCase(item);
     if (item.containsKey('catalogs')) return catalogsCase(item);
-    if (item.containsKey('fits')) return fitsCase(item);
     final expectation = obj(item['expect']);
     Catalog catalog;
     try {
@@ -224,93 +167,6 @@ void main() {
       () => readCatalog(utf8Bytes('name = "x"\n'), 'c.toml', null, Settings()),
       refusesWith('not-a-catalog'),
     );
-  });
-
-  test(
-    'an extension is pinned by its tree digest or its file sha256, never neither',
-    () {
-      final pin = 'sha256:${'ab' * 32}';
-      final sha = 'cd' * 32;
-      final catalog = readCatalog(
-        utf8Bytes('''
-[extensions.tree]
-source = "../ext"
-pin = "$pin"
-load = "lib/x.dll"
-provider = "p"
-
-[extensions.file]
-source = "https://example.org/x.so"
-sha256 = "$sha"
-provider = "q"
-
-[extensions.none]
-source = "../a"
-provider = "p"
-
-[extensions.crossed]
-source = "https://example.org/x.so"
-pin = "$pin"
-provider = "p"
-
-[extensions.short]
-source = "https://example.org/x.so"
-sha256 = "abcd"
-provider = "p"
-
-[extensions.twice]
-source = "../a"
-pin = "$pin"
-provider = "p"
-needs = { platforms = ["linux", "linux"] }
-'''),
-        'c.toml',
-        '/srv/catalogs/c.toml',
-        Settings(),
-      );
-      expect(catalog.form, 'full');
-      final extensions = catalog.extensions!;
-      expect(extensions.entries.keys.toList(), ['file', 'tree']);
-      expect(extensions.entries['tree']!.pin, pin);
-      expect(extensions.entries['tree']!.sha256, isNull);
-      expect(extensions.entries['tree']!.load, 'lib/x.dll');
-      expect(extensions.entries['file']!.sha256, sha);
-      expect(extensions.refused, [
-        ('crossed', 'invalid-entry'),
-        ('none', 'unpinned'),
-        ('short', 'invalid-pin'),
-        ('twice', 'invalid-entry'),
-      ]);
-    },
-  );
-
-  test('an extension fits by kind, then version, then platform', () {
-    const kinds = {
-      'store_extension': ['1', '2'],
-    };
-    String? unfit(ExtensionNeeds needs) =>
-        needs.unfit(kinds, 'windows', 'x86_64');
-    expect(unfit(const ExtensionNeeds()), isNull);
-    expect(
-      unfit(
-        const ExtensionNeeds(
-          kind: 'store_extension',
-          version: '2',
-          platforms: ['windows'],
-        ),
-      ),
-      isNull,
-    );
-    expect(unfit(const ExtensionNeeds(kind: 'other')), 'kind');
-    expect(
-      unfit(const ExtensionNeeds(kind: 'store_extension', version: '3')),
-      'version',
-    );
-    expect(
-      unfit(const ExtensionNeeds(platforms: ['windows-aarch64', 'linux'])),
-      'platform',
-    );
-    expect(unfit(const ExtensionNeeds(platforms: ['windows-x86_64'])), isNull);
   });
 
   test("an icon's size is read from the header and held to the limits", () {

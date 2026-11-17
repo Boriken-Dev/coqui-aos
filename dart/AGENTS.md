@@ -172,12 +172,9 @@ String substitute(String text, Lookup lookup);  String substituteWith(String tex
 Catalog readCatalog(Uint8List data, String name, String? base, Settings settings);  Document readCatalogDocument(Uint8List data, String name, Settings settings)
 String? catalogFormat(String name);  Listing listCatalogs(List<(String, Catalog)> catalogs);  ListedEntry chooseListed(Listing listing, requested)
 Icon readIcon(Uint8List data, String name, Settings settings)      // Icon(format, width, height), judged from the header alone
-// Catalog.extensions: ExtensionSection? { entries: Map<String, ExtensionEntry>, refused: List<(String, String)> }
-// ExtensionEntry { source, pin (a tree digest, for Git or directory) | sha256 (64 hex, for a URL), load, provider, needs: ExtensionNeeds, description, about }
-// ExtensionNeeds { kind, version, platforms }.unfit(Map<String, List<String>> kinds, String os, String arch) -> null | 'kind' | 'version' | 'platform'
 ```
 
-`name` is the catalog's file name, whose extension picks the format; `base` is the source string it came from. A refused entry is listed in `refused` by name. An extension is code a consumer loads: its entry is always a table and always pinned (`pin` for a tree, `sha256` for a URL's file), and the reader checks no digest and fetches nothing. A `description` is a stranger's text: do not render it as markup. Nothing is fetched.
+`name` is the catalog's file name, whose extension picks the format; `base` is the source string it came from. A refused entry is listed in `refused` by name. A `description` is a stranger's text: do not render it as markup. Nothing is fetched.
 
 ## Skills from elsewhere, and hooks
 

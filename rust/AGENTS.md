@@ -224,20 +224,15 @@ pub fn substitute(text: &str, lookup: Lookup) -> Result<String, Error>;  pub fn 
 pub fn read_catalog(data: &[u8], name: &str, base: Option<&str>, settings: &Settings) -> Result<Catalog, Error>
 pub fn read_catalog_document(data: &[u8], name: &str, settings: &Settings) -> Result<Document, Error>
 pub fn catalog_format(name: &str) -> Option<&'static str>      // by extension: toml, json, yaml
-pub struct Catalog { pub form: CatalogForm, pub name, description, homepage: Option<String>, pub overlays: CatalogSection, pub skills: Option<CatalogSection>, pub extensions: Option<ExtensionSection>, pub ignored: Vec<String> }
+pub struct Catalog { pub form: CatalogForm, pub name, description, homepage: Option<String>, pub overlays: CatalogSection, pub skills: Option<CatalogSection>, pub ignored: Vec<String> }
 pub struct CatalogSection { pub entries: BTreeMap<String, CatalogEntry>, pub refused: Vec<(String, EntryRefusal)> }
 pub struct CatalogEntry { pub source: Source, pub pin, description: Option<String>, pub about: Option<Document> }
-pub struct ExtensionSection { pub entries: BTreeMap<String, ExtensionEntry>, pub refused: Vec<(String, EntryRefusal)> }
-pub struct ExtensionEntry { pub source: Source, pub digest: ExtensionDigest, pub load: Option<String>, pub provider: String, pub needs: ExtensionNeeds, pub description: Option<String>, pub about: Option<Document> }
-pub enum ExtensionDigest { Tree(String /* "sha256:" + 64 hex: the tree digest of a Git or directory source */), File(String /* 64 hex: the SHA-256 of a URL's file */) }
-pub struct ExtensionNeeds { pub kind: Option<String>, pub version: Option<String>, pub platforms: Option<Vec<String>> }   // Default
-pub fn ExtensionNeeds::fits(&self, kinds: &[(&str, &[&str])], os: &str, arch: &str) -> Result<(), Unfit>   // Unfit::{Kind, Version, Platform}, in that order
 pub fn list_catalogs(catalogs: &[(&str, &Catalog)]) -> Result<Listing, Error>   // `invalid-label`
 pub fn Listing::choose(&self, requested: &str) -> Result<&ListedEntry, Error>   // `not-found`, `ambiguous`
 pub fn read_icon(data: &[u8], name: &str, settings: &Settings) -> Result<Icon, Error>   // Icon { format: IconFormat, width, height }
 ```
 
-`name` is the catalog's file name, whose extension picks the format (any other is an AOS document); `base` is the source string the file came from, against which relative sources resolve (a directory, a Git repository, or a URL). An entry that is refused is listed in `refused` by name; a catalog with none of an `overlays`, a `skills` and an `extensions` table is `not-a-catalog`. **Extensions** are code a consumer loads, so an entry is always a table and always pinned: `ExtensionDigest::Tree` for a Git or directory source, `File` for a URL (refused otherwise, `unpinned`, `invalid-pin` or `invalid-entry` by what is missing or crossed). The reader checks no digest and fetches nothing: the consumer computes the tree digest or the SHA-256 of what it fetched before it keeps or loads anything, and `provider` and `needs` are claims until the extension's own declaration says the same. Nothing is fetched. An icon is judged from its header alone: extension, size, signature, dimensions.
+`name` is the catalog's file name, whose extension picks the format (any other is an AOS document); `base` is the source string the file came from, against which relative sources resolve (a directory, a Git repository, or a URL). An entry that is refused is listed in `refused` by name; a catalog with neither an `overlays` nor a `skills` table is `not-a-catalog`. Nothing is fetched. An icon is judged from its header alone: extension, size, signature, dimensions.
 
 ## Skills from elsewhere
 

@@ -25,10 +25,8 @@ pub enum EntryRefusal {
     InvalidEntry,
     /// A source string AOS refuses, or a location that is neither Git nor the web.
     InvalidSource,
-    /// A `pin` that is no digest, or an extension's `sha256` that is no SHA-256.
+    /// A `pin` that is no digest.
     InvalidPin,
-    /// An extension with no `pin` (a Git or directory source) or no `sha256` (a URL).
-    Unpinned,
     /// A `ref` on a source that takes none.
     RefNotAllowed,
     /// A relative source that leaves the repository the catalog is in.
@@ -65,120 +63,13 @@ pub struct CatalogSection {
     pub refused: Vec<(String, EntryRefusal)>,
 }
 
-/// The digest an extension's bytes must have, by what its source names.
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum ExtensionDigest {
-    /// A Git or directory source: the tree digest of the tree it names, as `sha256:` and 64 hexadecimal digits.
-    Tree(String),
-    /// A URL source: the SHA-256 of the file's bytes, as 64 hexadecimal digits.
-    File(String),
-}
-
-/// What an extension needs of its consumer.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct ExtensionNeeds {
-    /// The kind of extension the consumer must implement, a name the consumer defines.
-    pub kind: Option<String>,
-    /// The version of that kind the extension was made for; only with a `kind`.
-    pub version: Option<String>,
-    /// The systems it runs on, each an OS name or an OS name, `-` and an architecture; `None` is every system.
-    pub platforms: Option<Vec<String>>,
-}
-
-/// Why a consumer cannot use an extension, checked in this order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum Unfit {
-    /// The consumer implements none of the kind.
-    Kind,
-    /// It implements the kind, but not the version.
-    Version,
-    /// Its OS and architecture are not among the platforms.
-    Platform,
-}
-
-impl Unfit {
-    /// The word the specification's vectors use.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Kind => "kind",
-            Self::Version => "version",
-            Self::Platform => "platform",
-        }
-    }
-}
-
-impl ExtensionNeeds {
-    /// Whether a consumer can use the extension, from its own facts: `kinds` are the kinds it
-    /// implements, each with the versions it has; `os` and `arch` are its own (`windows`, `x86_64`).
-    /// A kind and a version are compared as written.
-    ///
-    /// # Errors
-    ///
-    /// The first thing that does not fit: the kind, the version, then the platform.
-    pub fn fits(&self, kinds: &[(&str, &[&str])], os: &str, arch: &str) -> Result<(), Unfit> {
-        if let Some(kind) = &self.kind {
-            let Some((_, versions)) = kinds.iter().find(|(name, _)| name == kind) else {
-                return Err(Unfit::Kind);
-            };
-            if self
-                .version
-                .as_ref()
-                .is_some_and(|version| !versions.contains(&version.as_str()))
-            {
-                return Err(Unfit::Version);
-            }
-        }
-        let named = format!("{os}-{arch}");
-        match &self.platforms {
-            Some(platforms) if !platforms.iter().any(|p| p == os || *p == named) => {
-                Err(Unfit::Platform)
-            }
-            _ => Ok(()),
-        }
-    }
-}
-
-/// An extension a store lists: something a consumer loads to extend itself, pinned.
-#[derive(Clone, Debug, PartialEq)]
-#[non_exhaustive]
-pub struct ExtensionEntry {
-    /// Where it comes from, absolute: a tree (Git or directory) or one file (a URL).
-    pub source: Source,
-    /// The digest what is fetched must have.
-    pub digest: ExtensionDigest,
-    /// For a tree, the file or directory in it the consumer loads; `None` is the tree's root.
-    pub load: Option<String>,
-    /// The identifier under which the extension offers itself to the consumer.
-    pub provider: String,
-    /// What it needs of its consumer.
-    pub needs: ExtensionNeeds,
-    /// What it says it is.
-    pub description: Option<String>,
-    /// Its valid informational fields.
-    pub about: Option<Document>,
-}
-
-/// The extensions of a catalog and those refused.
-#[derive(Clone, Debug, Default, PartialEq)]
-#[non_exhaustive]
-pub struct ExtensionSection {
-    /// The entries listed, by name as the catalog writes it.
-    pub entries: BTreeMap<String, ExtensionEntry>,
-    /// The entries refused, by name.
-    pub refused: Vec<(String, EntryRefusal)>,
-}
-
 /// Whether every entry of a catalog is a source string.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum CatalogForm {
     /// Every entry is a string.
     Minimal,
-    /// At least one entry is a table, or the catalog lists an extension.
+    /// At least one entry is a table.
     Full,
 }
 
@@ -198,8 +89,6 @@ pub struct Catalog {
     pub overlays: CatalogSection,
     /// The skills it lists, when it has a `skills` table.
     pub skills: Option<CatalogSection>,
-    /// The extensions it lists, when it has an `extensions` table.
-    pub extensions: Option<ExtensionSection>,
     /// The pointers of informational fields left out, sorted.
     pub ignored: Vec<String>,
 }
@@ -458,25 +347,6 @@ fn store_about(about: &Value, at: &str, ignored: &mut Vec<String>) -> Option<Doc
     (!shown.is_empty()).then_some(shown)
 }
 
-/// An entry's source, made absolute and given its `ref`.
-fn entry_source(fields: &Document, origin: Option<&Source>) -> Result<Source, EntryRefusal> {
-    let Some(text) = fields.get("source").and_then(Value::as_str) else {
-        return Err(EntryRefusal::InvalidEntry);
-    };
-    let parsed = Source::parse(text).map_err(|_| EntryRefusal::InvalidSource)?;
-    let mut source = resolve_entry_source(&parsed, origin)?;
-    if let Some(reference) = fields.get("ref") {
-        let Some(reference) = reference.as_str().filter(|reference| is_git_ref(reference)) else {
-            return Err(EntryRefusal::InvalidEntry);
-        };
-        if parsed.kind != SourceKind::Git || parsed.reference.is_some() {
-            return Err(EntryRefusal::RefNotAllowed);
-        }
-        source.reference = Some(reference.to_owned());
-    }
-    Ok(source)
-}
-
 fn catalog_entry(
     value: &Value,
     at: &str,
@@ -502,7 +372,20 @@ fn catalog_entry(
         }
         _ => return Err(EntryRefusal::InvalidEntry),
     };
-    let source = entry_source(fields, origin)?;
+    let Some(text) = fields.get("source").and_then(Value::as_str) else {
+        return Err(EntryRefusal::InvalidEntry);
+    };
+    let parsed = Source::parse(text).map_err(|_| EntryRefusal::InvalidSource)?;
+    let mut source = resolve_entry_source(&parsed, origin)?;
+    if let Some(reference) = fields.get("ref") {
+        let Some(reference) = reference.as_str().filter(|reference| is_git_ref(reference)) else {
+            return Err(EntryRefusal::InvalidEntry);
+        };
+        if parsed.kind != SourceKind::Git || parsed.reference.is_some() {
+            return Err(EntryRefusal::RefNotAllowed);
+        }
+        source.reference = Some(reference.to_owned());
+    }
     let mut entry = CatalogEntry {
         source,
         pin: None,
@@ -525,192 +408,6 @@ fn catalog_entry(
         entry.about = store_about(about, &format!("{at}/about"), ignored);
     }
     Ok(entry)
-}
-
-/// `needs` as the schema's `extensionNeeds` has it, or none when it is not.
-fn extension_needs(value: &Value) -> Option<ExtensionNeeds> {
-    let map = value.as_object()?;
-    let mut needs = ExtensionNeeds::default();
-    for (key, value) in map {
-        match key.as_str() {
-            "kind" => {
-                needs.kind = Some(
-                    value
-                        .as_str()
-                        .filter(|kind| valid_tool_name(kind))?
-                        .to_owned(),
-                );
-            }
-            "version" => {
-                needs.version = Some(value.as_str().filter(|v| valid_version(v))?.to_owned());
-            }
-            "platforms" => {
-                let items = value.as_array().filter(|items| !items.is_empty())?;
-                let mut platforms: Vec<String> = Vec::new();
-                for item in items {
-                    let platform = item.as_str().filter(|p| valid_platform(p))?;
-                    if platforms.iter().any(|seen| seen == platform) {
-                        return None;
-                    }
-                    platforms.push(platform.to_owned());
-                }
-                needs.platforms = Some(platforms);
-            }
-            _ => return None,
-        }
-    }
-    (needs.version.is_none() || needs.kind.is_some()).then_some(needs)
-}
-
-/// `[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}`.
-fn valid_version(text: &str) -> bool {
-    let bytes = text.as_bytes();
-    (1..=64).contains(&bytes.len())
-        && bytes[0].is_ascii_alphanumeric()
-        && bytes
-            .iter()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'+' | b'_' | b'-'))
-}
-
-/// `[a-z][a-z0-9]*` and optionally `-` and `[a-z0-9]+(_[a-z0-9]+)*`.
-fn valid_platform(text: &str) -> bool {
-    let (os, arch) = match text.split_once('-') {
-        Some((os, arch)) => (os, Some(arch)),
-        None => (text, None),
-    };
-    let lower_digit = |part: &str| {
-        !part.is_empty()
-            && part
-                .bytes()
-                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
-    };
-    os.bytes()
-        .next()
-        .is_some_and(|byte| byte.is_ascii_lowercase())
-        && lower_digit(os)
-        && arch.is_none_or(|arch| arch.split('_').all(lower_digit))
-}
-
-fn extension_entry(
-    value: &Value,
-    at: &str,
-    origin: Option<&Source>,
-    ignored: &mut Vec<String>,
-) -> Result<ExtensionEntry, EntryRefusal> {
-    let Value::Object(fields) = value else {
-        return Err(EntryRefusal::InvalidEntry);
-    };
-    if fields.keys().any(|key| {
-        !matches!(
-            key.as_str(),
-            "source"
-                | "ref"
-                | "pin"
-                | "sha256"
-                | "load"
-                | "provider"
-                | "needs"
-                | "description"
-                | "about"
-        )
-    }) {
-        return Err(EntryRefusal::InvalidEntry);
-    }
-    let provider = fields
-        .get("provider")
-        .and_then(Value::as_str)
-        .filter(|provider| valid_tool_name(provider));
-    let (true, Some(provider)) = (fields.get("source").is_some_and(Value::is_string), provider)
-    else {
-        return Err(EntryRefusal::InvalidEntry);
-    };
-    let load = match fields.get("load") {
-        None => None,
-        Some(load) => Some(
-            load.as_str()
-                .filter(|load| valid_relative_path(load))
-                .ok_or(EntryRefusal::InvalidEntry)?
-                .to_owned(),
-        ),
-    };
-    let needs = match fields.get("needs") {
-        None => ExtensionNeeds::default(),
-        Some(needs) => extension_needs(needs).ok_or(EntryRefusal::InvalidEntry)?,
-    };
-    let source = entry_source(fields, origin)?;
-    let digest = if source.kind == SourceKind::Url {
-        if !source.is_web_url() || source.path.is_some() {
-            return Err(EntryRefusal::InvalidSource);
-        }
-        if load.is_some() || fields.contains_key("pin") {
-            return Err(EntryRefusal::InvalidEntry);
-        }
-        let sha256 = fields.get("sha256").ok_or(EntryRefusal::Unpinned)?;
-        match sha256.as_str() {
-            Some(hex) if hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()) => {
-                ExtensionDigest::File(hex.to_owned())
-            }
-            _ => return Err(EntryRefusal::InvalidPin),
-        }
-    } else {
-        if fields.contains_key("sha256") {
-            return Err(EntryRefusal::InvalidEntry);
-        }
-        let pin = fields.get("pin").ok_or(EntryRefusal::Unpinned)?;
-        match pin.as_str() {
-            Some(pin) if is_digest(pin) => ExtensionDigest::Tree(pin.to_owned()),
-            _ => return Err(EntryRefusal::InvalidPin),
-        }
-    };
-    let mut entry = ExtensionEntry {
-        source,
-        digest,
-        load,
-        provider: provider.to_owned(),
-        needs,
-        description: None,
-        about: None,
-    };
-    if let Some(description) = fields.get("description") {
-        match description.as_str() {
-            Some(text) => entry.description = Some(text.to_owned()),
-            None => ignored.push(format!("{at}/description")),
-        }
-    }
-    if let Some(about) = fields.get("about") {
-        entry.about = store_about(about, &format!("{at}/about"), ignored);
-    }
-    Ok(entry)
-}
-
-fn extension_section(
-    table: &Document,
-    origin: Option<&Source>,
-    ignored: &mut Vec<String>,
-) -> ExtensionSection {
-    let mut holders: BTreeMap<String, usize> = BTreeMap::new();
-    for key in table.keys().filter(|key| valid_overlay_name(key)) {
-        *holders.entry(normalize_name(key)).or_default() += 1;
-    }
-    let mut out = ExtensionSection::default();
-    let mut keys: Vec<&String> = table.keys().collect();
-    keys.sort();
-    for key in keys {
-        if !valid_overlay_name(key) {
-            out.refused.push((key.clone(), EntryRefusal::InvalidName));
-        } else if holders[&normalize_name(key)] > 1 {
-            out.refused.push((key.clone(), EntryRefusal::DuplicateName));
-        } else {
-            let at = format!("/extensions/{}", escape(key));
-            match extension_entry(&table[key], &at, origin, ignored) {
-                Ok(entry) => {
-                    out.entries.insert(key.clone(), entry);
-                }
-                Err(refusal) => out.refused.push((key.clone(), refusal)),
-            }
-        }
-    }
-    out
 }
 
 fn section(
@@ -758,7 +455,7 @@ fn section(
 /// # Errors
 ///
 /// The reading classes of the whole catalog, `too-large` past `catalog_bytes`, and
-/// `not-a-catalog` for a document with none of an `overlays`, a `skills` and an `extensions` table.
+/// `not-a-catalog` for a document with neither an `overlays` nor a `skills` table.
 pub fn read_catalog(
     data: &[u8],
     name: &str,
@@ -768,8 +465,7 @@ pub fn read_catalog(
     let document = read_catalog_document(data, name, settings)?;
     let overlays = document.get("overlays").and_then(Value::as_object);
     let skills = document.get("skills").and_then(Value::as_object);
-    let extensions = document.get("extensions").and_then(Value::as_object);
-    if overlays.is_none() && skills.is_none() && extensions.is_none() {
+    if overlays.is_none() && skills.is_none() {
         return Err(Error::new(Class::NotACatalog, ""));
     }
     let origin = match base {
@@ -787,9 +483,7 @@ pub fn read_catalog(
         .into_iter()
         .chain(skills)
         .flat_map(|table| table.values());
-    let form = if listed.into_iter().all(Value::is_string)
-        && extensions.is_none_or(serde_json::Map::is_empty)
-    {
+    let form = if listed.into_iter().all(Value::is_string) {
         CatalogForm::Minimal
     } else {
         CatalogForm::Full
@@ -829,15 +523,6 @@ pub fn read_catalog(
             None
         }
     };
-    let extension_section = match extensions {
-        Some(table) => Some(extension_section(table, origin.as_ref(), &mut ignored)),
-        None => {
-            if document.contains_key("extensions") {
-                ignored.push("/extensions".to_owned());
-            }
-            None
-        }
-    };
     ignored.sort();
     Ok(Catalog {
         form,
@@ -846,7 +531,6 @@ pub fn read_catalog(
         homepage: fields.remove("homepage").flatten(),
         overlays: overlay_section,
         skills: skill_section,
-        extensions: extension_section,
         ignored,
     })
 }
@@ -1096,7 +780,6 @@ impl EntryRefusal {
             Self::InvalidEntry => "invalid-entry",
             Self::InvalidSource => "invalid-source",
             Self::InvalidPin => "invalid-pin",
-            Self::Unpinned => "unpinned",
             Self::RefNotAllowed => "ref-not-allowed",
             Self::LeavesRepository => "leaves-repository",
             Self::LocalSource => "local-source",
@@ -1113,7 +796,6 @@ impl EntryRefusal {
             "invalid-entry" => Some(Self::InvalidEntry),
             "invalid-source" => Some(Self::InvalidSource),
             "invalid-pin" => Some(Self::InvalidPin),
-            "unpinned" => Some(Self::Unpinned),
             "ref-not-allowed" => Some(Self::RefNotAllowed),
             "leaves-repository" => Some(Self::LeavesRepository),
             "local-source" => Some(Self::LocalSource),
