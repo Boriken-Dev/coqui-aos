@@ -250,6 +250,7 @@ pub coqui_aos::EntryRefusal::LeavesRepository
 pub coqui_aos::EntryRefusal::LocalSource
 pub coqui_aos::EntryRefusal::RefNotAllowed
 pub coqui_aos::EntryRefusal::SourceCredentials
+pub coqui_aos::EntryRefusal::Unpinned
 impl coqui_aos::EntryRefusal
 pub const fn coqui_aos::EntryRefusal::as_str(self) -> &'static str
 pub fn coqui_aos::EntryRefusal::named(&str) -> core::option::Option<Self>
@@ -273,6 +274,9 @@ pub const fn coqui_aos::ErrorClass::as_str(self) -> &'static str
 pub fn coqui_aos::ErrorClass::parse(&str) -> core::option::Option<Self>
 impl core::fmt::Display for coqui_aos::ErrorClass
 pub fn coqui_aos::ErrorClass::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum coqui_aos::ExtensionDigest
+pub coqui_aos::ExtensionDigest::File(alloc::string::String)
+pub coqui_aos::ExtensionDigest::Tree(alloc::string::String)
 #[non_exhaustive] pub enum coqui_aos::FailStep
 pub coqui_aos::FailStep::Deps
 pub coqui_aos::FailStep::Setup
@@ -508,6 +512,12 @@ pub coqui_aos::TreeEntry::Directory
 pub coqui_aos::TreeEntry::File(alloc::vec::Vec<u8>)
 pub coqui_aos::TreeEntry::Special
 pub coqui_aos::TreeEntry::Symlink
+#[non_exhaustive] pub enum coqui_aos::Unfit
+pub coqui_aos::Unfit::Kind
+pub coqui_aos::Unfit::Platform
+pub coqui_aos::Unfit::Version
+impl coqui_aos::Unfit
+pub const fn coqui_aos::Unfit::as_str(self) -> &'static str
 #[non_exhaustive] pub struct coqui_aos::CallerFacts
 pub coqui_aos::CallerFacts::env: alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::string::String>
 pub coqui_aos::CallerFacts::env_allow: alloc::vec::Vec<alloc::string::String>
@@ -521,6 +531,7 @@ pub fn coqui_aos::CallerFacts::profile(self, impl core::convert::Into<alloc::str
 pub fn coqui_aos::CallerFacts::role(self, impl core::convert::Into<alloc::string::String>) -> Self
 #[non_exhaustive] pub struct coqui_aos::Catalog
 pub coqui_aos::Catalog::description: core::option::Option<alloc::string::String>
+pub coqui_aos::Catalog::extensions: core::option::Option<coqui_aos::ExtensionSection>
 pub coqui_aos::Catalog::form: coqui_aos::CatalogForm
 pub coqui_aos::Catalog::homepage: core::option::Option<alloc::string::String>
 pub coqui_aos::Catalog::ignored: alloc::vec::Vec<alloc::string::String>
@@ -618,6 +629,23 @@ pub fn coqui_aos::Error::over(self, &'static str) -> Self
 impl core::error::Error for coqui_aos::Error
 impl core::fmt::Display for coqui_aos::Error
 pub fn coqui_aos::Error::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub struct coqui_aos::ExtensionEntry
+pub coqui_aos::ExtensionEntry::about: core::option::Option<coqui_aos::Document>
+pub coqui_aos::ExtensionEntry::description: core::option::Option<alloc::string::String>
+pub coqui_aos::ExtensionEntry::digest: coqui_aos::ExtensionDigest
+pub coqui_aos::ExtensionEntry::load: core::option::Option<alloc::string::String>
+pub coqui_aos::ExtensionEntry::needs: coqui_aos::ExtensionNeeds
+pub coqui_aos::ExtensionEntry::provider: alloc::string::String
+pub coqui_aos::ExtensionEntry::source: coqui_aos::Source
+#[non_exhaustive] pub struct coqui_aos::ExtensionNeeds
+pub coqui_aos::ExtensionNeeds::kind: core::option::Option<alloc::string::String>
+pub coqui_aos::ExtensionNeeds::platforms: core::option::Option<alloc::vec::Vec<alloc::string::String>>
+pub coqui_aos::ExtensionNeeds::version: core::option::Option<alloc::string::String>
+impl coqui_aos::ExtensionNeeds
+pub fn coqui_aos::ExtensionNeeds::fits(&self, &[(&str, &[&str])], &str, &str) -> core::result::Result<(), coqui_aos::Unfit>
+#[non_exhaustive] pub struct coqui_aos::ExtensionSection
+pub coqui_aos::ExtensionSection::entries: alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::ExtensionEntry>
+pub coqui_aos::ExtensionSection::refused: alloc::vec::Vec<(alloc::string::String, coqui_aos::EntryRefusal)>
 #[non_exhaustive] pub struct coqui_aos::Facts
 pub coqui_aos::Facts::allowed: core::option::Option<alloc::string::String>
 pub coqui_aos::Facts::base_env: alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::string::String>

@@ -16,7 +16,7 @@ rules and the classes they serve are in
 | `compose.json` | `requires`, cycles, composition order, contributions, environment across overlays (values chained from one overlay to the next, and `pre-env` hooks' output before every overlay's), and the defaults of `rules`, `context`, `skills` and `paths` |
 | `effective.json` | One overlay's environment, setup, setup phases, runtime, needs and non-default settings on a given OS, with the defaults of `paths`, `env_files`, `env_scripts` and `setup`, and env scripts off until the digest is allowed |
 | `templating.json` | `${NAME}` in context and in a bundled skill's body: the five `AOS_` names, an unknown name and other forms left as written, `$${`, options with a default, with a configured value and with the wrong type, a sensitive option kept out, and a value never read again |
-| `catalog.json` | Catalogs in both forms, overlays and skills, sources resolved beside the catalog, refused entries and ignored fields, names several catalogs share, and icons |
+| `catalog.json` | Catalogs in both forms, overlays, skills and extensions, sources resolved beside the catalog, refused entries and ignored fields, names several catalogs share, whether an extension fits a consumer, and icons |
 | `knowledge.json` | Knowledge served through MCP: the tools and their input schemas, argument validation, `kb_list` and `kb_read` over trees (what is knowledge, paths and links, lines, size bounds, written-out text, the overlay limit), the expanded default (`${...}`, `@path` includes: nesting, a depth, cycles, what is no include, code, the folder it is resolved from, an included file's own format, lines counted in the served text), markdown and raw as written, the extensions that read a first line, the real envsubst (GNU's defaults, each dialect's core, `pattern`, `features`, `undefined`) and Mustache (escaping and `escape=none`, delimiters, partials inside the overlay, standalone lines), templates (the aos and agentic names, `envsubst` and `mustache` with the facts, the caller's environment and context, the forms of the first line, an engine this server does not have and the context front matter it gets, refusals), the MCP result, and the hint |
 | `knowledge_search.json` | The rules a `kb_search` answer follows: the entry per overlay, the declared mode, `top`, the path limit, the passage and its lines and text, written-out text, and the order of passages |
 | `hooks.json` | Hooks: which run at each event and with what, `hook.<ext>` chosen by runtime, off until allowed at one digest (a project's over every file beside its configuration), a guard that is off keeping its overlay inactive, events a consumer cannot fire or fires in part; each event's payload; which calls a `match` selects; a run's output, and every way it fails, an attempt to grant, an undeclared variable and a control character included; several hooks of one event combined within the event's bound, and what a consumer cannot apply on a harness |
@@ -50,9 +50,9 @@ Error classes:
   `source-credentials`, `ref-not-allowed` and `manifest-file` in a manifest, and when one is fetched `pin-mismatch`,
   `not-a-skill`, `skill-unreadable`, `skill-name-mismatch`;
 - catalogs: `not-a-catalog` and the reading classes for a whole catalog; for an entry
-  `invalid-name`, `duplicate-name`, `invalid-entry`, `invalid-source`, `invalid-pin`,
+  `invalid-name`, `duplicate-name`, `invalid-entry`, `invalid-source`, `invalid-pin`, `unpinned`,
   `ref-not-allowed`, `leaves-repository`, `local-source`, `source-credentials`; for several catalogs `invalid-label`,
-  and for a requested name `ambiguous`, `not-found`;
+  for a requested name `ambiguous`, `not-found`, and for an extension that does not fit `kind`, `version`, `platform`;
 - icons: `icon-format`, `icon-too-large`, `icon-mismatch`, `icon-unreadable`, `icon-dimensions`;
 - knowledge: `invalid-arguments`, `invalid-path`, `unknown-overlay`, `ambiguous`, `not-found`, `link`, `not-text`,
   `too-large`, `include-error`, `invalid-option`, `template-error`, `line-range`; in a search entry `unavailable` and
