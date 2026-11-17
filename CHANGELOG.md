@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- A harness's `delegate` hint, from specification revision 6349e502 (`default`, `sources`, `max_running`): `validate`
+  checks it in Rust and Python (a float `max_running` is `integer-required`), and Rust reads it with
+  `harness_delegate_of` and `DelegateHint`. The vectors move to that revision.
 - Knowledge served through MCP, from specification revision ab00884, in every language: the knowledge set, argument
   checks, `kb_list`, `kb_read` with its line rules and the written-out text, a file's format named on the first line
   of a markdown file with `name=value` options (expanded `${NAME}` and `@path` includes by default, as written,

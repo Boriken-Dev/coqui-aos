@@ -494,6 +494,77 @@
       }
     },
     {
+      "id": "harness-delegate",
+      "description": "A delegation hint with every key.",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "default": "Codex",
+              "sources": [
+                "Codex",
+                "Pi"
+              ],
+              "max_running": 4
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "harness-delegate-empty",
+      "description": "Every key is optional; no sources suggests none, and no running tasks is 0.",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {}
+          }
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "harness-delegate-none",
+      "description": "An empty sources array and a limit of 0.",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "sources": [],
+              "max_running": 0
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "harness-delegate-default-outside-sources",
+      "description": "A default outside sources is no error.",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "default": "Claude",
+              "sources": [
+                "Codex"
+              ]
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
       "id": "mcp",
       "description": "Both transports and a skill link.",
       "document": {
@@ -1037,6 +1108,40 @@
       }
     },
     {
+      "id": "fixture-harness-delegate-max-running-float",
+      "description": "tests/fixtures/invalid/harness-delegate-max-running-float.cfg",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "max_running": 4.0
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness/codex/delegate/max_running"
+      }
+    },
+    {
+      "id": "fixture-harness-delegate-unknown-key",
+      "description": "tests/fixtures/invalid/harness-delegate-unknown-key.cfg",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "grant": true
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness/codex/delegate/grant"
+      }
+    },
+    {
       "id": "fixture-harness-skills-string",
       "description": "tests/fixtures/invalid/harness-skills-string.cfg",
       "document": {
@@ -1049,6 +1154,147 @@
       "expect": {
         "valid": false,
         "at": "/harness/codex/skills"
+      }
+    },
+    {
+      "id": "harness-delegate-default-empty",
+      "description": "An empty source name.",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "default": ""
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness/codex/delegate/default"
+      }
+    },
+    {
+      "id": "harness-delegate-default-number",
+      "description": "A default that is not text.",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "default": 3
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness/codex/delegate/default"
+      }
+    },
+    {
+      "id": "harness-delegate-sources-string",
+      "description": "sources is an array.",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "sources": "Codex"
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness/codex/delegate/sources"
+      }
+    },
+    {
+      "id": "harness-delegate-sources-duplicate",
+      "description": "A source twice.",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "sources": [
+                "Codex",
+                "Codex"
+              ]
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness/codex/delegate/sources"
+      }
+    },
+    {
+      "id": "harness-delegate-sources-empty-name",
+      "description": "An empty name in sources.",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "sources": [
+                ""
+              ]
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness/codex/delegate/sources/0"
+      }
+    },
+    {
+      "id": "harness-delegate-max-running-negative",
+      "description": "A negative limit.",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "max_running": -1
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness/codex/delegate/max_running"
+      }
+    },
+    {
+      "id": "harness-delegate-max-running-large",
+      "description": "A limit past 2147483647.",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "max_running": 2147483648
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness/codex/delegate/max_running"
+      }
+    },
+    {
+      "id": "harness-delegate-max-running-string",
+      "description": "A limit that is text.",
+      "document": {
+        "harness": {
+          "codex": {
+            "delegate": {
+              "max_running": "4"
+            }
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/harness/codex/delegate/max_running"
       }
     },
     {

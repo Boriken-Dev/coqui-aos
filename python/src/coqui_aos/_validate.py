@@ -768,6 +768,25 @@ class _Check:
                     self.boolean(item, there)
                 elif key in ("model", "effort"):
                     self.string(item, there, bool)
+                elif key == "delegate":
+                    self.delegate(item, there)
+
+    def delegate(self, value: Any, at: str) -> None:
+        """A harness's delegation hint: `default`, `sources` and `max_running`, and no other key."""
+        if not isinstance(value, dict):
+            self.fail(Class.SCHEMA, at)
+            return
+        for key, item in value.items():
+            there = _join(at, key)
+            if key == "default":
+                self.string(item, there, bool)
+            elif key == "sources":
+                self.each(item, there, lambda entry, here: self.string(entry, here, bool))
+                self.unique(item, there)
+            elif key == "max_running":
+                self.integer(item, there, 0, 2147483647)
+            else:
+                self.fail(Class.SCHEMA, there)
 
     def knowledge(self, value: Any, at: str) -> None:
         """The hint that the overlay's knowledge is meant to be served: ``serve``, a boolean."""

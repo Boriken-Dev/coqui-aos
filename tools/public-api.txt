@@ -553,6 +553,10 @@ pub coqui_aos::Composition::skills: alloc::collections::btree::map::BTreeMap<all
 impl core::error::Error for coqui_aos::Cycle
 impl core::fmt::Display for coqui_aos::Cycle
 pub fn coqui_aos::Cycle::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub struct coqui_aos::DelegateHint
+pub coqui_aos::DelegateHint::default: core::option::Option<alloc::string::String>
+pub coqui_aos::DelegateHint::max_running: core::option::Option<u32>
+pub coqui_aos::DelegateHint::sources: core::option::Option<alloc::vec::Vec<alloc::string::String>>
 #[non_exhaustive] pub struct coqui_aos::Dependency
 pub coqui_aos::Dependency::environment: alloc::string::String
 pub coqui_aos::Dependency::file: alloc::string::String
@@ -1151,6 +1155,7 @@ pub fn coqui_aos::fire_event(coqui_aos::HookEvent, &[coqui_aos::HookRun], core::
 pub fn coqui_aos::fire_event_after(coqui_aos::HookEvent, &[coqui_aos::HookRun], core::option::Option<&[&str]>, &coqui_aos::Settings, bool, usize) -> coqui_aos::FiredEvent
 pub fn coqui_aos::fire_event_for_call(coqui_aos::HookEvent, &[coqui_aos::HookRun], core::option::Option<&[&str]>, &coqui_aos::Settings, bool, usize, core::option::Option<&serde_json::value::Value>, core::option::Option<&str>) -> coqui_aos::FiredEvent
 pub fn coqui_aos::harness_context_of(&coqui_aos::Document, &str, &coqui_aos::OverlayTree) -> alloc::vec::Vec<alloc::string::String>
+pub fn coqui_aos::harness_delegate_of(&coqui_aos::Document, &str) -> core::option::Option<coqui_aos::DelegateHint>
 pub fn coqui_aos::hook_environment(coqui_aos::HookEvent, &[(&coqui_aos::Document, coqui_aos::Facts)], &coqui_aos::Environment, &alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::HookRun>, core::option::Option<&str>, &[coqui_aos::EnvSet]) -> core::result::Result<coqui_aos::Environment, coqui_aos::Error>
 pub fn coqui_aos::hook_matches(coqui_aos::HookEvent, core::option::Option<&[alloc::string::String]>, &str) -> bool
 pub fn coqui_aos::hook_order(&alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::Document>, &[alloc::string::String], &[alloc::string::String], &[coqui_aos::HookScope]) -> core::result::Result<alloc::vec::Vec<(coqui_aos::HookScope, alloc::string::String)>, coqui_aos::Cycle>
