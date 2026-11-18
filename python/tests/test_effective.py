@@ -101,7 +101,7 @@ def test_effective(case):
 
 
 def test_every_effective_case_ran():
-    assert len(EFFECTIVE) == 127
+    assert len(EFFECTIVE) == 128
 
 
 def test_setup_phase_follows_the_change():

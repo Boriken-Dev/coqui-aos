@@ -1064,6 +1064,55 @@
       }
     },
     {
+      "id": "env-session-variable-replaced",
+      "description": "An overlay sets a session variable like any other: its value replaces the base environment's.",
+      "manifest": {
+        "env": {
+          "AGENTS_HARNESS": "mine",
+          "AGENT": "mine"
+        },
+        "env_files": [
+          "env/a.cfg"
+        ]
+      },
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "files": {
+          "env/a.cfg": "AGENTS_ACCOUNT = \"work\"\n"
+        },
+        "base_env": {
+          "AGENTS_HARNESS": "claude-code",
+          "AGENTS_HOST": "dotagents",
+          "AGENTS_MODEL": "sonnet"
+        }
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "AGENTS_HARNESS": "mine",
+          "AGENTS_HOST": "dotagents",
+          "AGENTS_MODEL": "sonnet",
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools",
+          "AGENTS_ACCOUNT": "work",
+          "AGENT": "mine"
+        },
+        "env_scripts": [],
+        "setup": null,
+        "python": null,
+        "node": null,
+        "dependencies": [],
+        "needs": {
+          "interpreters": [],
+          "commands": []
+        },
+        "non_defaults": []
+      }
+    },
+    {
       "id": "env-file-path-conflict",
       "description": "An env file cannot set a variable the overlay's paths name.",
       "manifest": {

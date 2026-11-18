@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The vectors move to specification revision 29b60b8, which adds the session variables (`AGENTS_HOST`, `AGENTS_HARNESS`,
+  `AGENTS_VENDOR`, `AGENT`, `AGENTS_MODEL`, `AGENTS_PROJECT_ROOT` and the account's three) as the base environment a
+  consumer provides. They are not reserved: an overlay may set one like any variable, and every language already accepts
+  it. The new cases cover `env`, an env file, an env script and a hook's output.
 - A harness's `delegate` hint, from specification revision 6349e502 (`default`, `sources`, `max_running`): `validate`
   checks it in Rust and Python (a float `max_running` is `integer-required`), and Rust reads it with
   `harness_delegate_of` and `DelegateHint`. The vectors move to that revision.

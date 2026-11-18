@@ -1941,6 +1941,17 @@
       }
     },
     {
+      "id": "env-script-session-variable",
+      "description": "A session variable is set like any other.",
+      "format": "env-script",
+      "text": "{\"AGENTS_MODEL\": \"x\"}\n",
+      "expect": {
+        "data": {
+          "AGENTS_MODEL": "x"
+        }
+      }
+    },
+    {
       "id": "env-script-pretty",
       "description": "The whole output as one object over several lines, as json.dumps(x, indent=2) prints it.",
       "format": "env-script",

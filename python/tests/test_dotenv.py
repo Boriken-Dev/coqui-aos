@@ -14,7 +14,7 @@ MINE = [case for case in ALL if case["format"] in ("dotenv", "env-script")]
 def test_the_other_formats_belong_to_other_tests():
     # ``aos`` and ``catalog`` cases are read by the document and catalog tests.
     assert len(MINE) + len([c for c in ALL if c["format"] in ("aos", "catalog")]) == len(ALL)
-    assert len(MINE) == 68
+    assert len(MINE) == 69
 
 
 @pytest.mark.parametrize("case", MINE, ids=ids(MINE))

@@ -1,7 +1,7 @@
 {
   "about": "The Agent Overlay Specification's conformance vectors, copied byte for byte with git cat-file. Copy them again from a later revision, and change the commit and every digest, to move coqui-aos to it.",
   "repository": "https://github.com/Boriken-Dev/agent-overlay-spec",
-  "commit": "6349e502b7dc1fa74105f46e08f1b822da2c8025",
+  "commit": "29b60b89e74382cfd88a12818aa5e322d527053b",
   "path": "tests/vectors",
   "edition": "0.1.0-draft",
   "files": {
@@ -9,16 +9,16 @@
     "catalog.json": "sha256:9143c4bf25269cf857bf97ef3ef03f620af8a625d171cef31130b5c49d0cafac",
     "compose.json": "sha256:944a97e8c5e649c6e31143479f5b06e9b0de75f34b01b625ffec3165701b261b",
     "digest.json": "sha256:0f4cb90875bf0fe0696959226d46f2bc5093d6ee3a775fbcb759a17ae737ca59",
-    "effective.json": "sha256:756cd77317ec87087eef20f42b211785efb46907192e25f97984d730812585d4",
+    "effective.json": "sha256:671391470f0f2f8a5b9157918eeb4cca773936fdaeb292512c0674dd9b7e1db2",
     "front_matter.json": "sha256:947f36bfda65fe44edad661bfa2789ddb6134ceb5c5e19d778f84806065ea4bf",
-    "hooks.json": "sha256:d54a5c713813e2c896fbf2ecdd8f46597b0b88903bdf7c8e5ad1876296065334",
+    "hooks.json": "sha256:c14fcaced8ac74be86129f4388e315c2455a63a5cb8059063fcfc46a7a4d5ae4",
     "knowledge.json": "sha256:78b486d2bd9b1d705c05305f4f1435ad567c2ba618ab633f5576a8bd936cb09d",
     "knowledge_search.json": "sha256:2616aae410f8288d4ac30f58214c95bf8fd650772f7f8f05287481cec80482e2",
     "names.json": "sha256:15eb458747132c15bcba7c75a648bdd654a21f7e1ce4658b02888d80554c52c5",
-    "reading.json": "sha256:722c75dc6941e2f5fdd1f30ffe302c57b14f8bb606b7abb253dce07f8dc7e931",
+    "reading.json": "sha256:c91c3dcffbc01ed2f14a8eb7d48d56c51eeb0ae17f61a12ef2d9815c06f8acc3",
     "skills.json": "sha256:607922e8a4631eb170e937cd42873eb31279e0c6a7461bc5b114c50271482a32",
     "source.json": "sha256:fb531d1cc208fbc75281af95bd800ef7261976c8f625dc041afc3306676d829d",
     "templating.json": "sha256:49c874112ec47bbcebb3a9d1451109992912bd7b64c92c9e8fc3a83aff254c76",
-    "validation.json": "sha256:e059fdba5fa128a37781ee4d36a1a5a11b1dde0613132ee9d9708abaf8364252"
+    "validation.json": "sha256:3c6e564c07cdd562e71fb8dce15a232ec6987963cc091e638ffbfe85e80230a6"
   }
 }

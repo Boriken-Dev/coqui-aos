@@ -3712,6 +3712,32 @@
       }
     },
     {
+      "id": "env-session-names-are-ordinary",
+      "description": "A session variable is set like any other: an overlay's value replaces the consumer's, and the names a consumer adds or another tool uses are no different.",
+      "document": {
+        "env": {
+          "AGENTS_HOST": "x",
+          "AGENTS_HARNESS": "x",
+          "AGENTS_VENDOR": "x",
+          "AGENT": "x",
+          "AGENTS_MODEL": "x",
+          "AGENTS_PROJECT_ROOT": "x",
+          "AGENTS_ACCOUNT": "x",
+          "AGENTS_ACCOUNT_KIND": "x",
+          "AGENTS_ACCOUNT_PROVIDER": "x",
+          "AGENTS_EFFORT": "high",
+          "AGENTS_HOME": "x",
+          "AGENTS_PYTHON": "y",
+          "AGENTS": "z",
+          "AGENT_NAME": "w",
+          "MY_AGENTS_HARNESS": "v"
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
       "id": "file-key-escape",
       "description": "A file provider's key is a relative path.",
       "document": {

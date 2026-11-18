@@ -5036,6 +5036,31 @@
       }
     },
     {
+      "id": "output-env-session-variable",
+      "description": "A hook sets a session variable like any other.",
+      "event": "session-start",
+      "run": {
+        "stdout": "{\"env\": {\"AGENTS_ACCOUNT\": \"work\"}}",
+        "sets": [
+          "TOOL_MODE",
+          "OLD_MODE",
+          "TICKET",
+          "A",
+          "A-B",
+          "DOCS_OVERLAY_ROOT",
+          "aos_hook_event",
+          "AGENTS_ACCOUNT"
+        ]
+      },
+      "expect": {
+        "output": {
+          "env": {
+            "AGENTS_ACCOUNT": "work"
+          }
+        }
+      }
+    },
+    {
       "id": "output-env-on-prompt",
       "description": "prompt takes variables where the consumer can.",
       "event": "prompt",
