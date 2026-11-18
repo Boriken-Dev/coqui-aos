@@ -459,6 +459,14 @@ pub const fn coqui_aos::Runtime::as_str(self) -> &'static str
 pub fn coqui_aos::Runtime::named(&str) -> core::option::Option<Self>
 impl core::fmt::Display for coqui_aos::Runtime
 pub fn coqui_aos::Runtime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum coqui_aos::ScriptFailure
+pub coqui_aos::ScriptFailure::Exit
+pub coqui_aos::ScriptFailure::NotRun
+pub coqui_aos::ScriptFailure::Output
+pub coqui_aos::ScriptFailure::Timeout
+pub coqui_aos::ScriptFailure::TooLarge
+impl coqui_aos::ScriptFailure
+pub const fn coqui_aos::ScriptFailure::as_str(self) -> &'static str
 #[non_exhaustive] pub enum coqui_aos::SearchMode
 pub coqui_aos::SearchMode::Llm
 pub coqui_aos::SearchMode::Meaning
@@ -539,6 +547,7 @@ pub coqui_aos::CatalogSection::refused: alloc::vec::Vec<(alloc::string::String, 
 pub coqui_aos::ComposedEnvironment::env: core::result::Result<coqui_aos::Environment, coqui_aos::Error>
 pub coqui_aos::ComposedEnvironment::hook_non_defaults: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
 pub coqui_aos::ComposedEnvironment::hook_reports: alloc::vec::Vec<coqui_aos::HookReport>
+pub coqui_aos::ComposedEnvironment::script_reports: alloc::vec::Vec<coqui_aos::ScriptReport>
 #[non_exhaustive] pub struct coqui_aos::Composition
 pub coqui_aos::Composition::active: alloc::vec::Vec<alloc::string::String>
 pub coqui_aos::Composition::context: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
@@ -937,6 +946,16 @@ pub fn coqui_aos::Renderers::default() -> Self
 #[non_exhaustive] pub struct coqui_aos::Resolution
 pub coqui_aos::Resolution::install_order: alloc::vec::Vec<alloc::string::String>
 pub coqui_aos::Resolution::missing: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
+#[non_exhaustive] pub struct coqui_aos::ScriptCall<'a>
+pub coqui_aos::ScriptCall::env: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
+pub coqui_aos::ScriptCall::identity: &'a str
+pub coqui_aos::ScriptCall::index: usize
+pub coqui_aos::ScriptCall::script: &'a coqui_aos::ScriptRun
+#[non_exhaustive] pub struct coqui_aos::ScriptReport
+pub coqui_aos::ScriptReport::failure: core::option::Option<coqui_aos::ScriptFailure>
+pub coqui_aos::ScriptReport::identity: alloc::string::String
+pub coqui_aos::ScriptReport::path: alloc::string::String
+pub coqui_aos::ScriptReport::set: alloc::vec::Vec<(alloc::string::String, bool)>
 #[non_exhaustive] pub struct coqui_aos::ScriptRun
 pub coqui_aos::ScriptRun::args: alloc::vec::Vec<alloc::string::String>
 pub coqui_aos::ScriptRun::interpreter: alloc::string::String
@@ -1137,6 +1156,7 @@ pub fn coqui_aos::catalog_format(&str) -> core::option::Option<&'static str>
 pub fn coqui_aos::check_requirements(&str, bool) -> core::result::Result<(), coqui_aos::Error>
 pub fn coqui_aos::compose(&alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::Document>, &[alloc::string::String], &alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::OverlayTree>) -> core::result::Result<coqui_aos::Composition, coqui_aos::Cycle>
 pub fn coqui_aos::composed_environment(&[(&coqui_aos::Document, coqui_aos::Facts)], coqui_aos::Environment, &alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::HookRun>, &mut alloc::vec::Vec<coqui_aos::NonDefaultSetting>) -> coqui_aos::ComposedEnvironment
+pub fn coqui_aos::composed_environment_running(&[(&coqui_aos::Document, coqui_aos::Facts)], coqui_aos::Environment, &alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::HookRun>, &mut alloc::vec::Vec<coqui_aos::NonDefaultSetting>, &mut dyn core::ops::function::FnMut(&coqui_aos::ScriptCall<'_>) -> coqui_aos::ScriptResult) -> coqui_aos::ComposedEnvironment
 pub fn coqui_aos::composition_order(&alloc::collections::btree::map::BTreeMap<alloc::string::String, coqui_aos::Document>, &[alloc::string::String]) -> alloc::vec::Vec<alloc::string::String>
 pub fn coqui_aos::context_file_text<'a>(&'a [u8], &coqui_aos::Settings) -> core::result::Result<&'a [u8], coqui_aos::Error>
 pub fn coqui_aos::context_ignored(&coqui_aos::Document, &coqui_aos::OverlayTree) -> alloc::vec::Vec<alloc::string::String>
@@ -1222,3 +1242,4 @@ pub type coqui_aos::Document = serde_json::map::Map<alloc::string::String, serde
 pub type coqui_aos::EnvSet = alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
 pub type coqui_aos::Lookup<'a> = &'a dyn core::ops::function::Fn(&str) -> core::result::Result<core::option::Option<alloc::string::String>, coqui_aos::Error>
 pub type coqui_aos::ScriptOutput = alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
+pub type coqui_aos::ScriptResult = core::result::Result<alloc::vec::Vec<u8>, coqui_aos::ScriptFailure>

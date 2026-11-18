@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Rust: `composed_environment_running` runs each overlay's env scripts where the order of application puts them (after that
+  overlay's `env_files`, `env` and `paths`), through a callback that starts the process and returns its standard output or
+  why it gave none (`ScriptFailure`). It reads the output as the specification defines, applies it unsubstituted over
+  the stack, reports `env-sensitive`, and for any failure applies nothing and reports it in
+  `ComposedEnvironment::script_reports`. `composed_environment` still runs none.
 - The vectors move to specification revision 29b60b8, which adds the session variables (`AGENTS_HOST`, `AGENTS_HARNESS`,
   `AGENTS_VENDOR`, `AGENT`, `AGENTS_MODEL`, `AGENTS_PROJECT_ROOT` and the account's three) as the base environment a
   consumer provides. They are not reserved: an overlay may set one like any variable, and every language already accepts
