@@ -85,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `fire_event_after` (Rust) and an optional `context_used` (Python, Dart, TypeScript); `hook_order` and
   `hook_environment`; `Facts` fields `gate_env_scripts`, `digest` and `allowed`; and `Effective.reports`.
 
-- guatiao is pinned at `e0136dcc`, so the coqui family builds against one revision.
+- guatiao is pinned at `75f9ef4a`, so the coqui family builds against one revision.
 - The three implementations agree on behaviours their reviews settled, and the vectors now hold all
   three to them (specification commit `268fbe4`): a fetched skill lists the files its pin covers
   (`files`) and an entry under an excluded name is no refusal; a refusal's subject has its control,
